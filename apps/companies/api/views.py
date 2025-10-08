@@ -1,6 +1,6 @@
 from rest_framework import viewsets
-from base.models import *
-from base.api.serializers import *
+from apps.companies.models import *
+from apps.companies.api.serializers import *
 
 class IndustryViewSet(viewsets.ModelViewSet):
     queryset = Industry.objects.all()

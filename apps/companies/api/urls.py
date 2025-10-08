@@ -5,14 +5,14 @@ Defines all API endpoints and routing
 
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-from base.views import *
+from apps.companies.api.views import *
 
 router = DefaultRouter()
 router.register(r'industries', IndustryViewSet, basename='industry')
 router.register(r'companies', CompanyViewSet, basename='company')
 
 urlpatterns = [
-    path('', include(router.urls)),
+    path('api/', include(router.urls)),
 ]
 
 urlpatterns += router.urls

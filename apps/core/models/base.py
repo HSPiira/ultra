@@ -1,7 +1,7 @@
 from django.db import models
 from django.utils import timezone
 from ..enums.choices import BusinessStatusChoices
-from ..utils import generate_cuid
+from ..utils.generators import generate_cuid
 
 # ---------------------------------------------------------------------
 # Custom Manager for Soft Delete
