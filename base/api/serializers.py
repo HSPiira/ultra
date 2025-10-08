@@ -1,23 +1,25 @@
 from rest_framework import serializers
 from base.models import *
 
-class CompanyTypeSerializer(serializers.ModelSerializer):
+class BaseSerializer(serializers.ModelSerializer):
     class Meta:
-        model = CompanyType
-        fields = '__all__'
+        fields = ['id', 'created_at', 'updated_at', 'status']
         read_only_fields = ['id', 'created_at', 'updated_at']
 
-class CompanySerializer(serializers.ModelSerializer):
-    class Meta:
+class IndustrySerializer(BaseSerializer):
+    class Meta(BaseSerializer.Meta):
+        model = Industry
+        fields = BaseSerializer.Meta.fields + ['industry_name', 'description']
+
+class CompanySerializer(BaseSerializer):
+    class Meta(BaseSerializer.Meta):
         model = Company
-        fields = '__all__'
-        read_only_fields = ['id', 'created_at', 'updated_at']
+        fields = BaseSerializer.Meta.fields + ['company_name', 'company_address', 'industry', 'contact_person', 'email', 'phone_number', 'website', 'remark']
 
-class SchemeSerializer(serializers.ModelSerializer):
-    class Meta:
+class SchemeSerializer(BaseSerializer):
+    class Meta(BaseSerializer.Meta):
         model = Scheme
-        fields = '__all__'
-        read_only_fields = ['id', 'created_at', 'updated_at']
+        fields = BaseSerializer.Meta.fields + ['scheme_name', 'company', 'description', 'card_code', 'start_date', 'end_date', 'termination_date', 'limit_amount', 'family_applicable', 'remark']
 
     def validate(self, data):
         instance = Scheme(**data)
