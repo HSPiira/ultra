@@ -1,0 +1,13 @@
+"""
+URL Configuration for scheme app API
+Defines all API endpoints and routing
+"""
+
+from django.urls import path, include
+from rest_framework.routers import DefaultRouter
+from apps.schemes.api.views import *
+
+router = DefaultRouter()
+router.register(r'schemes', SchemeViewSet, basename='scheme')
+
+urlpatterns = router.urls

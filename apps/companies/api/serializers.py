@@ -1,10 +1,5 @@
-from rest_framework import serializers
 from apps.companies.models import *
-
-class BaseSerializer(serializers.ModelSerializer):
-    class Meta:
-        fields = ['id', 'created_at', 'updated_at', 'status']
-        read_only_fields = ['id', 'created_at', 'updated_at']
+from apps.core.utils.serializers import BaseSerializer
 
 class IndustrySerializer(BaseSerializer):
     class Meta(BaseSerializer.Meta):

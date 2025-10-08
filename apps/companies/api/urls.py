@@ -11,8 +11,4 @@ router = DefaultRouter()
 router.register(r'industries', IndustryViewSet, basename='industry')
 router.register(r'companies', CompanyViewSet, basename='company')
 
-urlpatterns = [
-    path('api/', include(router.urls)),
-]
-
-urlpatterns += router.urls
+urlpatterns = router.urls
