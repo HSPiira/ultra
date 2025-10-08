@@ -14,8 +14,8 @@ class IndustryViewSet(viewsets.ModelViewSet):
     serializer_class = IndustrySerializer
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     filterset_fields = ['status']
-    search_fields = ['name', 'description']
-    ordering_fields = ['created_at', 'updated_at', 'name']
+    search_fields = ['industry_name', 'description']
+    ordering_fields = ['created_at', 'updated_at', 'industry_name']
 
     def get_queryset(self):
         qs = Industry.objects.filter(is_deleted=False)
@@ -40,7 +40,7 @@ class CompanyViewSet(viewsets.ModelViewSet):
         query = self.request.query_params.get('search', '').strip()
         filters_dict = {
             'status': self.request.query_params.get('status'),
-            'type': self.request.query_params.get('industry'),
+            'industry': self.request.query_params.get('industry'),
             'query': query,
         }
         return CompanyService.filter_companies(filters_dict)
