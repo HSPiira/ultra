@@ -33,7 +33,7 @@ class Company(BaseModel):
     class Meta:
         verbose_name = "Company"
         verbose_name_plural = "Companies"
-        db_table = "nm_companies"
+        db_table = "companies"
 
     def __str__(self):
         return self.company_name

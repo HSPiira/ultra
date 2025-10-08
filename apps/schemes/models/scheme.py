@@ -2,7 +2,6 @@ from django.db import models
 from django.core.validators import MinValueValidator
 from django.forms import ValidationError
 from datetime import timedelta
-from django.utils import timezone
 from apps.companies.models import Company
 from apps.core.models.base import BaseModel
 

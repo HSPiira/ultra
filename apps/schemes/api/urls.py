@@ -9,5 +9,8 @@ from apps.schemes.api.views import *
 
 router = DefaultRouter()
 router.register(r'schemes', SchemeViewSet, basename='scheme')
+router.register(r'plans', PlanViewSet, basename='plan')
+router.register(r'benefits', BenefitViewSet, basename='benefit')
+router.register(r'scheme-items', SchemeItemViewSet, basename='schemeitem')
 
 urlpatterns = router.urls

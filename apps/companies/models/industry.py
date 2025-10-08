@@ -11,7 +11,7 @@ class Industry(BaseModel):
     class Meta:
         verbose_name = "Industry"
         verbose_name_plural = "Industries"
-        db_table = "nm_industries"
+        db_table = "industries"
 
     def __str__(self):
         return self.industry_name
