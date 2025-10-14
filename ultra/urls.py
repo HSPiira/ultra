@@ -22,12 +22,14 @@ from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView, Sp
 from apps.companies.api.urls import router as companies_router
 from apps.schemes.api.urls import router as schemes_router
 from apps.core.views import APILoginView, APILogoutView
+from apps.providers.api.urls import router as providers_router
 from apps.members.api.urls import router as members_router
 
 router = DefaultRouter()
 router.registry.extend(companies_router.registry)
 router.registry.extend(schemes_router.registry)
 router.registry.extend(members_router.registry)
+router.registry.extend(providers_router.registry)
 
 urlpatterns = [
     path('admin/', admin.site.urls),
