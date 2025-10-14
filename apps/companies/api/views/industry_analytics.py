@@ -2,7 +2,7 @@ from rest_framework import viewsets, status, permissions
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from django.http import HttpResponse
-from rest_framework_simplejwt.authentication import JWTAuthentication
+# JWT authentication removed - using global session authentication
 
 from apps.companies.services.industry_service import IndustryService
 from apps.companies.api.serializers import IndustrySerializer
@@ -22,8 +22,7 @@ class IndustryAnalyticsViewSet(viewsets.ViewSet):
     """
     Industry analytics and advanced operations.
     """
-    authentication_classes = [JWTAuthentication]
-    permission_classes = [permissions.IsAuthenticated]
+    # Using global authentication settings from REST_FRAMEWORK
 
     @action(detail=False, methods=['get'])
     def statistics(self, request):

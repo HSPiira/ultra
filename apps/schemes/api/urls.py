@@ -5,7 +5,12 @@ Defines all API endpoints and routing
 
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-from apps.schemes.api.views import *
+from apps.schemes.api.views import (
+    SchemeViewSet,
+    PlanViewSet,
+    BenefitViewSet,
+    SchemeItemViewSet,
+)
 
 router = DefaultRouter()
 router.register(r'schemes', SchemeViewSet, basename='scheme')

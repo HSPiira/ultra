@@ -2,7 +2,7 @@ from rest_framework import viewsets, status, permissions
 from rest_framework.response import Response
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import filters
-from rest_framework_simplejwt.authentication import JWTAuthentication
+# JWT authentication removed - using global session authentication
 
 from apps.companies.models import Company, Industry
 from apps.companies.api.serializers import CompanySerializer, IndustrySerializer
@@ -21,8 +21,7 @@ class IndustryViewSet(viewsets.ModelViewSet):
     Uses IndustryService for business logic.
     """
     serializer_class = IndustrySerializer
-    authentication_classes = [JWTAuthentication]
-    permission_classes = [permissions.IsAuthenticated]
+    # Using global authentication settings from REST_FRAMEWORK
 
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     filterset_fields = ['status']
@@ -72,8 +71,7 @@ class CompanyViewSet(viewsets.ModelViewSet):
     Uses CompanyService for business logic.
     """
     serializer_class = CompanySerializer
-    authentication_classes = [JWTAuthentication]
-    permission_classes = [permissions.IsAuthenticated]
+    # Using global authentication settings from REST_FRAMEWORK
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     filterset_fields = ['status', 'industry']
     search_fields = ['company_name', 'contact_person', 'email', 'phone_number']
