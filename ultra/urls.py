@@ -17,18 +17,25 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
+from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView, SpectacularRedocView
 
 from apps.companies.api.urls import router as companies_router
 from apps.schemes.api.urls import router as schemes_router
 from apps.core.views import APILoginView, APILogoutView
+from apps.members.api.urls import router as members_router
 
 router = DefaultRouter()
 router.registry.extend(companies_router.registry)
 router.registry.extend(schemes_router.registry)
+router.registry.extend(members_router.registry)
 
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/login/', APILoginView.as_view(), name='api_login'),
     path('api/logout/', APILogoutView.as_view(), name='api_logout'),
+    # OpenAPI schema and docs
+    path('api/schema/', SpectacularAPIView.as_view(), name='schema'),
+    path('api/docs/', SpectacularSwaggerView.as_view(url_name='schema'), name='swagger-ui'),
+    path('api/redoc/', SpectacularRedocView.as_view(url_name='schema'), name='redoc'),
     path('', include(router.urls)),
 ]
