@@ -24,12 +24,14 @@ from apps.schemes.api.urls import router as schemes_router
 from apps.core.views import APILoginView, APILogoutView
 from apps.providers.api.urls import router as providers_router
 from apps.members.api.urls import router as members_router
+from apps.medical_catalog.api.urls import router as medical_catalog_router
 
 router = DefaultRouter()
 router.registry.extend(companies_router.registry)
 router.registry.extend(schemes_router.registry)
 router.registry.extend(members_router.registry)
 router.registry.extend(providers_router.registry)
+router.registry.extend(medical_catalog_router.registry)
 
 urlpatterns = [
     path('admin/', admin.site.urls),

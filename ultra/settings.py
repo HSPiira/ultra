@@ -44,6 +44,8 @@ INSTALLED_APPS = [
     'apps.companies',
     'apps.schemes',
     'apps.members',
+    'apps.providers',
+    'apps.medical_catalog',
 ]
 
 MIDDLEWARE = [
