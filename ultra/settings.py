@@ -46,6 +46,7 @@ INSTALLED_APPS = [
     'apps.members',
     'apps.providers',
     'apps.medical_catalog',
+    'apps.claims',
 ]
 
 MIDDLEWARE = [

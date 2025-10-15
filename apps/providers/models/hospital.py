@@ -22,4 +22,11 @@ class Hospital(BaseModel):
     def __str__(self):
         return self.name
 
+    def soft_delete(self, user=None):
+        # Prevent deletion if claims exist for this hospital
+        from apps.claims.models import Claim
+        if Claim.all_objects.filter(hospital_id=self.id, is_deleted=False).exists():
+            raise ValidationError("Cannot delete hospital with existing claims.")
+        super().soft_delete(user=user)
+
 
