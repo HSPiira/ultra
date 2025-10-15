@@ -30,3 +30,16 @@ class Hospital(BaseModel):
         super().soft_delete(user=user)
 
 
+class HospitalManager(models.Manager):
+    def by_name(self, name: str):
+        return self.filter(name__iexact=name)
+
+    def branches_of(self, parent_id: str):
+        return self.filter(branch_of_id=parent_id)
+
+
+# Managers
+Hospital.objects = HospitalManager()
+Hospital.all_objects = models.Manager()
+
+

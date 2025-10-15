@@ -19,3 +19,16 @@ class Service(BaseModel):
         return self.name
 
 
+class ServiceManager(models.Manager):
+    def by_name(self, name: str):
+        return self.filter(name__iexact=name)
+
+    def by_category(self, category: str):
+        return self.filter(category__iexact=category)
+
+
+# Managers
+Service.objects = ServiceManager()
+Service.all_objects = models.Manager()
+
+

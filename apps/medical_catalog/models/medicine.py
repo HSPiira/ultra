@@ -20,3 +20,16 @@ class Medicine(BaseModel):
         return self.name
 
 
+class MedicineManager(models.Manager):
+    def by_name(self, name: str):
+        return self.filter(name__iexact=name)
+
+    def by_form(self, dosage_form: str):
+        return self.filter(dosage_form__iexact=dosage_form)
+
+
+# Managers
+Medicine.objects = MedicineManager()
+Medicine.all_objects = models.Manager()
+
+

@@ -5,8 +5,12 @@ from django.core.validators import MinValueValidator
 
 from apps.core.models.base import BaseModel
 from apps.providers.models import Hospital
+from apps.core.models.base import ActiveManager
+from apps.core.enums.choices import BusinessStatusChoices
 
-
+# ---------------------------------------------------------------------
+# HospitalItemPrice
+# ---------------------------------------------------------------------
 class HospitalItemPrice(BaseModel):
     hospital = models.ForeignKey(Hospital, on_delete=models.CASCADE)
     content_type = models.ForeignKey(ContentType, on_delete=models.CASCADE)
@@ -17,6 +21,8 @@ class HospitalItemPrice(BaseModel):
 
     class Meta:
         db_table = 'hospital_item_prices'
+        verbose_name = "Hospital Item Price"
+        verbose_name_plural = "Hospital Item Prices"
         constraints = [
             models.UniqueConstraint(fields=['hospital','content_type','object_id'], name='uniq_hospital_item_price')
         ]
@@ -25,14 +31,23 @@ class HospitalItemPrice(BaseModel):
         ]
 
 
-class HospitalItemPriceManager(models.Manager):
+# ---------------------------------------------------------------------
+# HospitalItemPriceManager
+# ---------------------------------------------------------------------
+class HospitalItemPriceManager(ActiveManager):
     def get_price(self, *, hospital_id: str, content_type: ContentType, object_id: int):
         return self.filter(
             hospital_id=hospital_id,
             content_type=content_type,
             object_id=object_id,
             available=True,
-            status='ACTIVE',
+            status=BusinessStatusChoices.ACTIVE,
         ).values_list('amount', flat=True).first()
+
+# ---------------------------------------------------------------------
+# Managers
+# ---------------------------------------------------------------------
+HospitalItemPrice.objects = HospitalItemPriceManager()
+HospitalItemPrice.all_objects = models.Manager()
 
 

@@ -67,3 +67,21 @@ class Scheme(BaseModel):
         if not self.termination_date and self.end_date:
             self.termination_date = self.end_date + timedelta(days=1)
         self.save(update_fields=["status", "termination_date", "updated_at"])
+
+
+class SchemeManager(models.Manager):
+    def active(self):
+        return self.filter(status=BusinessStatusChoices.ACTIVE)
+
+    def for_company(self, company_id: str):
+        return self.filter(company_id=company_id)
+
+    def active_on(self, when_date):
+        return self.filter(start_date__lte=when_date).filter(
+            models.Q(termination_date__isnull=True) | models.Q(termination_date__gt=when_date)
+        ).filter(status=BusinessStatusChoices.ACTIVE)
+
+
+# Managers
+Scheme.objects = SchemeManager()
+Scheme.all_objects = models.Manager()

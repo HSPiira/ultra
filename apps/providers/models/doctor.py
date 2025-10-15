@@ -32,3 +32,16 @@ class Doctor(BaseModel):
         super().soft_delete(user=user)
 
 
+class DoctorManager(models.Manager):
+    def by_license(self, license_number: str):
+        return self.filter(license_number=license_number)
+
+    def for_hospital(self, hospital_id: str):
+        return self.filter(hospitals__id=hospital_id).distinct()
+
+
+# Managers
+Doctor.objects = DoctorManager()
+Doctor.all_objects = models.Manager()
+
+

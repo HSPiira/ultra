@@ -124,3 +124,22 @@ class Person(BaseModel):
 
         if errors:
             raise ValidationError(errors)
+
+
+class PersonManager(models.Manager):
+    def for_company(self, company_id: str):
+        return self.filter(company_id=company_id)
+
+    def for_scheme(self, scheme_id: str):
+        return self.filter(scheme_id=scheme_id)
+
+    def dependants_of(self, parent_id: str):
+        return self.filter(parent_id=parent_id)
+
+    def by_card_number(self, card_number: str):
+        return self.filter(card_number=card_number)
+
+
+# Managers
+Person.objects = PersonManager()
+Person.all_objects = models.Manager()

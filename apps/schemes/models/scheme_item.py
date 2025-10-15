@@ -54,3 +54,25 @@ class SchemeItem(BaseModel):
 
     def __str__(self):
         return f"{self.scheme.scheme_name} - {self.item}"
+
+
+class SchemeItemManager(models.Manager):
+    def for_scheme(self, scheme_id: str):
+        return self.filter(scheme_id=scheme_id)
+
+    def for_plan(self, plan_id: str):
+        from django.contrib.contenttypes.models import ContentType
+        from apps.schemes.models import Plan
+        ct = ContentType.objects.get_for_model(Plan)
+        return self.filter(content_type=ct, object_id=plan_id)
+
+    def for_benefit(self, benefit_id: str):
+        from django.contrib.contenttypes.models import ContentType
+        from apps.schemes.models import Benefit
+        ct = ContentType.objects.get_for_model(Benefit)
+        return self.filter(content_type=ct, object_id=benefit_id)
+
+
+# Managers
+SchemeItem.objects = SchemeItemManager()
+SchemeItem.all_objects = models.Manager()
