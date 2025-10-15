@@ -21,8 +21,9 @@ class ProvidersModelTests(TestCase):
 
     def test_doctor_create(self):
         hospital = Hospital.objects.create(name="Clinic A")
-        doctor = Doctor.objects.create(hospital=hospital, name="Dr. Who")
+        doctor = Doctor.objects.create(name="Dr. Who")
+        doctor.hospitals.add(hospital)
         self.assertEqual(Doctor.objects.count(), 1)
-        self.assertEqual(doctor.hospital, hospital)
+        self.assertIn(hospital, list(doctor.hospitals.all()))
 
 

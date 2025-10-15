@@ -51,7 +51,11 @@ class ProvidersAPITests(TestCase):
         self.assertTrue(len(res.data) >= 1)
 
         # Update
-        res = self.client.put(reverse('doctor-detail', args=[doctor_id]), {"hospital": hospital.id, "name": "Dr. Jane D"}, format='json')
+        res = self.client.put(
+            reverse('doctor-detail', args=[doctor_id]),
+            {"hospital": hospital.id, "name": "Dr. Jane D"},
+            format='json',
+        )
         self.assertEqual(res.status_code, 200)
         self.assertEqual(res.data["name"], "Dr. Jane D")
 

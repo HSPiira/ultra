@@ -2,6 +2,8 @@ from rest_framework import viewsets, status, permissions
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from django.http import HttpResponse
+from drf_spectacular.utils import extend_schema, OpenApiParameter
+from drf_spectacular.types import OpenApiTypes
 # JWT authentication removed - using global session authentication
 
 from apps.companies.services.company_service import CompanyService
@@ -24,6 +26,7 @@ class CompanyAnalyticsViewSet(viewsets.ViewSet):
     Company analytics and advanced operations.
     """
     # Using global authentication settings from REST_FRAMEWORK
+    serializer_class = CompanySerializer
 
     @action(detail=False, methods=['get'])
     def statistics(self, request):
@@ -138,8 +141,12 @@ class CompanyAnalyticsViewSet(viewsets.ViewSet):
         integrity_results = company_data_integrity_check()
         return Response(integrity_results)
 
+    @extend_schema(parameters=[
+        OpenApiParameter(name='pk', type=OpenApiTypes.STR, location=OpenApiParameter.PATH),
+        OpenApiParameter(name='id', type=OpenApiTypes.STR, location=OpenApiParameter.PATH),
+    ])
     @action(detail=True, methods=['get'])
-    def health_score(self, request, pk=None):
+    def health_score(self, request, pk: str | None = None):
         """Get health score for a specific company."""
         health_score = company_health_score_get(company_id=pk)
         if not health_score:
@@ -149,16 +156,24 @@ class CompanyAnalyticsViewSet(viewsets.ViewSet):
             )
         return Response(health_score)
 
+    @extend_schema(parameters=[
+        OpenApiParameter(name='pk', type=OpenApiTypes.STR, location=OpenApiParameter.PATH),
+        OpenApiParameter(name='id', type=OpenApiTypes.STR, location=OpenApiParameter.PATH),
+    ])
     @action(detail=True, methods=['get'])
-    def schemes(self, request, pk=None):
+    def schemes(self, request, pk: str | None = None):
         """Get all schemes for a specific company."""
         schemes = company_schemes_list(company_id=pk)
         from apps.schemes.api.serializers import SchemeSerializer
         serializer = SchemeSerializer(schemes, many=True)
         return Response(serializer.data)
 
+    @extend_schema(parameters=[
+        OpenApiParameter(name='pk', type=OpenApiTypes.STR, location=OpenApiParameter.PATH),
+        OpenApiParameter(name='id', type=OpenApiTypes.STR, location=OpenApiParameter.PATH),
+    ])
     @action(detail=True, methods=['get'])
-    def contact_info(self, request, pk=None):
+    def contact_info(self, request, pk: str | None = None):
         """Get formatted contact information for a specific company."""
         contact_info = company_contact_info_get(company_id=pk)
         if not contact_info:
@@ -168,8 +183,12 @@ class CompanyAnalyticsViewSet(viewsets.ViewSet):
             )
         return Response(contact_info)
 
+    @extend_schema(parameters=[
+        OpenApiParameter(name='pk', type=OpenApiTypes.STR, location=OpenApiParameter.PATH),
+        OpenApiParameter(name='id', type=OpenApiTypes.STR, location=OpenApiParameter.PATH),
+    ])
     @action(detail=True, methods=['post'])
-    def suspend(self, request, pk=None):
+    def suspend(self, request, pk: str | None = None):
         """Suspend a company with reason."""
         reason = request.data.get('reason', 'No reason provided')
         company = CompanyService.company_suspend(
@@ -180,8 +199,12 @@ class CompanyAnalyticsViewSet(viewsets.ViewSet):
         serializer = CompanySerializer(company)
         return Response(serializer.data)
 
+    @extend_schema(parameters=[
+        OpenApiParameter(name='pk', type=OpenApiTypes.STR, location=OpenApiParameter.PATH),
+        OpenApiParameter(name='id', type=OpenApiTypes.STR, location=OpenApiParameter.PATH),
+    ])
     @action(detail=True, methods=['post'])
-    def activate(self, request, pk=None):
+    def activate(self, request, pk: str | None = None):
         """Activate a company."""
         company = CompanyService.company_activate(
             company_id=pk, 
@@ -190,8 +213,12 @@ class CompanyAnalyticsViewSet(viewsets.ViewSet):
         serializer = CompanySerializer(company)
         return Response(serializer.data)
 
+    @extend_schema(parameters=[
+        OpenApiParameter(name='pk', type=OpenApiTypes.STR, location=OpenApiParameter.PATH),
+        OpenApiParameter(name='id', type=OpenApiTypes.STR, location=OpenApiParameter.PATH),
+    ])
     @action(detail=True, methods=['post'])
-    def deactivate(self, request, pk=None):
+    def deactivate(self, request, pk: str | None = None):
         """Deactivate a company."""
         company = CompanyService.company_deactivate(
             company_id=pk, 

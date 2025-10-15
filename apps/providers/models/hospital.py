@@ -1,9 +1,10 @@
 from django.db import models
+from django.core.exceptions import ValidationError
 from apps.core.models.base import BaseModel
 
 
 class Hospital(BaseModel):
-    name = models.CharField(max_length=200)
+    name = models.CharField(max_length=200, unique=True)
     address = models.TextField(blank=True)
     branch_of = models.ForeignKey(
         'self', null=True, blank=True, related_name='branches', on_delete=models.CASCADE

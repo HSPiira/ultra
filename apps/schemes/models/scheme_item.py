@@ -23,8 +23,8 @@ class SchemeItem(BaseModel):
     object_id = models.CharField(max_length=30)
     item = GenericForeignKey("content_type", "object_id")
 
-    limit_amount = models.DecimalField(max_digits=15, decimal_places=2, null=True, blank=True , validators=[MinValueValidator(0.01)], help_text="Coverage or limit amount.")
-    copayment_percent = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True , validators=[MinValueValidator(0.01)], help_text="Copayment percentage.")
+    limit_amount = models.DecimalField(max_digits=15, decimal_places=2, null=True, blank=True, help_text="Coverage or limit amount.")
+    copayment_percent = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True, help_text="Copayment percentage.")
 
     class Meta:
         verbose_name = "Scheme Item"
@@ -43,11 +43,11 @@ class SchemeItem(BaseModel):
 
     def clean(self):
         errors = {}
-        if self.copayment_percent and self.copayment_percent < 0:
+        if self.copayment_percent is not None and self.copayment_percent < 0:
             errors["copayment_percent"] = "Copayment percentage cannot be negative."
-        if self.copayment_percent and self.copayment_percent > 100:
+        if self.copayment_percent is not None and self.copayment_percent > 100:
             errors["copayment_percent"] = "Copayment percentage cannot exceed 100."
-        if self.limit_amount and self.limit_amount < 0:
+        if self.limit_amount is not None and self.limit_amount < 0:
             errors["limit_amount"] = "Limit amount cannot be negative."
         if errors:
             raise ValidationError(errors)

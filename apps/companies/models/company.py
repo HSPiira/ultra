@@ -1,13 +1,29 @@
 from django.db import models
+from django.core.exceptions import ValidationError
 from django.core.validators import RegexValidator
 from apps.core.models.base import BaseModel
 from apps.companies.models.industry import Industry
 
 # ---------------------------------------------------------------------
+# Managers
+# ---------------------------------------------------------------------
+class CompanyManager(models.Manager):
+    def get_by_name(self, company_name: str):
+        return self.filter(company_name__iexact=company_name).first()
+
+    def has_members(self, company_id: str) -> bool:
+        from apps.members.models import Person
+        return Person.objects.filter(company_id=company_id).exists()
+
+    def has_schemes(self, company_id: str) -> bool:
+        from apps.schemes.models import Scheme
+        return Scheme.objects.filter(company_id=company_id).exists()
+
+# ---------------------------------------------------------------------
 # Company
 # ---------------------------------------------------------------------
 class Company(BaseModel):
-    company_name = models.CharField(max_length=255, help_text="Registered company name.")
+    company_name = models.CharField(max_length=255, unique=True, help_text="Registered company name.")
     contact_person = models.CharField(max_length=255, help_text="Contact person name.")
     company_address = models.TextField(help_text="Company address.")
     phone_number = models.CharField(
@@ -37,3 +53,12 @@ class Company(BaseModel):
 
     def __str__(self):
         return self.company_name
+
+    # Managers
+    objects = CompanyManager()
+
+    def soft_delete(self, user=None):
+        """Prevent deletion when related members or schemes exist."""
+        if Company.objects.has_members(self.id) or Company.objects.has_schemes(self.id):
+            raise ValidationError("Cannot delete company with existing members or schemes.")
+        super().soft_delete(user=user)

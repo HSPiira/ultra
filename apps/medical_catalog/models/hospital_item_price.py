@@ -1,6 +1,7 @@
 from django.db import models
 from django.contrib.contenttypes.fields import GenericForeignKey
 from django.contrib.contenttypes.models import ContentType
+from django.core.validators import MinValueValidator
 
 from apps.core.models.base import BaseModel
 from apps.providers.models import Hospital
@@ -11,10 +12,27 @@ class HospitalItemPrice(BaseModel):
     content_type = models.ForeignKey(ContentType, on_delete=models.CASCADE)
     object_id = models.PositiveIntegerField()
     content_object = GenericForeignKey('content_type', 'object_id')
-    amount = models.DecimalField(max_digits=15, decimal_places=2)
+    amount = models.DecimalField(max_digits=15, decimal_places=2, validators=[MinValueValidator(0)])
     available = models.BooleanField(default=True)
 
     class Meta:
         db_table = 'hospital_item_prices'
+        constraints = [
+            models.UniqueConstraint(fields=['hospital','content_type','object_id'], name='uniq_hospital_item_price')
+        ]
+        indexes = [
+            models.Index(fields=['hospital','content_type','object_id'])
+        ]
+
+
+class HospitalItemPriceManager(models.Manager):
+    def get_price(self, *, hospital_id: str, content_type: ContentType, object_id: int):
+        return self.filter(
+            hospital_id=hospital_id,
+            content_type=content_type,
+            object_id=object_id,
+            available=True,
+            status='ACTIVE',
+        ).values_list('amount', flat=True).first()
 
 

@@ -1,11 +1,12 @@
 from django.db import models
+from django.core.exceptions import ValidationError
 from apps.core.models.base import BaseModel
 
 
 class Doctor(BaseModel):
     name = models.CharField(max_length=200)
     specialization = models.CharField(max_length=200, blank=True)
-    license_number = models.CharField(max_length=100, blank=True)
+    license_number = models.CharField(max_length=100, unique=True, blank=True)
     qualification = models.CharField(max_length=500, blank=True)
     phone_number = models.CharField(max_length=50, blank=True)
     email = models.EmailField(blank=True)

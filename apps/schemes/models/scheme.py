@@ -4,6 +4,7 @@ from django.forms import ValidationError
 from datetime import timedelta
 from apps.companies.models import Company
 from apps.core.models.base import BaseModel
+from apps.core.enums.choices import BusinessStatusChoices
 
 # ---------------------------------------------------------------------
 # Scheme
@@ -49,3 +50,20 @@ class Scheme(BaseModel):
 
     def __str__(self):
         return self.scheme_name
+
+    # Domain helpers
+    def is_active_on(self, when_date) -> bool:
+        if self.status != BusinessStatusChoices.ACTIVE:
+            return False
+        if self.start_date and when_date < self.start_date:
+            return False
+        if self.termination_date and when_date >= self.termination_date:
+            return False
+        return True
+
+    def terminate(self, *, reason: str | None = None, user=None):
+        """Terminate scheme and mark as inactive."""
+        self.status = BusinessStatusChoices.INACTIVE
+        if not self.termination_date and self.end_date:
+            self.termination_date = self.end_date + timedelta(days=1)
+        self.save(update_fields=["status", "termination_date", "updated_at"])

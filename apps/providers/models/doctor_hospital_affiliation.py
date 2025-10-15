@@ -1,4 +1,5 @@
 from django.db import models
+from django.core.exceptions import ValidationError
 from apps.core.models.base import BaseModel
 
 
@@ -15,5 +16,20 @@ class DoctorHospitalAffiliation(BaseModel):
 
     def __str__(self):
         return f"{self.doctor.name} @ {self.hospital.name}"
+
+    def clean(self):
+        errors = {}
+        if self.start_date and self.end_date and self.start_date > self.end_date:
+            errors['end_date'] = 'End date must be on/after start date.'
+
+        if self.is_primary:
+            qs = type(self).all_objects.filter(doctor=self.doctor, is_primary=True)
+            if self.pk:
+                qs = qs.exclude(pk=self.pk)
+            if qs.exists():
+                errors['is_primary'] = 'Only one primary affiliation is allowed per doctor.'
+
+        if errors:
+            raise ValidationError(errors)
 
 

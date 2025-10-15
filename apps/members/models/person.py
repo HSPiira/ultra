@@ -1,5 +1,6 @@
 from django.db import models
 from django.core.validators import RegexValidator
+from django.core.exceptions import ValidationError
 from apps.core.models.base import BaseModel
 from apps.core.enums.choices import GenderChoices, RelationshipChoices
 from apps.companies.models import Company
@@ -102,3 +103,24 @@ class Person(BaseModel):
                 (self.date_of_birth.month, self.date_of_birth.day)
             )
         return None
+
+    def clean(self):
+        # Relationship logic: dependants must have a valid parent in same company & scheme and parent must be SELF
+        from apps.core.enums.choices import RelationshipChoices
+        errors = {}
+        if self.relationship != RelationshipChoices.SELF:
+            if not self.parent:
+                errors['parent'] = 'Dependants must reference a parent member.'
+            else:
+                if self.parent.company_id != self.company_id or self.parent.scheme_id != self.scheme_id:
+                    errors['parent'] = 'Parent must belong to the same company and scheme.'
+                if self.parent.relationship != RelationshipChoices.SELF:
+                    errors['parent'] = 'Parent must have relationship SELF.'
+
+        # Global card uniqueness (optional): enforce globally unique card_number if business requires
+        # If you want global uniqueness uncomment below and add a DB UniqueConstraint migration
+        # if Person.all_objects.filter(card_number=self.card_number).exclude(pk=self.pk).exists():
+        #     errors['card_number'] = 'Card number must be unique system-wide.'
+
+        if errors:
+            raise ValidationError(errors)

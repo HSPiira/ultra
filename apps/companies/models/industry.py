@@ -15,3 +15,11 @@ class Industry(BaseModel):
 
     def __str__(self):
         return self.industry_name
+
+
+class IndustryManager(models.Manager):
+    def get_by_name(self, name: str):
+        return self.filter(industry_name__iexact=name).first()
+
+    def exists_with_name(self, name: str) -> bool:
+        return self.filter(industry_name__iexact=name).exists()

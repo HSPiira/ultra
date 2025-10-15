@@ -1,4 +1,5 @@
 from rest_framework import serializers
+from drf_spectacular.utils import extend_schema_field
 from apps.schemes.models import Scheme, Plan, Benefit, SchemeItem
 from apps.core.utils.serializers import BaseSerializer
 
@@ -13,6 +14,16 @@ class SchemeSerializer(BaseSerializer):
             'family_applicable', 'remark'
         ]
     
+    @extend_schema_field({
+        'type': 'object',
+        'nullable': True,
+        'properties': {
+            'id': {'type': 'string'},
+            'company_name': {'type': 'string'},
+            'contact_person': {'type': 'string'},
+            'email': {'type': 'string', 'format': 'email'},
+        }
+    })
     def get_company_detail(self, obj):
         if obj.company:
             return {
@@ -130,6 +141,15 @@ class SchemeItemSerializer(BaseSerializer):
             'limit_amount', 'copayment_percent'
         ]
     
+    @extend_schema_field({
+        'type': 'object',
+        'nullable': True,
+        'properties': {
+            'id': {'type': 'string'},
+            'scheme_name': {'type': 'string'},
+            'card_code': {'type': 'string'},
+        }
+    })
     def get_scheme_detail(self, obj):
         if obj.scheme:
             return {
@@ -139,6 +159,15 @@ class SchemeItemSerializer(BaseSerializer):
             }
         return None
     
+    @extend_schema_field({
+        'type': 'object',
+        'nullable': True,
+        'properties': {
+            'id': {'type': 'string'},
+            'name': {'type': 'string'},
+            'type': {'type': 'string'},
+        }
+    })
     def get_item_detail(self, obj):
         if obj.item:
             return {

@@ -2,6 +2,8 @@ from rest_framework import viewsets, status, permissions
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from django.http import HttpResponse
+from drf_spectacular.utils import extend_schema, OpenApiParameter
+from drf_spectacular.types import OpenApiTypes
 # JWT authentication removed - using global session authentication
 
 from apps.companies.services.industry_service import IndustryService
@@ -23,6 +25,7 @@ class IndustryAnalyticsViewSet(viewsets.ViewSet):
     Industry analytics and advanced operations.
     """
     # Using global authentication settings from REST_FRAMEWORK
+    serializer_class = IndustrySerializer
 
     @action(detail=False, methods=['get'])
     def statistics(self, request):
@@ -153,8 +156,12 @@ class IndustryAnalyticsViewSet(viewsets.ViewSet):
         integrity_results = industry_data_integrity_check()
         return Response(integrity_results)
 
+    @extend_schema(parameters=[
+        OpenApiParameter(name='pk', type=OpenApiTypes.STR, location=OpenApiParameter.PATH),
+        OpenApiParameter(name='id', type=OpenApiTypes.STR, location=OpenApiParameter.PATH),
+    ])
     @action(detail=True, methods=['get'])
-    def health_score(self, request, pk=None):
+    def health_score(self, request, pk: str | None = None):
         """Get health score for a specific industry."""
         health_score = industry_health_score_get(industry_id=pk)
         if not health_score:
@@ -164,16 +171,24 @@ class IndustryAnalyticsViewSet(viewsets.ViewSet):
             )
         return Response(health_score)
 
+    @extend_schema(parameters=[
+        OpenApiParameter(name='pk', type=OpenApiTypes.STR, location=OpenApiParameter.PATH),
+        OpenApiParameter(name='id', type=OpenApiTypes.STR, location=OpenApiParameter.PATH),
+    ])
     @action(detail=True, methods=['get'])
-    def companies(self, request, pk=None):
+    def companies(self, request, pk: str | None = None):
         """Get all companies in a specific industry."""
         companies = industry_companies_list(industry_id=pk)
         from apps.companies.api.serializers import CompanySerializer
         serializer = CompanySerializer(companies, many=True)
         return Response(serializer.data)
 
+    @extend_schema(parameters=[
+        OpenApiParameter(name='pk', type=OpenApiTypes.STR, location=OpenApiParameter.PATH),
+        OpenApiParameter(name='id', type=OpenApiTypes.STR, location=OpenApiParameter.PATH),
+    ])
     @action(detail=True, methods=['post'])
-    def suspend(self, request, pk=None):
+    def suspend(self, request, pk: str | None = None):
         """Suspend an industry with reason."""
         reason = request.data.get('reason', 'No reason provided')
         industry = IndustryService.industry_suspend(
@@ -184,8 +199,12 @@ class IndustryAnalyticsViewSet(viewsets.ViewSet):
         serializer = IndustrySerializer(industry)
         return Response(serializer.data)
 
+    @extend_schema(parameters=[
+        OpenApiParameter(name='pk', type=OpenApiTypes.STR, location=OpenApiParameter.PATH),
+        OpenApiParameter(name='id', type=OpenApiTypes.STR, location=OpenApiParameter.PATH),
+    ])
     @action(detail=True, methods=['post'])
-    def activate(self, request, pk=None):
+    def activate(self, request, pk: str | None = None):
         """Activate an industry."""
         industry = IndustryService.industry_activate(
             industry_id=pk, 

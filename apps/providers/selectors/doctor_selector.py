@@ -5,7 +5,12 @@ from apps.providers.models import Doctor
 
 
 def doctor_list(*, filters: dict | None = None):
-    qs = Doctor.objects.select_related('hospital').all()
+    qs = (
+        Doctor.objects
+        .prefetch_related('hospitals')
+        .prefetch_related('doctorhospitalaffiliation_set__hospital')
+        .all()
+    )
 
     if not filters:
         return qs
@@ -13,8 +18,10 @@ def doctor_list(*, filters: dict | None = None):
     if filters.get('status'):
         qs = qs.filter(status=filters['status'])
 
-    if filters.get('hospital'):
-        qs = qs.filter(hospital_id=filters['hospital'])
+    # Allow filtering by a single hospital id via either key
+    hospital_id = filters.get('hospitals') or filters.get('hospital')
+    if hospital_id:
+        qs = qs.filter(hospitals__id=hospital_id)
 
     if filters.get('query'):
         q = filters['query']
@@ -26,10 +33,16 @@ def doctor_list(*, filters: dict | None = None):
             | Q(license_number__icontains=q)
         )
 
-    return qs
+    return qs.distinct()
 
 
 def doctor_get(*, doctor_id: str) -> Optional[Doctor]:
-    return Doctor.objects.select_related('hospital').filter(pk=doctor_id).first()
+    return (
+        Doctor.objects
+        .prefetch_related('hospitals')
+        .prefetch_related('doctorhospitalaffiliation_set__hospital')
+        .filter(pk=doctor_id)
+        .first()
+    )
 
 
