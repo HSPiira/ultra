@@ -25,17 +25,17 @@ class HospitalViewSet(viewsets.ModelViewSet):
         return hospital_list(filters=filters_dict)
 
     def create(self, request, *args, **kwargs):
-        hospital = HospitalService.create(hospital_data=request.data, user=request.user)
+        hospital = HospitalService.hospital_create(hospital_data=request.data, user=request.user)
         serializer = self.get_serializer(hospital)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
     def update(self, request, *args, **kwargs):
-        hospital = HospitalService.update(
+        hospital = HospitalService.hospital_update(
             hospital_id=kwargs['pk'], update_data=request.data, user=request.user
         )
         serializer = self.get_serializer(hospital)
         return Response(serializer.data)
 
     def destroy(self, request, *args, **kwargs):
-        HospitalService.deactivate(hospital_id=kwargs['pk'], user=request.user)
+        HospitalService.hospital_deactivate(hospital_id=kwargs['pk'], user=request.user)
         return Response(status=status.HTTP_204_NO_CONTENT)
