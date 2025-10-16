@@ -4,6 +4,14 @@ from django.db import models
 from apps.core.models.base import BaseModel
 
 
+class ServiceManager(models.Manager):
+    def by_name(self, name: str):
+        return self.filter(name__iexact=name)
+
+    def by_category(self, category: str):
+        return self.filter(category__iexact=category)
+    
+
 class Service(BaseModel):
     name = models.CharField(max_length=200, unique=True)
     category = models.CharField(max_length=100, blank=True)
@@ -13,6 +21,9 @@ class Service(BaseModel):
     )
     service_type = models.CharField(max_length=50)
 
+    objects = ServiceManager()
+    all_objects = models.Manager()
+
     class Meta:
         verbose_name = "Service"
         verbose_name_plural = "Services"
@@ -20,16 +31,3 @@ class Service(BaseModel):
 
     def __str__(self):
         return self.name
-
-
-class ServiceManager(models.Manager):
-    def by_name(self, name: str):
-        return self.filter(name__iexact=name)
-
-    def by_category(self, category: str):
-        return self.filter(category__iexact=category)
-
-
-# Managers
-Service.objects = ServiceManager()
-Service.all_objects = models.Manager()

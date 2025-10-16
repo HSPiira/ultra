@@ -4,6 +4,14 @@ from django.db import models
 from apps.core.models.base import BaseModel
 
 
+class MedicineManager(models.Manager):
+    def by_name(self, name: str):
+        return self.filter(name__iexact=name)
+
+    def by_form(self, dosage_form: str):
+        return self.filter(dosage_form__iexact=dosage_form)
+    
+
 class Medicine(BaseModel):
     name = models.CharField(max_length=200)
     dosage_form = models.CharField(max_length=100)
@@ -13,6 +21,9 @@ class Medicine(BaseModel):
     route = models.CharField(max_length=100)
     duration = models.CharField(max_length=100, blank=True)
 
+    objects = MedicineManager()
+    all_objects = models.Manager()
+
     class Meta:
         verbose_name = "Medicine"
         verbose_name_plural = "Medicines"
@@ -21,16 +32,3 @@ class Medicine(BaseModel):
 
     def __str__(self):
         return self.name
-
-
-class MedicineManager(models.Manager):
-    def by_name(self, name: str):
-        return self.filter(name__iexact=name)
-
-    def by_form(self, dosage_form: str):
-        return self.filter(dosage_form__iexact=dosage_form)
-
-
-# Managers
-Medicine.objects = MedicineManager()
-Medicine.all_objects = models.Manager()

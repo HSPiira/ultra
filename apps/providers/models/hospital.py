@@ -4,6 +4,15 @@ from django.db import models
 from apps.core.models.base import BaseModel
 
 
+
+class HospitalManager(models.Manager):
+    def by_name(self, name: str):
+        return self.filter(name__iexact=name)
+
+    def branches_of(self, parent_id: str):
+        return self.filter(branch_of_id=parent_id)
+
+
 class Hospital(BaseModel):
     name = models.CharField(max_length=200, unique=True)
     address = models.TextField(blank=True)
@@ -14,6 +23,9 @@ class Hospital(BaseModel):
     phone_number = models.CharField(max_length=50, blank=True)
     email = models.EmailField(blank=True)
     website = models.URLField(blank=True)
+
+    objects = HospitalManager()      # replaces BaseModel's ActiveManager for this model
+    all_objects = models.Manager()
 
     class Meta:
         verbose_name = "Hospital"
@@ -31,15 +43,3 @@ class Hospital(BaseModel):
             raise ValidationError("Cannot delete hospital with existing claims.")
         super().soft_delete(user=user)
 
-
-class HospitalManager(models.Manager):
-    def by_name(self, name: str):
-        return self.filter(name__iexact=name)
-
-    def branches_of(self, parent_id: str):
-        return self.filter(branch_of_id=parent_id)
-
-
-# Managers
-Hospital.objects = HospitalManager()
-Hospital.all_objects = models.Manager()

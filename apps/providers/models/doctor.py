@@ -4,6 +4,14 @@ from django.db import models
 from apps.core.models.base import BaseModel
 
 
+class DoctorManager(models.Manager):
+    def by_license(self, license_number: str):
+        return self.filter(license_number=license_number)
+
+    def for_hospital(self, hospital_id: str):
+        return self.filter(hospitals__id=hospital_id).distinct()
+    
+
 class Doctor(BaseModel):
     name = models.CharField(max_length=200)
     specialization = models.CharField(max_length=200, blank=True)
@@ -17,6 +25,9 @@ class Doctor(BaseModel):
         related_name="doctors",
     )
 
+    objects = DoctorManager()
+    all_objects = models.Manager()
+    
     class Meta:
         verbose_name = "Doctor"
         verbose_name_plural = "Doctors"
@@ -33,15 +44,3 @@ class Doctor(BaseModel):
             raise ValidationError("Cannot delete doctor with existing claims.")
         super().soft_delete(user=user)
 
-
-class DoctorManager(models.Manager):
-    def by_license(self, license_number: str):
-        return self.filter(license_number=license_number)
-
-    def for_hospital(self, hospital_id: str):
-        return self.filter(hospitals__id=hospital_id).distinct()
-
-
-# Managers
-Doctor.objects = DoctorManager()
-Doctor.all_objects = models.Manager()
