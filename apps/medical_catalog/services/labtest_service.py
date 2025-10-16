@@ -1,15 +1,14 @@
-from typing import Dict
 
 from apps.medical_catalog.models import LabTest
 
 
 class LabTestService:
     @staticmethod
-    def create(*, data: Dict, user=None) -> LabTest:
+    def create(*, data: dict, user=None) -> LabTest:
         return LabTest.objects.create(**data)
 
     @staticmethod
-    def update(*, labtest_id: str, data: Dict, user=None) -> LabTest:
+    def update(*, labtest_id: str, data: dict, user=None) -> LabTest:
         instance = LabTest.objects.get(pk=labtest_id)
         for field, value in data.items():
             setattr(instance, field, value)
@@ -21,5 +20,3 @@ class LabTestService:
         instance = LabTest.objects.get(pk=labtest_id)
         instance.soft_delete(user=user)
         instance.save(update_fields=["is_deleted", "deleted_at", "deleted_by"])
-
-

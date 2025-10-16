@@ -2,12 +2,10 @@
 Views package for providers app API.
 """
 
-from .hospital_views import HospitalViewSet
 from .doctor_views import DoctorViewSet
+from .hospital_views import HospitalViewSet
 
 __all__ = [
-    'HospitalViewSet',
-    'DoctorViewSet',
+    "HospitalViewSet",
+    "DoctorViewSet",
 ]
-
-

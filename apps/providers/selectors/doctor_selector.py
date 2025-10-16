@@ -1,4 +1,4 @@
-from typing import Optional
+
 from django.db.models import Q
 
 from apps.providers.models import Doctor
@@ -6,25 +6,24 @@ from apps.providers.models import Doctor
 
 def doctor_list(*, filters: dict | None = None):
     qs = (
-        Doctor.objects
-        .prefetch_related('hospitals')
-        .prefetch_related('doctorhospitalaffiliation_set__hospital')
+        Doctor.objects.prefetch_related("hospitals")
+        .prefetch_related("doctorhospitalaffiliation_set__hospital")
         .all()
     )
 
     if not filters:
         return qs
 
-    if filters.get('status'):
-        qs = qs.filter(status=filters['status'])
+    if filters.get("status"):
+        qs = qs.filter(status=filters["status"])
 
     # Allow filtering by a single hospital id via either key
-    hospital_id = filters.get('hospitals') or filters.get('hospital')
+    hospital_id = filters.get("hospitals") or filters.get("hospital")
     if hospital_id:
         qs = qs.filter(hospitals__id=hospital_id)
 
-    if filters.get('query'):
-        q = filters['query']
+    if filters.get("query"):
+        q = filters["query"]
         qs = qs.filter(
             Q(name__icontains=q)
             | Q(specialization__icontains=q)
@@ -36,13 +35,10 @@ def doctor_list(*, filters: dict | None = None):
     return qs.distinct()
 
 
-def doctor_get(*, doctor_id: str) -> Optional[Doctor]:
+def doctor_get(*, doctor_id: str) -> Doctor | None:
     return (
-        Doctor.objects
-        .prefetch_related('hospitals')
-        .prefetch_related('doctorhospitalaffiliation_set__hospital')
+        Doctor.objects.prefetch_related("hospitals")
+        .prefetch_related("doctorhospitalaffiliation_set__hospital")
         .filter(pk=doctor_id)
         .first()
     )
-
-

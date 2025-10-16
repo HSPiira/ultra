@@ -1,16 +1,18 @@
-from django.db import models
-from apps.core.models.base import BaseModel
-from django.core.validators import MinValueValidator
-from django.core.exceptions import ValidationError
 from django.contrib.contenttypes.fields import GenericForeignKey
 from django.contrib.contenttypes.models import ContentType
+from django.core.exceptions import ValidationError
+from django.db import models
+
+from apps.core.models.base import BaseModel
 from apps.schemes.models.scheme import Scheme
+
 
 # ---------------------------------------------------------------------
 # SchemeItem
 # ---------------------------------------------------------------------
 class SchemeItem(BaseModel):
     """Links schemes to either plans or benefits."""
+
     scheme = models.ForeignKey(Scheme, on_delete=models.CASCADE, related_name="items")
 
     # contenttype + object id pair: point to Plan or Benefit (or future types)
@@ -23,8 +25,20 @@ class SchemeItem(BaseModel):
     object_id = models.CharField(max_length=30)
     item = GenericForeignKey("content_type", "object_id")
 
-    limit_amount = models.DecimalField(max_digits=15, decimal_places=2, null=True, blank=True, help_text="Coverage or limit amount.")
-    copayment_percent = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True, help_text="Copayment percentage.")
+    limit_amount = models.DecimalField(
+        max_digits=15,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text="Coverage or limit amount.",
+    )
+    copayment_percent = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text="Copayment percentage.",
+    )
 
     class Meta:
         verbose_name = "Scheme Item"
@@ -38,7 +52,10 @@ class SchemeItem(BaseModel):
         ]
 
         constraints = [
-            models.UniqueConstraint(fields=["scheme", "content_type", "object_id"], name="unique_scheme_item")
+            models.UniqueConstraint(
+                fields=["scheme", "content_type", "object_id"],
+                name="unique_scheme_item",
+            )
         ]
 
     def clean(self):
@@ -62,13 +79,17 @@ class SchemeItemManager(models.Manager):
 
     def for_plan(self, plan_id: str):
         from django.contrib.contenttypes.models import ContentType
+
         from apps.schemes.models import Plan
+
         ct = ContentType.objects.get_for_model(Plan)
         return self.filter(content_type=ct, object_id=plan_id)
 
     def for_benefit(self, benefit_id: str):
         from django.contrib.contenttypes.models import ContentType
+
         from apps.schemes.models import Benefit
+
         ct = ContentType.objects.get_for_model(Benefit)
         return self.filter(content_type=ct, object_id=benefit_id)
 

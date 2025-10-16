@@ -1,4 +1,3 @@
-from django.db import models
 
 from .base import BaseModel
 
@@ -11,4 +10,3 @@ class FinancialTransaction(BaseModel):
 
     class Meta:
         abstract = True
-

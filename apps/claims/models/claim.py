@@ -1,9 +1,9 @@
-from django.db import models
 from django.core.exceptions import ValidationError
+from django.db import models
 
 from apps.core.models import FinancialTransaction
 from apps.members.models import Person
-from apps.providers.models import Hospital, Doctor
+from apps.providers.models import Doctor, Hospital
 
 
 class Claim(FinancialTransaction):
@@ -15,7 +15,7 @@ class Claim(FinancialTransaction):
     invoice_number = models.CharField(max_length=100, blank=True)
 
     class Meta:
-        db_table = 'claims'
+        db_table = "claims"
         indexes = [
             models.Index(fields=["member", "service_date"]),
             models.Index(fields=["hospital", "service_date"]),
@@ -26,9 +26,10 @@ class Claim(FinancialTransaction):
 
     def clean(self):
         errors = {}
-        if self.doctor and not self.doctor.hospitals.filter(pk=self.hospital_id).exists():
-            errors['doctor'] = 'Doctor must be affiliated with the selected hospital.'
+        if (
+            self.doctor
+            and not self.doctor.hospitals.filter(pk=self.hospital_id).exists()
+        ):
+            errors["doctor"] = "Doctor must be affiliated with the selected hospital."
         if errors:
             raise ValidationError(errors)
-
-

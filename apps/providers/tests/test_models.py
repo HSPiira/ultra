@@ -1,12 +1,14 @@
-from django.test import TestCase
 from django.contrib.auth import get_user_model
+from django.test import TestCase
 
-from apps.providers.models import Hospital, Doctor
+from apps.providers.models import Doctor, Hospital
 
 
 class ProvidersModelTests(TestCase):
     def setUp(self):
-        self.user = get_user_model().objects.create_user(username="tester", password="pass1234")
+        self.user = get_user_model().objects.create_user(
+            username="tester", password="pass1234"
+        )
 
     def test_hospital_create_and_soft_delete(self):
         hospital = Hospital.objects.create(name="General Hospital")
@@ -25,5 +27,3 @@ class ProvidersModelTests(TestCase):
         doctor.hospitals.add(hospital)
         self.assertEqual(Doctor.objects.count(), 1)
         self.assertIn(hospital, list(doctor.hospitals.all()))
-
-

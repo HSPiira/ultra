@@ -1,7 +1,9 @@
 from django.db import models
 from django.utils import timezone
+
 from ..enums.choices import BusinessStatusChoices
 from ..utils.generators import generate_cuid
+
 
 # ---------------------------------------------------------------------
 # Custom Manager for Soft Delete
@@ -28,8 +30,12 @@ class BaseModel(models.Model):
     id = models.CharField(
         primary_key=True, max_length=25, default=generate_cuid, editable=False
     )
-    created_at = models.DateTimeField(auto_now_add=True, help_text="When record was created.")
-    updated_at = models.DateTimeField(auto_now=True, help_text="When record was last updated.")
+    created_at = models.DateTimeField(
+        auto_now_add=True, help_text="When record was created."
+    )
+    updated_at = models.DateTimeField(
+        auto_now=True, help_text="When record was last updated."
+    )
     status = models.CharField(
         max_length=10,
         choices=BusinessStatusChoices.choices,
@@ -38,15 +44,23 @@ class BaseModel(models.Model):
     )
 
     # Soft delete lifecycle fields
-    is_deleted = models.BooleanField(default=False, help_text="Indicates if record is soft deleted.")
-    deleted_at = models.DateTimeField(null=True, blank=True, help_text="When record was soft deleted.")
+    is_deleted = models.BooleanField(
+        default=False, help_text="Indicates if record is soft deleted."
+    )
+    deleted_at = models.DateTimeField(
+        null=True, blank=True, help_text="When record was soft deleted."
+    )
     deleted_by = models.ForeignKey(
-        "auth.User", null=True, blank=True, on_delete=models.SET_NULL, help_text="User who deleted the record."
+        "auth.User",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        help_text="User who deleted the record.",
     )
 
     # Managers
-    objects = ActiveManager()        # Default manager filters out deleted
-    all_objects = models.Manager()   # Includes everything
+    objects = ActiveManager()  # Default manager filters out deleted
+    all_objects = models.Manager()  # Includes everything
 
     class Meta:
         abstract = True

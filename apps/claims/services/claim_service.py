@@ -1,6 +1,7 @@
-from typing import Dict, Any, List
-from django.db import transaction
+from typing import Any
+
 from django.core.exceptions import ValidationError
+from django.db import transaction
 
 from apps.claims.models import Claim, ClaimDetail, ClaimPayment
 
@@ -8,14 +9,19 @@ from apps.claims.models import Claim, ClaimDetail, ClaimPayment
 class ClaimService:
     @staticmethod
     @transaction.atomic
-    def create_claim(*, data: Dict[str, Any], user=None) -> Claim:
-        details: List[Dict[str, Any]] = data.pop('details', [])
-        payments: List[Dict[str, Any]] = data.pop('payments', [])
+    def create_claim(*, data: dict[str, Any], user=None) -> Claim:
+        details: list[dict[str, Any]] = data.pop("details", [])
+        payments: list[dict[str, Any]] = data.pop("payments", [])
 
         claim = Claim.objects.create(**data)
 
-        if claim.doctor and not claim.doctor.hospitals.filter(pk=claim.hospital_id).exists():
-            raise ValidationError({'doctor': 'Doctor must be affiliated with the selected hospital.'})
+        if (
+            claim.doctor
+            and not claim.doctor.hospitals.filter(pk=claim.hospital_id).exists()
+        ):
+            raise ValidationError(
+                {"doctor": "Doctor must be affiliated with the selected hospital."}
+            )
 
         for d in details:
             ClaimDetail.objects.create(claim=claim, **d)
@@ -27,9 +33,9 @@ class ClaimService:
 
     @staticmethod
     @transaction.atomic
-    def update_claim(*, claim_id: str, data: Dict[str, Any], user=None) -> Claim:
-        details: List[Dict[str, Any]] | None = data.pop('details', None)
-        payments: List[Dict[str, Any]] | None = data.pop('payments', None)
+    def update_claim(*, claim_id: str, data: dict[str, Any], user=None) -> Claim:
+        details: list[dict[str, Any]] | None = data.pop("details", None)
+        payments: list[dict[str, Any]] | None = data.pop("payments", None)
 
         claim = Claim.objects.select_for_update().get(pk=claim_id)
 
@@ -38,8 +44,13 @@ class ClaimService:
         claim.full_clean()
         claim.save(update_fields=None)
 
-        if claim.doctor and not claim.doctor.hospitals.filter(pk=claim.hospital_id).exists():
-            raise ValidationError({'doctor': 'Doctor must be affiliated with the selected hospital.'})
+        if (
+            claim.doctor
+            and not claim.doctor.hospitals.filter(pk=claim.hospital_id).exists()
+        ):
+            raise ValidationError(
+                {"doctor": "Doctor must be affiliated with the selected hospital."}
+            )
 
         if details is not None:
             claim.details.all().delete()
@@ -58,5 +69,3 @@ class ClaimService:
         claim = Claim.objects.get(pk=claim_id)
         claim.soft_delete(user=user)
         claim.save(update_fields=["is_deleted", "deleted_at", "deleted_by"])
-
-

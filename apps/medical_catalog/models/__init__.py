@@ -1,13 +1,11 @@
-from .service import Service
-from .medicine import Medicine
-from .labtest import LabTest
 from .hospital_item_price import HospitalItemPrice
+from .labtest import LabTest
+from .medicine import Medicine
+from .service import Service
 
 __all__ = [
-    'Service',
-    'Medicine',
-    'LabTest',
-    'HospitalItemPrice',
+    "Service",
+    "Medicine",
+    "LabTest",
+    "HospitalItemPrice",
 ]
-
-

@@ -1,5 +1,6 @@
-from django.db import models
 from django.core.exceptions import ValidationError
+from django.db import models
+
 from apps.core.models.base import BaseModel
 
 
@@ -27,6 +28,7 @@ class Doctor(BaseModel):
     def soft_delete(self, user=None):
         # Prevent deletion if claims exist for this doctor
         from apps.claims.models import Claim
+
         if Claim.all_objects.filter(doctor_id=self.id, is_deleted=False).exists():
             raise ValidationError("Cannot delete doctor with existing claims.")
         super().soft_delete(user=user)
@@ -43,5 +45,3 @@ class DoctorManager(models.Manager):
 # Managers
 Doctor.objects = DoctorManager()
 Doctor.all_objects = models.Manager()
-
-

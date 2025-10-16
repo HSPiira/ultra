@@ -6,18 +6,30 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('schemes', '0001_initial'),
+        ("schemes", "0001_initial"),
     ]
 
     operations = [
         migrations.AlterField(
-            model_name='schemeitem',
-            name='copayment_percent',
-            field=models.DecimalField(blank=True, decimal_places=2, help_text='Copayment percentage.', max_digits=5, null=True),
+            model_name="schemeitem",
+            name="copayment_percent",
+            field=models.DecimalField(
+                blank=True,
+                decimal_places=2,
+                help_text="Copayment percentage.",
+                max_digits=5,
+                null=True,
+            ),
         ),
         migrations.AlterField(
-            model_name='schemeitem',
-            name='limit_amount',
-            field=models.DecimalField(blank=True, decimal_places=2, help_text='Coverage or limit amount.', max_digits=15, null=True),
+            model_name="schemeitem",
+            name="limit_amount",
+            field=models.DecimalField(
+                blank=True,
+                decimal_places=2,
+                help_text="Coverage or limit amount.",
+                max_digits=15,
+                null=True,
+            ),
         ),
     ]

@@ -2,5 +2,5 @@ from django.apps import AppConfig
 
 
 class MedicalCatalogConfig(AppConfig):
-    default_auto_field = 'django.db.models.BigAutoField'
-    name = 'apps.medical_catalog'
+    default_auto_field = "django.db.models.BigAutoField"
+    name = "apps.medical_catalog"
