@@ -1,11 +1,11 @@
 from django.core.exceptions import ValidationError
 from django.db import models
 
-from apps.core.models.base import BaseModel
+from apps.core.models.base import BaseModel, ActiveManager
 
 
 
-class HospitalManager(models.Manager):
+class HospitalManager(ActiveManager):
     def by_name(self, name: str):
         return self.filter(name__iexact=name)
 

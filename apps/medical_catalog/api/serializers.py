@@ -1,6 +1,9 @@
 
+from rest_framework import serializers
 from apps.core.utils.serializers import BaseSerializer
 from apps.medical_catalog.models import HospitalItemPrice, LabTest, Medicine, Service
+from apps.providers.models import Hospital
+from django.contrib.contenttypes.models import ContentType
 
 
 class ServiceSerializer(BaseSerializer):
@@ -41,6 +44,9 @@ class LabTestSerializer(BaseSerializer):
 
 
 class HospitalItemPriceSerializer(BaseSerializer):
+    hospital = serializers.PrimaryKeyRelatedField(queryset=Hospital.objects.all())
+    content_type = serializers.PrimaryKeyRelatedField(queryset=ContentType.objects.all())
+
     class Meta(BaseSerializer.Meta):
         model = HospitalItemPrice
         fields = BaseSerializer.Meta.fields + [

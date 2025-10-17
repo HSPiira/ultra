@@ -8,6 +8,8 @@ from apps.providers.models import Doctor, Hospital
 
 
 class ClaimDetailSerializer(BaseSerializer):
+    claim = serializers.PrimaryKeyRelatedField(queryset=Claim.objects.all()) # Explicitly define claim
+
     class Meta(BaseSerializer.Meta):
         model = ClaimDetail
         fields = BaseSerializer.Meta.fields + [
@@ -21,6 +23,8 @@ class ClaimDetailSerializer(BaseSerializer):
 
 
 class ClaimPaymentSerializer(BaseSerializer):
+    claim = serializers.PrimaryKeyRelatedField(queryset=Claim.objects.all()) # Explicitly define claim
+
     class Meta(BaseSerializer.Meta):
         model = ClaimPayment
         fields = BaseSerializer.Meta.fields + ["claim", "method", "reference"]

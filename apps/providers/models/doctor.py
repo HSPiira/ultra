@@ -1,10 +1,10 @@
 from django.core.exceptions import ValidationError
 from django.db import models
 
-from apps.core.models.base import BaseModel
+from apps.core.models.base import BaseModel, ActiveManager
 
 
-class DoctorManager(models.Manager):
+class DoctorManager(ActiveManager):
     def by_license(self, license_number: str):
         return self.filter(license_number=license_number)
 
