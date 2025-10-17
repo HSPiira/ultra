@@ -1,4 +1,5 @@
 from rest_framework import serializers
+from drf_spectacular.utils import extend_schema_field
 
 from apps.core.utils.serializers import BaseSerializer
 from apps.providers.models import Doctor, DoctorHospitalAffiliation, Hospital
@@ -20,6 +21,7 @@ class HospitalSerializer(BaseSerializer):
 
 class DoctorHospitalAffiliationSerializer(serializers.ModelSerializer):
     hospital_detail = HospitalSerializer(source="hospital", read_only=True)
+    hospital = serializers.PrimaryKeyRelatedField(queryset=Hospital.objects.all(), write_only=True, required=False)
 
     class Meta:
         model = DoctorHospitalAffiliation
@@ -37,6 +39,7 @@ class DoctorHospitalAffiliationSerializer(serializers.ModelSerializer):
 
 
 class DoctorSerializer(BaseSerializer):
+    hospitals = serializers.SerializerMethodField(read_only=True)
     hospital = serializers.PrimaryKeyRelatedField(
         queryset=Hospital.objects.all(), write_only=True, required=False
     )
@@ -64,8 +67,6 @@ class DoctorSerializer(BaseSerializer):
             "affiliations_payload",
         ]
 
-    from drf_spectacular.utils import extend_schema_field
-
     @extend_schema_field(
         {
             "type": "object",
@@ -83,3 +84,11 @@ class DoctorSerializer(BaseSerializer):
         if not hospital:
             return None
         return HospitalSerializer(hospital).data
+
+    @extend_schema_field({"type": "string", "nullable": True})
+    def get_hospital(self, obj):
+        return getattr(obj, "hospital_id", None)
+
+    @extend_schema_field({"type": "array", "items": {"type": "string"}})
+    def get_hospitals(self, obj):
+        return list(obj.hospitals.values_list("id", flat=True))

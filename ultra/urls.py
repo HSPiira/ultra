@@ -38,7 +38,7 @@ router.registry.extend(schemes_router.registry)
 router.registry.extend(members_router.registry)
 router.registry.extend(providers_router.registry)
 router.registry.extend(medical_catalog_router.registry)
-router.registry.extend(claims_router.registry)
+# router.registry.extend(claims_router.registry)
 
 urlpatterns = [
     path("admin/", admin.site.urls),

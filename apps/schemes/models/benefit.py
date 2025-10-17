@@ -1,5 +1,6 @@
 from django.core.exceptions import ValidationError
 from django.core.validators import MinValueValidator
+from decimal import Decimal
 from django.db import models
 
 from apps.core.models.base import BaseModel
@@ -28,7 +29,7 @@ class Benefit(BaseModel):
         decimal_places=2,
         null=True,
         blank=True,
-        validators=[MinValueValidator(0.01)],
+        validators=[MinValueValidator(Decimal('0.01'))],
         help_text="Coverage or limit amount.",
     )
 

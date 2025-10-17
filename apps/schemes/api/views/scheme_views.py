@@ -3,6 +3,7 @@ from rest_framework import filters, status, viewsets
 from rest_framework.response import Response
 
 from apps.schemes.api.serializers import SchemeSerializer
+from apps.schemes.models import Scheme
 from apps.schemes.selectors import scheme_list
 from apps.schemes.services.scheme_service import SchemeService
 

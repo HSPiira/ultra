@@ -4,12 +4,14 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 
 from apps.members.api.serializers import BulkPersonRowSerializer, PersonSerializer
+from apps.members.models import Person
 from apps.members.selectors.person_selector import person_list
 from apps.members.services.person_service import PersonService
 
 
 class PersonViewSet(viewsets.ModelViewSet):
     serializer_class = PersonSerializer
+    queryset = Person.objects.all()
 
     filter_backends = [
         DjangoFilterBackend,

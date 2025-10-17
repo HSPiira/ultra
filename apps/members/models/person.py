@@ -8,6 +8,20 @@ from apps.core.models.base import BaseModel
 from apps.schemes.models import Scheme
 
 
+class PersonManager(models.Manager):
+    def for_company(self, company_id: str):
+        return self.filter(company_id=company_id)
+
+    def for_scheme(self, scheme_id: str):
+        return self.filter(scheme_id=scheme_id)
+
+    def dependants_of(self, parent_id: str):
+        return self.filter(parent_id=parent_id)
+
+    def by_card_number(self, card_number: str):
+        return self.filter(card_number=card_number)
+
+
 class Person(BaseModel):
     company = models.ForeignKey(
         Company, on_delete=models.CASCADE, help_text="Associated company"
@@ -74,6 +88,9 @@ class Person(BaseModel):
 
     email = models.EmailField(blank=True)
 
+    objects = PersonManager()
+    all_objects = models.Manager()
+
     class Meta:
         indexes = [
             models.Index(fields=["company", "scheme"]),
@@ -134,20 +151,3 @@ class Person(BaseModel):
             raise ValidationError(errors)
 
 
-class PersonManager(models.Manager):
-    def for_company(self, company_id: str):
-        return self.filter(company_id=company_id)
-
-    def for_scheme(self, scheme_id: str):
-        return self.filter(scheme_id=scheme_id)
-
-    def dependants_of(self, parent_id: str):
-        return self.filter(parent_id=parent_id)
-
-    def by_card_number(self, card_number: str):
-        return self.filter(card_number=card_number)
-
-
-# Managers
-Person.objects = PersonManager()
-Person.all_objects = models.Manager()

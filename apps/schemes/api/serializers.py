@@ -23,20 +23,8 @@ class SchemeSerializer(BaseSerializer):
             "family_applicable",
             "remark",
         ]
-
-    @extend_schema_field(
-        {
-            "type": "object",
-            "nullable": True,
-            "properties": {
-                "id": {"type": "string"},
-                "company_name": {"type": "string"},
-                "contact_person": {"type": "string"},
-                "email": {"type": "string", "format": "email"},
-            },
-        }
-    )
-    def get_company_detail(self, obj):
+        
+    def get_company_detail(self, obj) -> dict | None:
         if obj.company:
             return {
                 "id": obj.company.id,
@@ -179,18 +167,8 @@ class SchemeItemSerializer(BaseSerializer):
             "copayment_percent",
         ]
 
-    @extend_schema_field(
-        {
-            "type": "object",
-            "nullable": True,
-            "properties": {
-                "id": {"type": "string"},
-                "scheme_name": {"type": "string"},
-                "card_code": {"type": "string"},
-            },
-        }
-    )
-    def get_scheme_detail(self, obj):
+    
+    def get_scheme_detail(self, obj) -> dict | None:
         if obj.scheme:
             return {
                 "id": obj.scheme.id,
@@ -199,18 +177,7 @@ class SchemeItemSerializer(BaseSerializer):
             }
         return None
 
-    @extend_schema_field(
-        {
-            "type": "object",
-            "nullable": True,
-            "properties": {
-                "id": {"type": "string"},
-                "name": {"type": "string"},
-                "type": {"type": "string"},
-            },
-        }
-    )
-    def get_item_detail(self, obj):
+    def get_item_detail(self, obj) -> dict | None:
         if obj.item:
             return {
                 "id": obj.item.id,
