@@ -12,7 +12,7 @@ class ActiveManager(models.Manager):
     """Default manager that excludes deleted records."""
 
     def get_queryset(self):
-        return super().get_queryset().filter(is_deleted=False)
+        return super().get_queryset().filter(is_deleted=False).order_by("-created_at")
 
 
 # ---------------------------------------------------------------------

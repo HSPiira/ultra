@@ -1,10 +1,10 @@
 from django.core.validators import MinValueValidator
 from django.db import models
 
-from apps.core.models.base import BaseModel
+from apps.core.models.base import BaseModel, ActiveManager
 
 
-class LabTestManager(models.Manager):
+class LabTestManager(ActiveManager):
     def by_name(self, name: str):
         return self.filter(name__iexact=name)
 
