@@ -31,6 +31,7 @@ class IndustrySerializer(BaseSerializer):
 
 
 class CompanySerializer(BaseSerializer):
+    industry = serializers.PrimaryKeyRelatedField(queryset=Industry.objects.all()) # Explicitly define industry
     industry_detail = IndustrySerializer(source="industry", read_only=True)
 
     class Meta(BaseSerializer.Meta):

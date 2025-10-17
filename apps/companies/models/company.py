@@ -3,13 +3,13 @@ from django.core.validators import RegexValidator
 from django.db import models
 
 from apps.companies.models.industry import Industry
-from apps.core.models.base import BaseModel
+from apps.core.models.base import BaseModel, ActiveManager
 
 
 # ---------------------------------------------------------------------
 # Managers
 # ---------------------------------------------------------------------
-class CompanyManager(models.Manager):
+class CompanyManager(ActiveManager):
     def get_by_name(self, company_name: str):
         return self.filter(company_name__iexact=company_name).first()
 

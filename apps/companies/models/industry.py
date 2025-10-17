@@ -1,6 +1,6 @@
 from django.db import models
 
-from apps.core.models.base import BaseModel
+from apps.core.models.base import BaseModel, ActiveManager
 
 
 # ---------------------------------------------------------------------
@@ -23,7 +23,7 @@ class Industry(BaseModel):
         return self.industry_name
 
 
-class IndustryManager(models.Manager):
+class IndustryManager(ActiveManager):
     def get_by_name(self, name: str):
         return self.filter(industry_name__iexact=name).first()
 
