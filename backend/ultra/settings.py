@@ -25,7 +25,7 @@ SECRET_KEY = "django-insecure-bo-cm(8%s0lu^$5snvv)!guhe00lyh&!qx7xil5%c8bs3_c7gd
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['localhost', '127.0.0.1', '0.0.0.0']
 
 
 # Application definition
@@ -38,6 +38,7 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
     "django_filters",
+    "corsheaders",
     "rest_framework",
     "drf_spectacular",
     "apps.core",
@@ -50,6 +51,7 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
+    "corsheaders.middleware.CorsMiddleware",
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
@@ -155,6 +157,39 @@ MEDIA_ROOT = BASE_DIR / "media"
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
+# CORS Configuration
+CORS_ALLOW_ALL_ORIGINS = True  # Only for development
+CORS_ALLOW_CREDENTIALS = True
+
+# Specific origins for production (uncomment and modify as needed)
+# CORS_ALLOWED_ORIGINS = [
+#     "http://localhost:5173",  # Vite dev server
+#     "http://127.0.0.1:5173",
+# ]
+
+# CORS headers to allow
+CORS_ALLOW_HEADERS = [
+    'accept',
+    'accept-encoding',
+    'authorization',
+    'content-type',
+    'dnt',
+    'origin',
+    'user-agent',
+    'x-csrftoken',
+    'x-requested-with',
+]
+
+# CORS methods to allow
+CORS_ALLOW_METHODS = [
+    'DELETE',
+    'GET',
+    'OPTIONS',
+    'PATCH',
+    'POST',
+    'PUT',
+]
+
 TEST_RUNNER = 'django.test.runner.DiscoverRunner'
 
 REST_FRAMEWORK = {
@@ -171,7 +206,7 @@ REST_FRAMEWORK = {
         "rest_framework.authentication.BasicAuthentication",
     ],
     "DEFAULT_PERMISSION_CLASSES": [
-        "rest_framework.permissions.IsAuthenticated",
+        "rest_framework.permissions.AllowAny",  # Temporarily allow all for testing
     ],
     # Rate limiting / throttling
     "DEFAULT_THROTTLE_CLASSES": [
