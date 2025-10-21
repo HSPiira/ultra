@@ -163,7 +163,7 @@ const Sidebar: React.FC<SidebarProps> = ({
       {/* Sidebar - Different behavior for mobile vs desktop */}
       <aside
         ref={sidebarRef}
-        className={`fixed top-0 h-full bg-black transition-all duration-300 z-40 ${
+        className={`fixed top-0 h-full transition-all duration-300 z-40 ${
           // Mobile/Tablet: Slide in from left when open, hidden when closed
           // Desktop: Always visible, wide when open, narrow when closed
           isOpen 
@@ -178,7 +178,7 @@ const Sidebar: React.FC<SidebarProps> = ({
           <div className="lg:hidden absolute top-1/2 right-2 transform -translate-y-1/2 w-1 h-12 bg-gradient-to-b from-transparent via-gray-600 to-transparent rounded-full opacity-30"></div>
           
           {/* Mobile Header - Only visible on mobile/tablet */}
-          <div className="lg:hidden flex items-center justify-between p-4 border-b border-gray-800">
+          <div className="lg:hidden flex items-center justify-between p-4 border-b border-gray-800" style={{ backgroundColor: '#1a1a1a' }}>
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
                 <User className="w-5 h-5 text-white" />
@@ -200,7 +200,7 @@ const Sidebar: React.FC<SidebarProps> = ({
           </div>
 
           {/* User Profile Section - Top (Desktop only) */}
-          <div className="hidden lg:flex px-3 border-b border-gray-800 flex-shrink-0 items-center" style={{ height: '60px' }}>
+          <div className="hidden lg:flex px-3 border-b border-gray-800 flex-shrink-0 items-center" style={{ height: '60px', backgroundColor: '#1a1a1a' }}>
             <div className={`flex items-center gap-2 ${!isOpen && 'justify-center'}`}>
               <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
                 <User className="w-4 h-4 text-white" />
@@ -245,7 +245,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                         isActive ? 'text-white' : 'text-gray-400 group-hover:text-white'
                       }`} />
                       {isOpen && (
-                        <span className="text-base font-medium truncate">{item.label}</span>
+                        <span className="text-base font-normal truncate">{item.label}</span>
                       )}
                     </Link>
                   );

@@ -93,49 +93,33 @@ const CompaniesPage: React.FC = () => {
   return (
     <div className="min-h-screen" style={{ backgroundColor: '#1a1a1a' }}>
       {/* Header with Statistics */}
-      <div className="px-6" style={{ backgroundColor: '#2a2a2a' }}>
+      <div className="px-6 py-1" style={{ backgroundColor: '#2a2a2a' }}>
 
-        {/* Statistics Cards */}
+        {/* Statistics Row */}
         {statistics && !loading && (
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div className="rounded-lg p-4 border" style={{ backgroundColor: '#3b3b3b', borderColor: '#4a4a4a' }}>
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-gray-400">Total Companies</p>
-                  <p className="text-2xl font-bold text-white">{statistics.total_companies}</p>
-                </div>
-                <Building2 className="w-8 h-8 text-gray-400" />
-              </div>
+          <div className="flex items-center gap-8 mt-4">
+            <div className="flex items-center gap-2">
+              <Building2 className="w-5 h-5" style={{ color: '#d1d5db' }} />
+              <span className="text-sm" style={{ color: '#9ca3af' }}>Total Companies</span>
+              <span className="text-lg font-semibold" style={{ color: '#ffffff' }}>{statistics.total_companies}</span>
             </div>
             
-            <div className="rounded-lg p-4 border" style={{ backgroundColor: '#3b3b3b', borderColor: '#4a4a4a' }}>
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-gray-400">Active Companies</p>
-                  <p className="text-2xl font-bold text-green-400">{statistics.active_companies}</p>
-                </div>
-                <TrendingUp className="w-8 h-8 text-green-500" />
-              </div>
+            <div className="flex items-center gap-2">
+              <TrendingUp className="w-5 h-5" style={{ color: '#10b981' }} />
+              <span className="text-sm" style={{ color: '#9ca3af' }}>Active</span>
+              <span className="text-lg font-semibold" style={{ color: '#10b981' }}>{statistics.active_companies}</span>
             </div>
             
-            <div className="rounded-lg p-4 border" style={{ backgroundColor: '#3b3b3b', borderColor: '#4a4a4a' }}>
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-gray-400">Inactive Companies</p>
-                  <p className="text-2xl font-bold text-red-400">{statistics.inactive_companies}</p>
-                </div>
-                <Users className="w-8 h-8 text-red-500" />
-              </div>
+            <div className="flex items-center gap-2">
+              <Users className="w-5 h-5" style={{ color: '#ef4444' }} />
+              <span className="text-sm" style={{ color: '#9ca3af' }}>Inactive</span>
+              <span className="text-lg font-semibold" style={{ color: '#ef4444' }}>{statistics.inactive_companies}</span>
             </div>
             
-            <div className="rounded-lg p-4 border" style={{ backgroundColor: '#3b3b3b', borderColor: '#4a4a4a' }}>
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-gray-400">Suspended Companies</p>
-                  <p className="text-2xl font-bold text-yellow-400">{statistics.suspended_companies}</p>
-                </div>
-                <BarChart3 className="w-8 h-8 text-yellow-500" />
-              </div>
+            <div className="flex items-center gap-2">
+              <BarChart3 className="w-5 h-5" style={{ color: '#f59e0b' }} />
+              <span className="text-sm" style={{ color: '#9ca3af' }}>Suspended</span>
+              <span className="text-lg font-semibold" style={{ color: '#f59e0b' }}>{statistics.suspended_companies}</span>
             </div>
           </div>
         )}
