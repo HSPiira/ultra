@@ -1,11 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { Outlet, useLocation } from 'react-router-dom';
+import { Outlet } from 'react-router-dom';
 import { Header } from '../common/Header';
 import Sidebar from '../common/SideBar';
 
 const Layout: React.FC = () => {
   const [sidebarOpen, setSidebarOpen] = useState(true);
-  const location = useLocation();
 
   const handleSidebarToggle = () => {
     setSidebarOpen(!sidebarOpen);

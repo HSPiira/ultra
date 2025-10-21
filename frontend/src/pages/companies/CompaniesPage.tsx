@@ -9,7 +9,8 @@ import {
   BarChart3,
   Filter,
   Download,
-  RefreshCw
+  RefreshCw,
+  Search
 } from 'lucide-react';
 import { CompaniesList } from './CompaniesList';
 import { CompanyForm } from './CompanyForm';
@@ -91,55 +92,12 @@ const CompaniesPage: React.FC = () => {
 
   return (
     <div className="min-h-screen" style={{ backgroundColor: '#1a1a1a' }}>
-      {/* Header */}
-      <div className="border-b px-6 py-4" style={{ backgroundColor: '#2a2a2a', borderColor: '#4a4a4a' }}>
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold flex items-center gap-3" style={{ color: '#ffffff' }}>
-              <Building2 className="w-8 h-8" style={{ color: '#d1d5db' }} />
-              Companies
-            </h1>
-            <p className="mt-1" style={{ color: '#9ca3af' }}>Manage your company directory and analytics</p>
-          </div>
-          
-          <div className="flex items-center gap-3">
-            <button
-              onClick={refreshData}
-              className="p-2 rounded-lg transition-colors"
-              style={{ color: '#9ca3af' }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.color = '#ffffff';
-                e.currentTarget.style.backgroundColor = '#3b3b3b';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.color = '#9ca3af';
-                e.currentTarget.style.backgroundColor = 'transparent';
-              }}
-              title="Refresh Data"
-            >
-              <RefreshCw className="w-5 h-5" />
-            </button>
-            
-            <button
-              onClick={handleAddCompany}
-              className="px-4 py-2 rounded-lg flex items-center gap-2 transition-colors"
-              style={{ backgroundColor: '#3b3b3b', color: '#ffffff' }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.backgroundColor = '#4a4a4a';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = '#3b3b3b';
-              }}
-            >
-              <Plus className="w-4 h-4" />
-              Add Company
-            </button>
-          </div>
-        </div>
+      {/* Header with Statistics */}
+      <div className="px-6" style={{ backgroundColor: '#2a2a2a' }}>
 
         {/* Statistics Cards */}
         {statistics && !loading && (
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mt-6">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div className="rounded-lg p-4 border" style={{ backgroundColor: '#3b3b3b', borderColor: '#4a4a4a' }}>
               <div className="flex items-center justify-between">
                 <div>
@@ -173,8 +131,8 @@ const CompaniesPage: React.FC = () => {
             <div className="rounded-lg p-4 border" style={{ backgroundColor: '#3b3b3b', borderColor: '#4a4a4a' }}>
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-gray-400">Recent Additions</p>
-                  <p className="text-2xl font-bold text-yellow-400">{statistics.recent_companies}</p>
+                  <p className="text-sm text-gray-400">Suspended Companies</p>
+                  <p className="text-2xl font-bold text-yellow-400">{statistics.suspended_companies}</p>
                 </div>
                 <BarChart3 className="w-8 h-8 text-yellow-500" />
               </div>
@@ -183,58 +141,94 @@ const CompaniesPage: React.FC = () => {
         )}
       </div>
 
-      {/* Tabs */}
+      {/* Tabs with Actions */}
       <div className="border-b" style={{ backgroundColor: '#2a2a2a', borderColor: '#4a4a4a' }}>
         <div className="px-6">
-          <div className="flex space-x-8">
-            <button
-              onClick={() => setActiveTab('companies')}
-              className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
-                activeTab === 'companies'
-                  ? 'border-b-2'
-                  : 'border-b-2'
-              }`}
-              style={{
-                borderBottomColor: activeTab === 'companies' ? '#9ca3af' : 'transparent',
-                color: activeTab === 'companies' ? '#d1d5db' : '#9ca3af'
-              }}
-              onMouseEnter={(e) => {
-                if (activeTab !== 'companies') {
-                  e.currentTarget.style.color = '#d1d5db';
-                }
-              }}
-              onMouseLeave={(e) => {
-                if (activeTab !== 'companies') {
+          <div className="flex items-center justify-between">
+            <div className="flex space-x-8">
+              <button
+                onClick={() => setActiveTab('companies')}
+                className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
+                  activeTab === 'companies'
+                    ? 'border-b-2'
+                    : 'border-b-2'
+                }`}
+                style={{
+                  borderBottomColor: activeTab === 'companies' ? '#9ca3af' : 'transparent',
+                  color: activeTab === 'companies' ? '#d1d5db' : '#9ca3af'
+                }}
+                onMouseEnter={(e) => {
+                  if (activeTab !== 'companies') {
+                    e.currentTarget.style.color = '#d1d5db';
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (activeTab !== 'companies') {
+                    e.currentTarget.style.color = '#9ca3af';
+                  }
+                }}
+              >
+                Companies
+              </button>
+              <button
+                onClick={() => setActiveTab('analytics')}
+                className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
+                  activeTab === 'analytics'
+                    ? 'border-b-2'
+                    : 'border-b-2'
+                }`}
+                style={{
+                  borderBottomColor: activeTab === 'analytics' ? '#9ca3af' : 'transparent',
+                  color: activeTab === 'analytics' ? '#d1d5db' : '#9ca3af'
+                }}
+                onMouseEnter={(e) => {
+                  if (activeTab !== 'analytics') {
+                    e.currentTarget.style.color = '#d1d5db';
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (activeTab !== 'analytics') {
+                    e.currentTarget.style.color = '#9ca3af';
+                  }
+                }}
+              >
+                Analytics
+              </button>
+            </div>
+            
+            <div className="flex items-center gap-3">
+              <button
+                onClick={refreshData}
+                className="p-2 rounded-lg transition-colors"
+                style={{ color: '#9ca3af' }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.color = '#ffffff';
+                  e.currentTarget.style.backgroundColor = '#3b3b3b';
+                }}
+                onMouseLeave={(e) => {
                   e.currentTarget.style.color = '#9ca3af';
-                }
-              }}
-            >
-              Companies
-            </button>
-            <button
-              onClick={() => setActiveTab('analytics')}
-              className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
-                activeTab === 'analytics'
-                  ? 'border-b-2'
-                  : 'border-b-2'
-              }`}
-              style={{
-                borderBottomColor: activeTab === 'analytics' ? '#9ca3af' : 'transparent',
-                color: activeTab === 'analytics' ? '#d1d5db' : '#9ca3af'
-              }}
-              onMouseEnter={(e) => {
-                if (activeTab !== 'analytics') {
-                  e.currentTarget.style.color = '#d1d5db';
-                }
-              }}
-              onMouseLeave={(e) => {
-                if (activeTab !== 'analytics') {
-                  e.currentTarget.style.color = '#9ca3af';
-                }
-              }}
-            >
-              Analytics
-            </button>
+                  e.currentTarget.style.backgroundColor = 'transparent';
+                }}
+                title="Refresh Data"
+              >
+                <RefreshCw className="w-5 h-5" />
+              </button>
+              
+              <button
+                onClick={handleAddCompany}
+                className="px-4 py-2 rounded-lg flex items-center gap-2 transition-colors"
+                style={{ backgroundColor: '#3b3b3b', color: '#ffffff' }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = '#4a4a4a';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = '#3b3b3b';
+                }}
+              >
+                <Plus className="w-4 h-4" />
+                Add Company
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -245,52 +239,96 @@ const CompaniesPage: React.FC = () => {
           <div className="space-y-6">
             {/* View Controls */}
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <span className="text-sm" style={{ color: '#9ca3af' }}>View:</span>
-                <div className="flex rounded-lg p-1" style={{ backgroundColor: '#3b3b3b' }}>
-                  <button
-                    onClick={() => setViewMode('list')}
-                    className={`p-2 rounded-md transition-colors`}
-                    style={{
-                      backgroundColor: viewMode === 'list' ? '#4a4a4a' : 'transparent',
-                      color: viewMode === 'list' ? '#ffffff' : '#9ca3af'
-                    }}
-                    onMouseEnter={(e) => {
-                      if (viewMode !== 'list') {
-                        e.currentTarget.style.color = '#ffffff';
-                      }
-                    }}
-                    onMouseLeave={(e) => {
-                      if (viewMode !== 'list') {
-                        e.currentTarget.style.color = '#9ca3af';
-                      }
-                    }}
-                    title="List View"
-                  >
-                    <List className="w-4 h-4" />
-                  </button>
-                  <button
-                    onClick={() => setViewMode('grid')}
-                    className={`p-2 rounded-md transition-colors`}
-                    style={{
-                      backgroundColor: viewMode === 'grid' ? '#4a4a4a' : 'transparent',
-                      color: viewMode === 'grid' ? '#ffffff' : '#9ca3af'
-                    }}
-                    onMouseEnter={(e) => {
-                      if (viewMode !== 'grid') {
-                        e.currentTarget.style.color = '#ffffff';
-                      }
-                    }}
-                    onMouseLeave={(e) => {
-                      if (viewMode !== 'grid') {
-                        e.currentTarget.style.color = '#9ca3af';
-                      }
-                    }}
-                    title="Grid View"
-                  >
-                    <Grid3X3 className="w-4 h-4" />
-                  </button>
+              <div className="flex items-center gap-4">
+                <div className="flex items-center gap-2">
+                  <div className="flex rounded-lg p-1" style={{ backgroundColor: '#3b3b3b' }}>
+                    <button
+                      onClick={() => setViewMode('list')}
+                      className={`p-2 rounded-md transition-colors`}
+                      style={{
+                        backgroundColor: viewMode === 'list' ? '#4a4a4a' : 'transparent',
+                        color: viewMode === 'list' ? '#ffffff' : '#9ca3af'
+                      }}
+                      onMouseEnter={(e) => {
+                        if (viewMode !== 'list') {
+                          e.currentTarget.style.color = '#ffffff';
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        if (viewMode !== 'list') {
+                          e.currentTarget.style.color = '#9ca3af';
+                        }
+                      }}
+                      title="List View"
+                    >
+                      <List className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={() => setViewMode('grid')}
+                      className={`p-2 rounded-md transition-colors`}
+                      style={{
+                        backgroundColor: viewMode === 'grid' ? '#4a4a4a' : 'transparent',
+                        color: viewMode === 'grid' ? '#ffffff' : '#9ca3af'
+                      }}
+                      onMouseEnter={(e) => {
+                        if (viewMode !== 'grid') {
+                          e.currentTarget.style.color = '#ffffff';
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        if (viewMode !== 'grid') {
+                          e.currentTarget.style.color = '#9ca3af';
+                        }
+                      }}
+                      title="Grid View"
+                    >
+                      <Grid3X3 className="w-4 h-4" />
+                    </button>
+                  </div>
                 </div>
+                
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4" style={{ color: '#9ca3af' }} />
+                  <input
+                    type="text"
+                    placeholder="Search companies..."
+                    className="w-64 pl-10 pr-4 py-2 border rounded-lg transition-colors"
+                    style={{ 
+                      backgroundColor: '#3b3b3b', 
+                      color: '#ffffff',
+                      borderColor: '#4a4a4a'
+                    }}
+                    onFocus={(e) => {
+                      e.target.style.borderColor = '#5a5a5a';
+                      e.target.style.boxShadow = '0 0 0 2px #5a5a5a';
+                    }}
+                    onBlur={(e) => {
+                      e.target.style.borderColor = '#4a4a4a';
+                      e.target.style.boxShadow = 'none';
+                    }}
+                  />
+                </div>
+                
+                <button 
+                  className="flex items-center gap-2 px-3 py-2 rounded-lg transition-colors border" 
+                  style={{ 
+                    color: '#9ca3af',
+                    backgroundColor: '#3b3b3b',
+                    borderColor: '#4a4a4a'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.color = '#ffffff';
+                    e.currentTarget.style.backgroundColor = '#4a4a4a';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.color = '#9ca3af';
+                    e.currentTarget.style.backgroundColor = '#3b3b3b';
+                  }}
+                  title="Filters"
+                >
+                  <Filter className="w-4 h-4" />
+                  <span className="text-sm">Filters</span>
+                </button>
               </div>
 
               <div className="flex items-center gap-2">
@@ -308,21 +346,6 @@ const CompaniesPage: React.FC = () => {
                   title="Export"
                 >
                   <Download className="w-4 h-4" />
-                </button>
-                <button 
-                  className="p-2 rounded-lg transition-colors" 
-                  style={{ color: '#9ca3af' }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.color = '#ffffff';
-                    e.currentTarget.style.backgroundColor = '#3b3b3b';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.color = '#9ca3af';
-                    e.currentTarget.style.backgroundColor = 'transparent';
-                  }}
-                  title="Advanced Filters"
-                >
-                  <Filter className="w-4 h-4" />
                 </button>
               </div>
             </div>

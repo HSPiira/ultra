@@ -4,7 +4,7 @@ export interface Industry {
   description?: string;
   created_at: string;
   updated_at: string;
-  status: 'active' | 'inactive';
+  status: 'ACTIVE' | 'INACTIVE';
 }
 
 export interface Company {
@@ -20,12 +20,12 @@ export interface Company {
   remark?: string;
   created_at: string;
   updated_at: string;
-  status: 'active' | 'inactive';
+  status: 'ACTIVE' | 'INACTIVE';
 }
 
 export interface CompanyFilters {
   search?: string;
-  status?: 'active' | 'inactive';
+  status?: 'ACTIVE' | 'INACTIVE';
   industry?: string;
   ordering?: string;
 }
@@ -49,9 +49,9 @@ export interface CompanyStatistics {
   total_companies: number;
   active_companies: number;
   inactive_companies: number;
-  companies_by_industry: Array<{
-    industry_name: string;
+  suspended_companies: number;
+  by_industry: Array<{
+    industry__industry_name: string;
     count: number;
   }>;
-  recent_companies: number;
 }

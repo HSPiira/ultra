@@ -173,7 +173,7 @@ export const CompanyDetails: React.FC<CompanyDetailsProps> = ({
               <div className="bg-gray-700 rounded-lg p-6 border border-gray-600">
                 <h3 className="text-lg font-semibold style={{ color: '#ffffff' }} mb-4">Status</h3>
                 <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
-                  company.status === 'active' 
+                  company.status === 'ACTIVE' 
                     ? 'bg-green-100 text-green-800' 
                     : 'bg-red-100 text-red-800'
                 }`}>

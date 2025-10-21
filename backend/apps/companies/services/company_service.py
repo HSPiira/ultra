@@ -71,6 +71,15 @@ class CompanyService:
         ).exists():
             raise ValidationError("Company with this name or email already exists")
 
+        # Handle industry ID - convert to Industry instance if needed
+        if "industry" in company_data and isinstance(company_data["industry"], str):
+            from apps.companies.models import Industry
+            try:
+                industry = Industry.objects.get(id=company_data["industry"], is_deleted=False)
+                company_data["industry"] = industry
+            except Industry.DoesNotExist:
+                raise ValidationError("Invalid industry ID")
+
         # Create company
         company = Company.objects.create(**company_data)
         return company
@@ -127,6 +136,15 @@ class CompanyService:
             )
             if not phone.isdigit() or len(phone) < 10:
                 raise ValidationError("Invalid phone number format")
+
+        # Handle industry ID - convert to Industry instance if needed
+        if "industry" in update_data and isinstance(update_data["industry"], str):
+            from apps.companies.models import Industry
+            try:
+                industry = Industry.objects.get(id=update_data["industry"], is_deleted=False)
+                update_data["industry"] = industry
+            except Industry.DoesNotExist:
+                raise ValidationError("Invalid industry ID")
 
         # Check for duplicates (excluding current company)
         if "company_name" in update_data or "email" in update_data:

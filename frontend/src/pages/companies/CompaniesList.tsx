@@ -1,7 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { 
-  Search, 
-  Filter, 
   Edit, 
   Trash2, 
   Eye, 
@@ -13,7 +11,7 @@ import {
   User,
 } from 'lucide-react';
 import { companiesApi } from '../../services/companies';
-import type { Company, Industry, CompanyFilters } from '../../types/companies';
+import type { Company } from '../../types/companies';
 
 interface CompaniesListProps {
   onCompanySelect?: (company: Company) => void;
@@ -31,48 +29,22 @@ export const CompaniesList: React.FC<CompaniesListProps> = ({
   viewMode = 'list'
 }) => {
   const [companies, setCompanies] = useState<Company[]>([]);
-  const [industries, setIndustries] = useState<Industry[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [filters, setFilters] = useState<CompanyFilters>({});
-  const [searchTerm, setSearchTerm] = useState('');
-  const [showFilters, setShowFilters] = useState(false);
 
   useEffect(() => {
     loadCompanies();
-    loadIndustries();
-  }, [filters]);
+  }, []);
 
   const loadCompanies = async () => {
     try {
       setLoading(true);
-      setError(null);
-      const data = await companiesApi.getCompanies(filters);
+      const data = await companiesApi.getCompanies();
       setCompanies(data);
     } catch (err) {
-      setError('Failed to load companies');
       console.error('Error loading companies:', err);
     } finally {
       setLoading(false);
     }
-  };
-
-  const loadIndustries = async () => {
-    try {
-      const data = await companiesApi.getIndustries();
-      setIndustries(data);
-    } catch (err) {
-      console.error('Error loading industries:', err);
-    }
-  };
-
-  const handleSearch = (value: string) => {
-    setSearchTerm(value);
-    setFilters(prev => ({ ...prev, search: value || undefined }));
-  };
-
-  const handleFilterChange = (key: keyof CompanyFilters, value: string | undefined) => {
-    setFilters(prev => ({ ...prev, [key]: value }));
   };
 
   const handleDelete = async (company: Company) => {
@@ -82,7 +54,7 @@ export const CompaniesList: React.FC<CompaniesListProps> = ({
         await loadCompanies();
         onCompanyDelete?.(company);
       } catch (err) {
-        setError('Failed to delete company');
+        console.error('Failed to delete company');
         console.error('Error deleting company:', err);
       }
     }
@@ -108,111 +80,7 @@ export const CompaniesList: React.FC<CompaniesListProps> = ({
   return (
     <div className="space-y-6">
 
-      {/* Search and Filters */}
-      <div className="rounded-lg border p-4 shadow-sm" style={{ backgroundColor: '#2a2a2a', borderColor: '#4a4a4a' }}>
-        <div className="flex gap-4 items-center">
-          <div className="flex-1 relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4" style={{ color: '#9ca3af' }} />
-            <input
-              type="text"
-              placeholder="Search companies..."
-              value={searchTerm}
-              onChange={(e) => handleSearch(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border rounded-lg transition-colors"
-              style={{ 
-                backgroundColor: '#3b3b3b', 
-                color: '#ffffff',
-                borderColor: '#4a4a4a'
-              }}
-              onFocus={(e) => {
-                e.target.style.borderColor = '#5a5a5a';
-                e.target.style.boxShadow = '0 0 0 2px #5a5a5a';
-              }}
-              onBlur={(e) => {
-                e.target.style.borderColor = '#4a4a4a';
-                e.target.style.boxShadow = 'none';
-              }}
-            />
-          </div>
-          <button
-            onClick={() => setShowFilters(!showFilters)}
-            className="flex items-center gap-2 px-4 py-2 border rounded-lg transition-colors"
-            style={{ 
-              backgroundColor: '#3b3b3b', 
-              color: '#d1d5db',
-              borderColor: '#4a4a4a'
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.backgroundColor = '#4a4a4a';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.backgroundColor = '#3b3b3b';
-            }}
-          >
-            <Filter className="w-4 h-4" />
-            Filters
-          </button>
-        </div>
 
-        {/* Advanced Filters */}
-        {showFilters && (
-          <div className="mt-4 pt-4 border-t grid grid-cols-1 md:grid-cols-3 gap-4" style={{ borderColor: '#4a4a4a' }}>
-            <div>
-              <label className="block text-sm font-medium mb-1" style={{ color: '#d1d5db' }}>Status</label>
-              <select
-                value={filters.status || ''}
-                onChange={(e) => handleFilterChange('status', e.target.value || undefined)}
-                className="w-full px-3 py-2 border rounded-lg transition-colors"
-                style={{ 
-                  backgroundColor: '#3b3b3b', 
-                  color: '#ffffff',
-                  borderColor: '#4a4a4a'
-                }}
-              >
-                <option value="">All Status</option>
-                <option value="active">Active</option>
-                <option value="inactive">Inactive</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-300 mb-1">Industry</label>
-              <select
-                value={filters.industry || ''}
-                onChange={(e) => handleFilterChange('industry', e.target.value || undefined)}
-                className="w-full px-3 py-2 border border-gray-600 rounded-lg style={{ backgroundColor: '#3b3b3b' }} style={{ color: '#ffffff' }} focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
-              >
-                <option value="">All Industries</option>
-                {industries.map((industry) => (
-                  <option key={industry.id} value={industry.id}>
-                    {industry.industry_name}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-300 mb-1">Sort By</label>
-              <select
-                value={filters.ordering || ''}
-                onChange={(e) => handleFilterChange('ordering', e.target.value || undefined)}
-                className="w-full px-3 py-2 border border-gray-600 rounded-lg style={{ backgroundColor: '#3b3b3b' }} style={{ color: '#ffffff' }} focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
-              >
-                <option value="">Default</option>
-                <option value="company_name">Name A-Z</option>
-                <option value="-company_name">Name Z-A</option>
-                <option value="created_at">Newest First</option>
-                <option value="-created_at">Oldest First</option>
-              </select>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Error State */}
-      {error && (
-        <div className="bg-red-900/20 border border-red-500/50 rounded-lg p-4">
-          <p className="text-red-400">{error}</p>
-        </div>
-      )}
 
       {/* Companies Display */}
       {viewMode === 'list' ? (
@@ -287,7 +155,7 @@ export const CompaniesList: React.FC<CompaniesListProps> = ({
                     </td>
                     <td className="px-6 py-4">
                       <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                        company.status === 'active' 
+                        company.status === 'ACTIVE' 
                           ? 'bg-green-100 text-green-800' 
                           : 'bg-red-100 text-red-800'
                       }`}>
@@ -343,7 +211,7 @@ export const CompaniesList: React.FC<CompaniesListProps> = ({
                   </div>
                 </div>
                 <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
-                  company.status === 'active' 
+                  company.status === 'ACTIVE' 
                     ? 'bg-green-100 text-green-800' 
                     : 'bg-red-100 text-red-800'
                 }`}>
@@ -419,12 +287,9 @@ export const CompaniesList: React.FC<CompaniesListProps> = ({
           <Building2 className="w-12 h-12 style={{ color: '#9ca3af' }} mx-auto mb-4" />
           <h3 className="text-lg font-medium style={{ color: '#ffffff' }} mb-2">No companies found</h3>
           <p className="style={{ color: '#9ca3af' }} mb-4">
-            {searchTerm || Object.keys(filters).length > 0 
-              ? 'Try adjusting your search or filters'
-              : 'Get started by adding your first company'
-            }
+            {'Get started by adding your first company'}
           </p>
-          {!searchTerm && Object.keys(filters).length === 0 && (
+          {(
               <button 
                 onClick={onAddCompany}
                 className="style={{ backgroundColor: '#3b3b3b' }} style={{ color: '#ffffff' }} px-4 py-2 rounded-lg hover:bg-gray-600 transition-colors"

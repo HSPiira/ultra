@@ -42,9 +42,9 @@ export const CompanyAnalytics: React.FC<CompanyAnalyticsProps> = ({ statistics }
   };
 
   const getIndustryStats = () => {
-    if (!statistics?.companies_by_industry) return [];
-    return statistics.companies_by_industry.map(item => ({
-      name: item.industry_name,
+    if (!statistics?.by_industry) return [];
+    return statistics.by_industry.map(item => ({
+      name: item.industry__industry_name,
       value: item.count,
       percentage: statistics.total_companies > 0 ? (item.count / statistics.total_companies) * 100 : 0
     }));
@@ -114,7 +114,7 @@ export const CompanyAnalytics: React.FC<CompanyAnalyticsProps> = ({ statistics }
             <div>
               <p className="text-sm style={{ color: '#9ca3af' }}">New This Month</p>
               <p className="text-2xl font-bold text-yellow-400">
-                {statistics?.recent_companies || 0}
+                {statistics?.suspended_companies || 0}
               </p>
               <p className="text-xs text-gray-500">companies added</p>
             </div>
@@ -186,7 +186,7 @@ export const CompanyAnalytics: React.FC<CompanyAnalyticsProps> = ({ statistics }
                       {new Date(company.created_at).toLocaleDateString()}
                     </p>
                     <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
-                      company.status === 'active' 
+                      company.status === 'ACTIVE' 
                         ? 'bg-green-100 text-green-800' 
                         : 'bg-red-100 text-red-800'
                     }`}>
