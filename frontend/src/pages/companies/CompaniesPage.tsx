@@ -91,7 +91,7 @@ const CompaniesPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen" style={{ backgroundColor: '#1a1a1a' }}>
+    <div className="h-full flex flex-col" style={{ backgroundColor: '#1a1a1a' }}>
       {/* Header with Statistics */}
       <div className="px-6 py-1" style={{ backgroundColor: '#2a2a2a' }}>
 
@@ -218,11 +218,11 @@ const CompaniesPage: React.FC = () => {
       </div>
 
       {/* Content */}
-      <div className="p-6">
+      <div className="flex-1 p-6 overflow-auto">
         {activeTab === 'companies' && (
-          <div className="space-y-6">
+          <div>
             {/* View Controls */}
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-4">
                 <div className="flex items-center gap-2">
                   <div className="flex rounded-lg p-1" style={{ backgroundColor: '#3b3b3b' }}>

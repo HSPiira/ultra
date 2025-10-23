@@ -40,7 +40,7 @@ const Layout: React.FC = () => {
         className={`flex flex-col h-full transition-all duration-300 ${
           // Mobile & Tablet: no margin (sidebar slides in from left)
           // Desktop: margin based on sidebar state
-          sidebarOpen ? 'lg:ml-64' : 'lg:ml-20'
+          sidebarOpen ? 'lg:ml-64' : 'lg:ml-16'
         }`}
       >
         {/* Header */}
@@ -53,11 +53,7 @@ const Layout: React.FC = () => {
           className="flex-1 overflow-auto" 
           style={{ backgroundColor: '#141414' }}
         >
-          <div className="p-3 sm:p-4 md:p-6">
-            <div className="max-w-7xl mx-auto">
-              <Outlet />
-            </div>
-          </div>
+          <Outlet />
         </main>
       </div>
     </div>
