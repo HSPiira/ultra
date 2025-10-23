@@ -3,6 +3,7 @@ from rest_framework import serializers
 
 from apps.core.utils.serializers import BaseSerializer
 from apps.schemes.models import Benefit, Plan, Scheme, SchemeItem
+from apps.companies.models import Company
 
 
 class SchemeSerializer(BaseSerializer):
@@ -66,6 +67,23 @@ class SchemeSerializer(BaseSerializer):
             raise serializers.ValidationError("Limit amount cannot be negative")
         return value
 
+    def validate_company(self, value):
+        """Validate company field."""
+        if not value:
+            raise serializers.ValidationError("Company is required")
+        
+        try:
+            # Try to get the company by ID
+            if isinstance(value, str):
+                company = Company.objects.get(id=value)
+            else:
+                company = value
+            return company
+        except Company.DoesNotExist:
+            raise serializers.ValidationError("Invalid company ID")
+        except (ValueError, TypeError):
+            raise serializers.ValidationError("Company must be a valid ID")
+
     def validate(self, data):
         """Cross-field validation."""
         start_date = data.get("start_date")
@@ -79,6 +97,16 @@ class SchemeSerializer(BaseSerializer):
             raise serializers.ValidationError("Termination date must be after end date")
 
         return data
+
+    def create(self, validated_data):
+        """Create a new scheme instance."""
+        # The company field is already validated and converted to a Company instance
+        return super().create(validated_data)
+
+    def update(self, instance, validated_data):
+        """Update a scheme instance."""
+        # The company field is already validated and converted to a Company instance
+        return super().update(instance, validated_data)
 
 
 class PlanSerializer(BaseSerializer):

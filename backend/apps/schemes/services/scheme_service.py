@@ -7,6 +7,7 @@ from django.db.models import Q
 
 from apps.core.enums.choices import BusinessStatusChoices
 from apps.schemes.models import Scheme
+from apps.companies.models import Company
 
 
 class SchemeService:
@@ -47,6 +48,17 @@ class SchemeService:
         for field in required_fields:
             if not scheme_data.get(field):
                 raise ValidationError(f"{field} is required")
+
+        # Handle company field - convert ID to Company instance if needed
+        company = scheme_data.get("company")
+        if isinstance(company, str):
+            try:
+                company = Company.objects.get(id=company)
+                scheme_data["company"] = company
+            except Company.DoesNotExist:
+                raise ValidationError("Invalid company ID")
+        elif not isinstance(company, Company):
+            raise ValidationError("Company must be a valid Company instance or ID")
 
         # Date validation
         if (
@@ -102,6 +114,18 @@ class SchemeService:
             raise ValidationError("company is required")
         if "card_code" in update_data and not update_data["card_code"]:
             raise ValidationError("card_code is required")
+
+        # Handle company field - convert ID to Company instance if needed
+        if "company" in update_data:
+            company = update_data["company"]
+            if isinstance(company, str):
+                try:
+                    company = Company.objects.get(id=company)
+                    update_data["company"] = company
+                except Company.DoesNotExist:
+                    raise ValidationError("Invalid company ID")
+            elif not isinstance(company, Company):
+                raise ValidationError("Company must be a valid Company instance or ID")
 
         # Date validation
         start_date = update_data.get("start_date", scheme.start_date)

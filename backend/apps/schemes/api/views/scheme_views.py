@@ -36,20 +36,25 @@ class SchemeViewSet(viewsets.ModelViewSet):
         return scheme_list(filters=filters_dict)
 
     def create(self, request, *args, **kwargs):
-        """Create a new scheme using the service layer."""
+        """Create a new scheme using the serializer."""
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
         scheme = SchemeService.scheme_create(
-            scheme_data=request.data, user=request.user
+            scheme_data=serializer.validated_data, user=request.user
         )
-        serializer = self.get_serializer(scheme)
-        return Response(serializer.data, status=status.HTTP_201_CREATED)
+        response_serializer = self.get_serializer(scheme)
+        return Response(response_serializer.data, status=status.HTTP_201_CREATED)
 
     def update(self, request, *args, **kwargs):
-        """Update a scheme using the service layer."""
+        """Update a scheme using the serializer."""
+        instance = self.get_object()
+        serializer = self.get_serializer(instance, data=request.data, partial=kwargs.get('partial', False))
+        serializer.is_valid(raise_exception=True)
         scheme = SchemeService.scheme_update(
-            scheme_id=kwargs["pk"], update_data=request.data, user=request.user
+            scheme_id=kwargs["pk"], update_data=serializer.validated_data, user=request.user
         )
-        serializer = self.get_serializer(scheme)
-        return Response(serializer.data)
+        response_serializer = self.get_serializer(scheme)
+        return Response(response_serializer.data)
 
     def destroy(self, request, *args, **kwargs):
         """Override delete → perform soft-delete via the service layer."""

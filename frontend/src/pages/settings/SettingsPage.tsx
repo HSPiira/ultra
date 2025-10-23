@@ -4,11 +4,15 @@ import {
   Building2,
   Shield, 
   Users,
-  Database
+  Database,
+  FileText,
+  Heart
 } from 'lucide-react';
 import { IndustriesSection } from './IndustriesSection';
+import { PlansSection } from './PlansSection';
+import { BenefitsSection } from './BenefitsSection';
 
-type SettingsSection = 'industries' | 'system' | 'users' | 'data';
+type SettingsSection = 'industries' | 'plans' | 'benefits' | 'system' | 'users' | 'data';
 
 const SettingsPage: React.FC = () => {
   const [activeSection, setActiveSection] = useState<SettingsSection>('industries');
@@ -17,26 +21,32 @@ const SettingsPage: React.FC = () => {
     {
       id: 'industries' as SettingsSection,
       label: 'Industries',
-      icon: Building2,
-      description: 'Manage company industry categories'
+      icon: Building2
+    },
+    {
+      id: 'plans' as SettingsSection,
+      label: 'Plans',
+      icon: FileText
+    },
+    {
+      id: 'benefits' as SettingsSection,
+      label: 'Benefits',
+      icon: Heart
     },
     {
       id: 'system' as SettingsSection,
       label: 'System',
-      icon: SettingsIcon,
-      description: 'System configuration and preferences'
+      icon: SettingsIcon
     },
     {
       id: 'users' as SettingsSection,
       label: 'Users',
-      icon: Users,
-      description: 'User management and permissions'
+      icon: Users
     },
     {
       id: 'data' as SettingsSection,
       label: 'Data',
-      icon: Database,
-      description: 'Data management and exports'
+      icon: Database
     }
   ];
 
@@ -75,33 +85,28 @@ const SettingsPage: React.FC = () => {
                 <button
                   key={section.id}
                   onClick={() => setActiveSection(section.id)}
-                    className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-colors text-left ${
-                      isActive ? 'bg-gray-700' : 'hover:bg-gray-600'
+                  className={`w-full flex items-center gap-3 px-3 py-3 rounded-lg transition-colors text-left ${
+                    isActive ? 'bg-gray-700' : 'hover:bg-gray-600'
                   }`}
                   style={{
-                      backgroundColor: isActive ? '#404040' : 'transparent',
-                      color: isActive ? '#ffffff' : '#d1d5db'
+                    backgroundColor: isActive ? '#404040' : 'transparent',
+                    color: isActive ? '#ffffff' : '#d1d5db'
                   }}
                   onMouseEnter={(e) => {
                     if (!isActive) {
-                        e.currentTarget.style.backgroundColor = '#3b3b3b';
-                        e.currentTarget.style.color = '#ffffff';
+                      e.currentTarget.style.backgroundColor = '#3b3b3b';
+                      e.currentTarget.style.color = '#ffffff';
                     }
                   }}
                   onMouseLeave={(e) => {
                     if (!isActive) {
-                        e.currentTarget.style.backgroundColor = 'transparent';
-                        e.currentTarget.style.color = '#d1d5db';
-                      }
-                    }}
-                  >
-                    <Icon className="w-4 h-4 flex-shrink-0" />
-                    <div className="flex-1 min-w-0">
-                      <div className="text-sm font-medium">{section.label}</div>
-                      <div className="text-xs" style={{ color: '#9ca3af' }}>
-                        {section.description}
-                      </div>
-                  </div>
+                      e.currentTarget.style.backgroundColor = 'transparent';
+                      e.currentTarget.style.color = '#d1d5db';
+                    }
+                  }}
+                >
+                  <Icon className="w-5 h-5 flex-shrink-0" />
+                  <span className="text-sm font-medium">{section.label}</span>
                 </button>
               );
             })}
@@ -112,6 +117,8 @@ const SettingsPage: React.FC = () => {
         {/* Main Content */}
         <div className="flex-1 overflow-auto">
           {activeSection === 'industries' && <IndustriesSection />}
+          {activeSection === 'plans' && <PlansSection />}
+          {activeSection === 'benefits' && <BenefitsSection />}
           {activeSection === 'system' && (
             <div className="p-6">
               <div className="text-center py-12">

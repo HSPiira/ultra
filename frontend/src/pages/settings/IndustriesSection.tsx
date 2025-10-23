@@ -60,62 +60,57 @@ export const IndustriesSection: React.FC = () => {
   };
 
   return (
-    <div className="h-full flex flex-col">
+    <div className="space-y-6 p-6">
       {/* Header */}
-      <div className="p-6 border-b" style={{ backgroundColor: '#2a2a2a', borderColor: '#4a4a4a' }}>
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ backgroundColor: '#3b3b3b' }}>
-              <Building2 className="w-4 h-4" style={{ color: '#d1d5db' }} />
-            </div>
-            <div>
-              <h2 className="text-xl font-semibold" style={{ color: '#ffffff' }}>
-                Industries
-              </h2>
-              <p className="text-sm" style={{ color: '#9ca3af' }}>
-                Manage company industry categories and types
-              </p>
-            </div>
-          </div>
-          
-          <div className="flex items-center gap-3">
-            <button
-              onClick={refreshData}
-              className="p-2 rounded-lg transition-colors"
-              style={{ color: '#9ca3af' }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.color = '#ffffff';
-                e.currentTarget.style.backgroundColor = '#3b3b3b';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.color = '#9ca3af';
-                e.currentTarget.style.backgroundColor = 'transparent';
-              }}
-              title="Refresh Data"
-            >
-              <RefreshCw className="w-4 h-4" />
-            </button>
-            
-            <button
-              onClick={handleAddIndustry}
-              className="p-2 rounded-lg transition-colors"
-              style={{ backgroundColor: '#3b3b3b', color: '#ffffff' }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.backgroundColor = '#4a4a4a';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = '#3b3b3b';
-              }}
-              title="Add Industry"
-            >
-              <Plus className="w-4 h-4" />
-            </button>
-          </div>
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-xl font-semibold" style={{ color: '#ffffff' }}>
+            Industries Management
+          </h2>
+          <p className="text-sm" style={{ color: '#9ca3af' }}>
+            Manage company industry categories and types
+          </p>
         </div>
       </div>
 
+      {/* Filters */}
+      <div className="flex items-center gap-4">
+        <div className="flex-1"></div>
+        <button
+          onClick={refreshData}
+          className="p-2 rounded-lg transition-colors"
+          style={{ color: '#9ca3af' }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.color = '#ffffff';
+            e.currentTarget.style.backgroundColor = '#3b3b3b';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.color = '#9ca3af';
+            e.currentTarget.style.backgroundColor = 'transparent';
+          }}
+          title="Refresh Data"
+        >
+          <RefreshCw className="w-4 h-4" />
+        </button>
+        
+        <button
+          onClick={handleAddIndustry}
+          className="p-2 rounded-lg transition-colors"
+          style={{ backgroundColor: '#3b82f6', color: '#ffffff' }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.backgroundColor = '#2563eb';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.backgroundColor = '#3b82f6';
+          }}
+          title="Add Industry"
+        >
+          <Plus className="w-4 h-4" />
+        </button>
+      </div>
+
       {/* Content */}
-      <div className="flex-1 p-6 overflow-auto">
+      <div>
         <IndustryList
           onIndustrySelect={handleIndustrySelect}
           onIndustryEdit={handleIndustryEdit}
