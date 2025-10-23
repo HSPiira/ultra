@@ -1,7 +1,6 @@
 @import "tailwindcss";
 
-/* SF Pro Display Font */
-@import url('https://fonts.cdnfonts.com/css/sf-pro-display');
+/* SF Pro Display Font is loaded in index.html */
 
 /* Apply SF Pro Display to the entire application */
 * {

@@ -85,19 +85,25 @@ export const CompaniesList: React.FC<CompaniesListProps> = ({
       {/* Companies Display */}
       {viewMode === 'list' ? (
         /* List View */
-        <div className="style={{ backgroundColor: '#2a2a2a' }} rounded-lg border style={{ borderColor: '#4a4a4a' }} overflow-hidden shadow-sm">
+        <div className="style={{ backgroundColor: '#2a2a2a' }} border style={{ borderColor: '#636363' }} overflow-hidden shadow-sm">
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead className="style={{ backgroundColor: '#3b3b3b' }} border-b border-gray-600">
                 <tr>
                   <th className="px-6 py-3 text-left text-xs font-medium style={{ color: '#9ca3af' }} uppercase tracking-wider">
-                    Company
+                    Company Name
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium style={{ color: '#9ca3af' }} uppercase tracking-wider">
                     Industry
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium style={{ color: '#9ca3af' }} uppercase tracking-wider">
-                    Contact
+                    Contact Person
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium style={{ color: '#9ca3af' }} uppercase tracking-wider">
+                    Email
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium style={{ color: '#9ca3af' }} uppercase tracking-wider">
+                    Phone
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium style={{ color: '#9ca3af' }} uppercase tracking-wider">
                     Status
@@ -111,47 +117,19 @@ export const CompaniesList: React.FC<CompaniesListProps> = ({
                 {companies.map((company) => (
                   <tr key={company.id} className="hover:style={{ backgroundColor: '#3b3b3b' }} transition-colors">
                     <td className="px-6 py-4">
-                      <div className="flex items-center">
-                      <div className="w-10 h-10 bg-gray-600 rounded-lg flex items-center justify-center mr-3">
-                        <Building2 className="w-5 h-5 text-gray-300" />
-                        </div>
-                        <div>
-                          <div className="font-medium style={{ color: '#ffffff' }}">{company.company_name}</div>
-                          <div className="text-sm style={{ color: '#9ca3af' }} flex items-center gap-1">
-                            <MapPin className="w-3 h-3" />
-                            {company.company_address}
-                          </div>
-                          {company.website && (
-                            <a
-                              href={company.website}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-sm text-gray-300 hover:style={{ color: '#ffffff' }} flex items-center gap-1 transition-colors"
-                            >
-                              <ExternalLink className="w-3 h-3" />
-                              Website
-                            </a>
-                          )}
-                        </div>
-                      </div>
+                      <div className="font-medium style={{ color: '#ffffff' }}">{company.company_name}</div>
                     </td>
                     <td className="px-6 py-4">
-                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-600 text-gray-300">
-                        {company.industry_detail.industry_name}
-                      </span>
+                      <span className="text-sm style={{ color: '#9ca3af' }}">{company.industry_detail.industry_name}</span>
                     </td>
                     <td className="px-6 py-4">
-                      <div className="text-sm">
-                        <div className="font-medium style={{ color: '#ffffff' }}">{company.contact_person}</div>
-                        <div className="style={{ color: '#9ca3af' }} flex items-center gap-1">
-                          <Mail className="w-3 h-3" />
-                          {company.email}
-                        </div>
-                        <div className="style={{ color: '#9ca3af' }} flex items-center gap-1">
-                          <Phone className="w-3 h-3" />
-                          {formatPhoneNumber(company.phone_number)}
-                        </div>
-                      </div>
+                      <span className="text-sm style={{ color: '#9ca3af' }}">{company.contact_person}</span>
+                    </td>
+                    <td className="px-6 py-4">
+                      <span className="text-sm style={{ color: '#9ca3af' }}">{company.email}</span>
+                    </td>
+                    <td className="px-6 py-4">
+                      <span className="text-sm style={{ color: '#9ca3af' }}">{company.phone_number}</span>
                     </td>
                     <td className="px-6 py-4">
                       <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${

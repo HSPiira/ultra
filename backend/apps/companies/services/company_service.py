@@ -71,17 +71,20 @@ class CompanyService:
         ).exists():
             raise ValidationError("Company with this name or email already exists")
 
+        # Create a mutable copy of the data
+        data = dict(company_data)
+        
         # Handle industry ID - convert to Industry instance if needed
-        if "industry" in company_data and isinstance(company_data["industry"], str):
+        if "industry" in data and isinstance(data["industry"], str):
             from apps.companies.models import Industry
             try:
-                industry = Industry.objects.get(id=company_data["industry"], is_deleted=False)
-                company_data["industry"] = industry
+                industry = Industry.objects.get(id=data["industry"], is_deleted=False)
+                data["industry"] = industry
             except Industry.DoesNotExist:
                 raise ValidationError("Invalid industry ID")
 
         # Create company
-        company = Company.objects.create(**company_data)
+        company = Company.objects.create(**data)
         return company
 
     @staticmethod
@@ -137,20 +140,23 @@ class CompanyService:
             if not phone.isdigit() or len(phone) < 10:
                 raise ValidationError("Invalid phone number format")
 
+        # Create a mutable copy of the data
+        data = dict(update_data)
+        
         # Handle industry ID - convert to Industry instance if needed
-        if "industry" in update_data and isinstance(update_data["industry"], str):
+        if "industry" in data and isinstance(data["industry"], str):
             from apps.companies.models import Industry
             try:
-                industry = Industry.objects.get(id=update_data["industry"], is_deleted=False)
-                update_data["industry"] = industry
+                industry = Industry.objects.get(id=data["industry"], is_deleted=False)
+                data["industry"] = industry
             except Industry.DoesNotExist:
                 raise ValidationError("Invalid industry ID")
 
         # Check for duplicates (excluding current company)
-        if "company_name" in update_data or "email" in update_data:
+        if "company_name" in data or "email" in data:
             qs = Company.objects.filter(is_deleted=False).exclude(id=company_id)
-            company_name = update_data.get("company_name", company.company_name)
-            email = update_data.get("email", company.email)
+            company_name = data.get("company_name", company.company_name)
+            email = data.get("email", company.email)
             if qs.filter(
                 Q(company_name__iexact=company_name) | Q(email__iexact=email)
             ).exists():
@@ -159,7 +165,7 @@ class CompanyService:
                 )
 
         # Update fields
-        for field, value in update_data.items():
+        for field, value in data.items():
             setattr(company, field, value)
 
         company.save()
