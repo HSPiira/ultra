@@ -38,6 +38,9 @@ export const LabTestsList: React.FC<LabTestsListProps> = ({
   const [labTests, setLabTests] = useState<LabTest[]>([]);
   const [loading, setLoading] = useState(true);
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const [totalCount, setTotalCount] = useState(0);
   const [statusDialog, setStatusDialog] = useState<{
     isOpen: boolean;
     labTest: LabTest | null;
@@ -52,7 +55,7 @@ export const LabTestsList: React.FC<LabTestsListProps> = ({
 
   useEffect(() => {
     loadLabTests();
-  }, []);
+  }, [currentPage, pageSize]);
 
   // Watch for refresh trigger changes
   useEffect(() => {
@@ -83,9 +86,13 @@ export const LabTestsList: React.FC<LabTestsListProps> = ({
     try {
       setLoading(true);
       console.log('Loading lab tests...');
-      const data = await medicalCatalogApi.getLabTests();
+      const data = await medicalCatalogApi.getLabTests({
+        page: currentPage,
+        page_size: pageSize
+      });
       console.log('Lab tests loaded:', data);
-      setLabTests(data);
+      setLabTests(data.results);
+      setTotalCount(data.count);
     } catch (err) {
       console.error('Error loading lab tests:', err);
     } finally {
@@ -191,33 +198,33 @@ export const LabTestsList: React.FC<LabTestsListProps> = ({
   }
 
   return (
-    <div className="w-full">
+    <div className="w-full h-full flex flex-col">
       {/* Lab Tests Display */}
       {viewMode === 'list' ? (
         /* List View */
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-max">
+        <div className="flex-1 overflow-auto">
+          <table className="w-full">
             <thead>
               <tr className="border-b" style={{ borderColor: '#374151' }}>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[200px]">
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider ">
                   Test Name
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[120px]">
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider ">
                   Category
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[100px]">
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider ">
                   Base Amount
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[150px]">
                   Normal Range
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[100px]">
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider ">
                   Units
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[80px]">
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider ">
                   Status
                 </th>
-                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[120px]">
+                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider ">
                   Actions
                 </th>
               </tr>
@@ -435,6 +442,85 @@ export const LabTestsList: React.FC<LabTestsListProps> = ({
               </div>
               </div>
             ))}
+          </div>
+        </div>
+      )}
+
+          {/* Pagination Controls */}
+          {labTests.length > 0 && (
+            <div className="px-4 py-3 border-t flex items-center justify-between flex-shrink-0" style={{ borderColor: '#374151' }}>
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-gray-400">Rows</span>
+              <select
+                value={pageSize}
+                onChange={(e) => {
+                  setPageSize(Number(e.target.value));
+                  setCurrentPage(1);
+                }}
+                className="px-2 py-1 text-sm border rounded bg-gray-800 text-white border-gray-600 focus:border-blue-500 focus:outline-none"
+              >
+                <option value={10}>10</option>
+                <option value={25}>25</option>
+                <option value={50}>50</option>
+                <option value={100}>100</option>
+              </select>
+            </div>
+            <span className="text-sm text-gray-400">
+              Showing {((currentPage - 1) * pageSize) + 1} to {Math.min(currentPage * pageSize, totalCount)} of {totalCount} entries
+            </span>
+          </div>
+          
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+              disabled={currentPage === 1}
+              className="px-3 py-1 text-sm border rounded bg-gray-800 text-white border-gray-600 hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none"
+            >
+              &lt; Previous
+            </button>
+            
+            <div className="flex items-center gap-1">
+              {Array.from({ length: Math.min(5, Math.ceil(totalCount / pageSize)) }, (_, i) => {
+                const pageNum = i + 1;
+                return (
+                  <button
+                    key={pageNum}
+                    onClick={() => setCurrentPage(pageNum)}
+                    className={`px-3 py-1 text-sm border rounded ${
+                      currentPage === pageNum
+                        ? 'bg-blue-600 text-white border-blue-600'
+                        : 'bg-gray-800 text-white border-gray-600 hover:bg-gray-700'
+                    }`}
+                  >
+                    {pageNum}
+                  </button>
+                );
+              })}
+              {Math.ceil(totalCount / pageSize) > 5 && (
+                <>
+                  <span className="text-gray-400">...</span>
+                  <button
+                    onClick={() => setCurrentPage(Math.ceil(totalCount / pageSize))}
+                    className={`px-3 py-1 text-sm border rounded ${
+                      currentPage === Math.ceil(totalCount / pageSize)
+                        ? 'bg-blue-600 text-white border-blue-600'
+                        : 'bg-gray-800 text-white border-gray-600 hover:bg-gray-700'
+                    }`}
+                  >
+                    {Math.ceil(totalCount / pageSize)}
+                  </button>
+                </>
+              )}
+            </div>
+            
+            <button
+              onClick={() => setCurrentPage(prev => Math.min(prev + 1, Math.ceil(totalCount / pageSize)))}
+              disabled={currentPage === Math.ceil(totalCount / pageSize)}
+              className="px-3 py-1 text-sm border rounded bg-gray-800 text-white border-gray-600 hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none"
+            >
+              Next &gt;
+            </button>
           </div>
         </div>
       )}

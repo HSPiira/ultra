@@ -16,21 +16,24 @@ import type {
   LabTestUpdateData,
   HospitalItemPriceCreateData,
   HospitalItemPriceUpdateData,
-  MedicalCatalogStatistics
+  MedicalCatalogStatistics,
+  PaginatedResponse
 } from '../types/medical-catalog';
 
 export const medicalCatalogApi = {
   // Services CRUD
-  getServices: async (filters?: ServiceFilters): Promise<Service[]> => {
+  getServices: async (filters?: ServiceFilters): Promise<PaginatedResponse<Service>> => {
     const params = new URLSearchParams();
     if (filters?.search) params.append('search', filters.search);
     if (filters?.status) params.append('status', filters.status);
     if (filters?.category) params.append('category', filters.category);
     if (filters?.service_type) params.append('service_type', filters.service_type);
     if (filters?.ordering) params.append('ordering', filters.ordering);
+    if (filters?.page) params.append('page', filters.page.toString());
+    if (filters?.page_size) params.append('page_size', filters.page_size.toString());
 
-        const response = await api.get(`/services/?${params.toString()}`);
-        return (response.data as any).results as Service[];
+    const response = await api.get(`/services/?${params.toString()}`);
+    return response.data as PaginatedResponse<Service>;
   },
 
   getService: async (id: string): Promise<Service> => {
@@ -54,16 +57,18 @@ export const medicalCatalogApi = {
   },
 
   // Medicines CRUD
-  getMedicines: async (filters?: MedicineFilters): Promise<Medicine[]> => {
+  getMedicines: async (filters?: MedicineFilters): Promise<PaginatedResponse<Medicine>> => {
     const params = new URLSearchParams();
     if (filters?.search) params.append('search', filters.search);
     if (filters?.status) params.append('status', filters.status);
     if (filters?.dosage_form) params.append('dosage_form', filters.dosage_form);
     if (filters?.route) params.append('route', filters.route);
     if (filters?.ordering) params.append('ordering', filters.ordering);
+    if (filters?.page) params.append('page', filters.page.toString());
+    if (filters?.page_size) params.append('page_size', filters.page_size.toString());
 
     const response = await api.get(`/medicines/?${params.toString()}`);
-    return (response.data as any).results as Medicine[];
+    return response.data as PaginatedResponse<Medicine>;
   },
 
   getMedicine: async (id: string): Promise<Medicine> => {
@@ -87,15 +92,17 @@ export const medicalCatalogApi = {
   },
 
   // Lab Tests CRUD
-  getLabTests: async (filters?: LabTestFilters): Promise<LabTest[]> => {
+  getLabTests: async (filters?: LabTestFilters): Promise<PaginatedResponse<LabTest>> => {
     const params = new URLSearchParams();
     if (filters?.search) params.append('search', filters.search);
     if (filters?.status) params.append('status', filters.status);
     if (filters?.category) params.append('category', filters.category);
     if (filters?.ordering) params.append('ordering', filters.ordering);
+    if (filters?.page) params.append('page', filters.page.toString());
+    if (filters?.page_size) params.append('page_size', filters.page_size.toString());
 
     const response = await api.get(`/lab-tests/?${params.toString()}`);
-    return (response.data as any).results as LabTest[];
+    return response.data as PaginatedResponse<LabTest>;
   },
 
   getLabTest: async (id: string): Promise<LabTest> => {
@@ -119,7 +126,7 @@ export const medicalCatalogApi = {
   },
 
   // Hospital Item Prices CRUD
-  getHospitalItemPrices: async (filters?: HospitalItemPriceFilters): Promise<HospitalItemPrice[]> => {
+  getHospitalItemPrices: async (filters?: HospitalItemPriceFilters): Promise<PaginatedResponse<HospitalItemPrice>> => {
     const params = new URLSearchParams();
     if (filters?.search) params.append('search', filters.search);
     if (filters?.status) params.append('status', filters.status);
@@ -127,9 +134,11 @@ export const medicalCatalogApi = {
     if (filters?.content_type) params.append('content_type', filters.content_type);
     if (filters?.available !== undefined) params.append('available', filters.available.toString());
     if (filters?.ordering) params.append('ordering', filters.ordering);
+    if (filters?.page) params.append('page', filters.page.toString());
+    if (filters?.page_size) params.append('page_size', filters.page_size.toString());
 
     const response = await api.get(`/hospital-item-prices/?${params.toString()}`);
-    return (response.data as any).results as HospitalItemPrice[];
+    return response.data as PaginatedResponse<HospitalItemPrice>;
   },
 
   getHospitalItemPrice: async (id: string): Promise<HospitalItemPrice> => {

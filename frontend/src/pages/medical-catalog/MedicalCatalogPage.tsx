@@ -1,14 +1,10 @@
-import React, { useState, useEffect } from 'react';
-import { 
-  Stethoscope, 
-  Pill, 
-  TestTube, 
-  Building2, 
-  Plus,
-  Search,
-  Filter,
-  Download,
-  Upload
+import React, { useState } from 'react';
+import {
+  Stethoscope,
+  Pill,
+  TestTube,
+  Building2,
+  Plus
 } from 'lucide-react';
 import { ServicesList } from './ServicesList';
 import { MedicinesList } from './MedicinesList';
@@ -18,6 +14,7 @@ import { ServiceForm } from './ServiceForm';
 import { MedicineForm } from './MedicineForm';
 import { LabTestForm } from './LabTestForm';
 import { HospitalPriceForm } from './HospitalPriceForm';
+import type { Service, Medicine, LabTest, HospitalItemPrice } from '../../types/medical-catalog';
 
 type TabType = 'services' | 'medicines' | 'labtests' | 'prices';
 
@@ -34,7 +31,7 @@ const MedicalCatalogPage: React.FC = () => {
     setShowForm(true);
   };
 
-  const handleEditItem = (item: any, type: 'service' | 'medicine' | 'labtest' | 'price') => {
+  const handleEditItem = (item: Service | Medicine | LabTest | HospitalItemPrice, type: 'service' | 'medicine' | 'labtest' | 'price') => {
     setFormType(type);
     setEditingItem(item);
     setShowForm(true);
@@ -79,7 +76,7 @@ const MedicalCatalogPage: React.FC = () => {
       case 'services':
         return (
           <ServicesList
-            onServiceEdit={(service) => handleEditItem(service, 'service')}
+            onServiceEdit={(service: Service) => handleEditItem(service, 'service')}
             onServiceDelete={() => setRefreshTrigger(prev => prev + 1)}
             onServiceStatusChange={() => setRefreshTrigger(prev => prev + 1)}
             refreshTrigger={refreshTrigger}
@@ -88,7 +85,7 @@ const MedicalCatalogPage: React.FC = () => {
       case 'medicines':
         return (
           <MedicinesList
-            onMedicineEdit={(medicine) => handleEditItem(medicine, 'medicine')}
+            onMedicineEdit={(medicine: Medicine) => handleEditItem(medicine, 'medicine')}
             onMedicineDelete={() => setRefreshTrigger(prev => prev + 1)}
             onMedicineStatusChange={() => setRefreshTrigger(prev => prev + 1)}
             refreshTrigger={refreshTrigger}
@@ -97,7 +94,7 @@ const MedicalCatalogPage: React.FC = () => {
       case 'labtests':
         return (
           <LabTestsList
-            onLabTestEdit={(labTest) => handleEditItem(labTest, 'labtest')}
+            onLabTestEdit={(labTest: LabTest) => handleEditItem(labTest, 'labtest')}
             onLabTestDelete={() => setRefreshTrigger(prev => prev + 1)}
             onLabTestStatusChange={() => setRefreshTrigger(prev => prev + 1)}
             refreshTrigger={refreshTrigger}
@@ -106,7 +103,7 @@ const MedicalCatalogPage: React.FC = () => {
       case 'prices':
         return (
           <HospitalPricesList
-            onPriceEdit={(price) => handleEditItem(price, 'price')}
+            onPriceEdit={(price: HospitalItemPrice) => handleEditItem(price, 'price')}
             onPriceDelete={() => setRefreshTrigger(prev => prev + 1)}
             onPriceStatusChange={() => setRefreshTrigger(prev => prev + 1)}
             refreshTrigger={refreshTrigger}
@@ -163,11 +160,11 @@ const MedicalCatalogPage: React.FC = () => {
   };
 
 
-  return (
-    <div className="min-h-screen" style={{ backgroundColor: '#0f0f0f' }}>
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      return (
+        <div className="h-screen overflow-hidden" style={{ backgroundColor: '#0f0f0f' }}>
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 sm:py-4 lg:py-6 h-full flex flex-col">
         {/* Header Section */}
-        <div className="mb-8">
+        <div className="mb-4 flex-shrink-0">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div className="flex-1">
               <h1 className="text-3xl font-bold text-white">Medical Catalog</h1>
@@ -189,7 +186,7 @@ const MedicalCatalogPage: React.FC = () => {
 
 
         {/* Tabs */}
-        <div className="mb-6">
+        <div className="mb-3 flex-shrink-0">
           <div className="border-b overflow-x-auto" style={{ borderColor: '#374151' }}>
             <nav className="-mb-px flex space-x-2 sm:space-x-8 min-w-max">
               {tabs.map((tab) => {
@@ -215,8 +212,10 @@ const MedicalCatalogPage: React.FC = () => {
         </div>
 
         {/* Tab Content */}
-        <div className="rounded-lg border overflow-hidden" style={{ backgroundColor: '#1a1a1a', borderColor: '#2a2a2a' }}>
-          {renderTabContent()}
+        <div className="flex-1 overflow-hidden">
+          <div className="rounded-lg border h-full flex flex-col" style={{ backgroundColor: '#1a1a1a', borderColor: '#2a2a2a' }}>
+            {renderTabContent()}
+          </div>
         </div>
 
         {/* Forms */}

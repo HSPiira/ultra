@@ -58,6 +58,14 @@ export interface HospitalItemPrice {
   status: 'ACTIVE' | 'INACTIVE' | 'SUSPENDED';
 }
 
+// Paginated response interface
+export interface PaginatedResponse<T> {
+  count: number;
+  next: string | null;
+  previous: string | null;
+  results: T[];
+}
+
 // Filter interfaces
 export interface ServiceFilters {
   search?: string;
@@ -65,6 +73,8 @@ export interface ServiceFilters {
   category?: string;
   service_type?: string;
   ordering?: string;
+  page?: number;
+  page_size?: number;
 }
 
 export interface MedicineFilters {
@@ -73,6 +83,8 @@ export interface MedicineFilters {
   dosage_form?: string;
   route?: string;
   ordering?: string;
+  page?: number;
+  page_size?: number;
 }
 
 export interface LabTestFilters {
@@ -80,6 +92,8 @@ export interface LabTestFilters {
   status?: 'ACTIVE' | 'INACTIVE' | 'SUSPENDED';
   category?: string;
   ordering?: string;
+  page?: number;
+  page_size?: number;
 }
 
 export interface HospitalItemPriceFilters {
@@ -89,6 +103,8 @@ export interface HospitalItemPriceFilters {
   content_type?: string;
   available?: boolean;
   ordering?: string;
+  page?: number;
+  page_size?: number;
 }
 
 // Create/Update data interfaces
