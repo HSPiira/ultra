@@ -10,6 +10,7 @@ import MembersPage from '../pages/members/MembersPage';
 import ProvidersPage from '../pages/providers/ProvidersPage';
 import MedicalCatalogPage from '../pages/medical-catalog/MedicalCatalogPage';
 import SchemesPage from '../pages/schemes/SchemesPage';
+import { SchemeDetailsPage } from '../pages/schemes';
 import ReportsPage from '../pages/reports/ReportsPage';
 import AnalyticsPage from '../pages/analytics/AnalyticsPage';
 
@@ -53,6 +54,10 @@ const router = createBrowserRouter([
       {
         path: 'schemes',
         element: <SchemesPage />
+      },
+      {
+        path: 'schemes/:id',
+        element: <SchemeDetailsPage />
       },
       {
         path: 'reports',

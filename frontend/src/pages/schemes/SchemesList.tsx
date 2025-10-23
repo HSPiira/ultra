@@ -178,6 +178,10 @@ export const SchemesList: React.FC<SchemesListProps> = ({
     });
   };
 
+  const handleRowClick = (scheme: Scheme) => {
+    navigate(`/schemes/${scheme.id}`);
+  };
+
   const handleRowDoubleClick = (scheme: Scheme) => {
     navigate(`/schemes/${scheme.id}`);
   };
@@ -265,6 +269,7 @@ export const SchemesList: React.FC<SchemesListProps> = ({
                 key={scheme.id} 
                 className="border-b hover:bg-gray-800 transition-colors cursor-pointer" 
                 style={{ borderColor: '#374151' }}
+                onClick={() => handleRowClick(scheme)}
                 onDoubleClick={() => handleRowDoubleClick(scheme)}
               >
                 <td className="px-3 py-2">
@@ -453,7 +458,13 @@ export const SchemesList: React.FC<SchemesListProps> = ({
         /* Grid View */
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {schemes.map((scheme) => (
-            <div key={scheme.id} className="rounded-lg border p-6 hover:bg-gray-800 transition-colors" style={{ backgroundColor: '#2a2a2a', borderColor: '#4a4a4a' }}>
+            <div 
+              key={scheme.id} 
+              className="rounded-lg border p-6 hover:bg-gray-800 transition-colors cursor-pointer" 
+              style={{ backgroundColor: '#2a2a2a', borderColor: '#4a4a4a' }}
+              onClick={() => handleRowClick(scheme)}
+              onDoubleClick={() => handleRowDoubleClick(scheme)}
+            >
               <div className="flex items-start justify-between mb-4">
                 <div className="flex items-center gap-3">
                   <div className="w-12 h-12 bg-gray-600 rounded-lg flex items-center justify-center">
