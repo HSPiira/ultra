@@ -2,7 +2,6 @@ import React, { useEffect, useRef } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { 
   Settings, 
-  BarChart3, 
   FileText, 
   Menu, 
   X, 
@@ -10,10 +9,12 @@ import {
   Building2,
   Stethoscope,
   CreditCard,
-  Shield,
   Users,
   Home,
-  ChevronRight
+  ChevronRight,
+  Activity,
+  PieChart,
+  TrendingUp
 } from "lucide-react";
 
 interface SidebarProps {
@@ -109,7 +110,7 @@ const Sidebar: React.FC<SidebarProps> = ({
     {
       id: 'medical-catalog',
       label: 'Medical Catalog',
-      icon: Shield,
+      icon: Activity,
       path: '/medical-catalog'
     },
     {
@@ -123,13 +124,13 @@ const Sidebar: React.FC<SidebarProps> = ({
     {
       id: 'reports',
       label: 'Reports',
-      icon: BarChart3,
+      icon: PieChart,
       path: '/reports'
     },
     {
       id: 'analytics',
       label: 'Analytics',
-      icon: BarChart3,
+      icon: TrendingUp,
       path: '/analytics'
     },
     // Separator line
@@ -174,8 +175,8 @@ const Sidebar: React.FC<SidebarProps> = ({
           {/* Mobile Header - Only visible on mobile/tablet */}
           <div className="lg:hidden flex items-center justify-between p-4 border-b" style={{ borderColor: '#2a2a2a' }}>
             <div className="flex items-center gap-3">
-              <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
-                <Shield className="w-4 h-4 text-white" />
+              <div className="w-8 h-8 flex items-center justify-center">
+                <img src="/logo.svg" alt="Logo" className="w-6 h-6" />
               </div>
               <div>
                 <h2 className="text-lg font-bold text-white">MedInsure</h2>
@@ -194,8 +195,8 @@ const Sidebar: React.FC<SidebarProps> = ({
           {/* User Profile Section - Top (Desktop only) */}
           <div className="hidden lg:flex px-4 border-b flex-shrink-0 items-center" style={{ height: '60px', borderColor: '#2a2a2a' }}>
             <div className={`flex items-center gap-3 ${!isOpen && 'justify-center'}`}>
-              <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
-                <Shield className="w-4 h-4 text-white" />
+              <div className="w-8 h-8 flex items-center justify-center">
+                <img src="/logo.svg" alt="Logo" className="w-6 h-6" />
               </div>
               {isOpen && (
                 <div className="flex-1 min-w-0">
