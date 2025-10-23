@@ -179,8 +179,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                 <img src="/logo.svg" alt="Logo" className="w-6 h-6" />
               </div>
               <div>
-                <h2 className="text-lg font-bold text-white">MedInsure</h2>
-                <p className="text-xs text-gray-400">Insurance Platform</p>
+                <h2 className="text-lg font-bold text-white">Ultra</h2>
               </div>
             </div>
             <button
@@ -201,10 +200,9 @@ const Sidebar: React.FC<SidebarProps> = ({
               {isOpen && (
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
-                    <h2 className="text-base font-bold text-white">MedInsure</h2>
+                    <h2 className="text-base font-bold text-white">Ultra</h2>
                     <span className="text-xs px-2 py-1 rounded-full" style={{ backgroundColor: '#2a2a2a', color: '#9ca3af' }}>Pro</span>
                   </div>
-                  <p className="text-xs text-gray-400">Insurance Platform</p>
                 </div>
               )}
             </div>

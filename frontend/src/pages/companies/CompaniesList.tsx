@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { 
   Edit, 
   Trash2, 
   Eye, 
-  Building2, 
-  Mail, 
-  Phone, 
+  Building2,
+  Mail,
+  Phone,
   MapPin,
   ExternalLink,
   User,
@@ -37,6 +38,7 @@ export const CompaniesList: React.FC<CompaniesListProps> = ({
   viewMode = 'list',
   refreshTrigger
 }) => {
+  const navigate = useNavigate();
   const [companies, setCompanies] = useState<Company[]>([]);
   const [loading, setLoading] = useState(true);
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
@@ -178,6 +180,10 @@ export const CompaniesList: React.FC<CompaniesListProps> = ({
     });
   };
 
+  const handleRowDoubleClick = (company: Company) => {
+    navigate(`/companies/${company.id}`);
+  };
+
   const formatPhoneNumber = (phone: string) => {
     // Simple phone formatting
     const cleaned = phone.replace(/\D/g, '');
@@ -230,8 +236,9 @@ export const CompaniesList: React.FC<CompaniesListProps> = ({
               {companies.map((company) => (
                   <tr 
                     key={company.id} 
-                    className="border-b hover:bg-gray-800 transition-colors" 
+                    className="border-b hover:bg-gray-800 transition-colors cursor-pointer" 
                     style={{ borderColor: '#374151' }}
+                    onDoubleClick={() => handleRowDoubleClick(company)}
                   >
                     <td className="px-3 py-2">
                         <div className="font-medium text-white truncate" title={company.company_name}>{company.company_name}</div>

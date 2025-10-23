@@ -3,6 +3,7 @@ import { createBrowserRouter, RouterProvider } from 'react-router-dom';
 import Layout from '../components/layout/Layout';
 import Dashboard from '../pages/dashboard/Dashboard';
 import CompaniesPage from '../pages/companies/CompaniesPage';
+import { CompanyDetailsPage } from '../pages/companies';
 import { SettingsPage } from '../pages/settings';
 import ClaimsPage from '../pages/claims/ClaimsPage';
 import MembersPage from '../pages/members/MembersPage';
@@ -24,6 +25,10 @@ const router = createBrowserRouter([
       {
         path: 'companies',
         element: <CompaniesPage />
+      },
+      {
+        path: 'companies/:id',
+        element: <CompanyDetailsPage />
       },
       {
         path: 'settings',
