@@ -7,31 +7,43 @@ from apps.providers.models import Hospital
 class HospitalItemPriceService:
     @staticmethod
     def create(*, data: dict, user=None) -> HospitalItemPrice:
-        hospital_id = data.pop("hospital")
+        # Filter out non-model fields
+        model_fields = {
+            'hospital', 'content_type', 'object_id', 'amount', 'available'
+        }
+        filtered_data = {k: v for k, v in data.items() if k in model_fields}
+        
+        hospital_id = filtered_data.pop("hospital")
         hospital_instance = Hospital.objects.get(pk=hospital_id)
 
-        content_type_id = data.pop("content_type")
+        content_type_id = filtered_data.pop("content_type")
         content_type_instance = ContentType.objects.get(pk=content_type_id)
 
         return HospitalItemPrice.objects.create(
             hospital=hospital_instance,
             content_type=content_type_instance,
-            **data
+            **filtered_data
         )
 
     @staticmethod
     def update(*, price_id: str, data: dict, user=None) -> HospitalItemPrice:
         instance = HospitalItemPrice.objects.get(pk=price_id)
+        
+        # Filter out non-model fields
+        model_fields = {
+            'hospital', 'content_type', 'object_id', 'amount', 'available'
+        }
+        filtered_data = {k: v for k, v in data.items() if k in model_fields}
 
-        if "hospital" in data:
-            hospital_id = data.pop("hospital")
+        if "hospital" in filtered_data:
+            hospital_id = filtered_data.pop("hospital")
             instance.hospital = Hospital.objects.get(pk=hospital_id)
 
-        if "content_type" in data:
-            content_type_id = data.pop("content_type")
+        if "content_type" in filtered_data:
+            content_type_id = filtered_data.pop("content_type")
             instance.content_type = ContentType.objects.get(pk=content_type_id)
 
-        for field, value in data.items():
+        for field, value in filtered_data.items():
             setattr(instance, field, value)
         instance.save(update_fields=None)
         return instance

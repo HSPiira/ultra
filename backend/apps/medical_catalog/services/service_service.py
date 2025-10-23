@@ -5,13 +5,29 @@ from apps.medical_catalog.models import Service
 class ServiceService:
     @staticmethod
     def create(*, data: dict, user=None) -> Service:
-        return Service.objects.create(**data)
+        # Filter out non-model fields
+        model_fields = {
+            'name', 'category', 'description', 'base_amount', 'service_type'
+        }
+        filtered_data = {k: v for k, v in data.items() if k in model_fields}
+        
+        # Create instance and validate
+        instance = Service(**filtered_data)
+        instance.full_clean()
+        instance.save()
+        return instance
 
     @staticmethod
     def update(*, service_id: str, data: dict, user=None) -> Service:
         instance = Service.objects.get(pk=service_id)
+        # Filter out non-model fields
+        model_fields = {
+            'name', 'category', 'description', 'base_amount', 'service_type'
+        }
         for field, value in data.items():
-            setattr(instance, field, value)
+            if field in model_fields:
+                setattr(instance, field, value)
+        instance.full_clean()
         instance.save(update_fields=None)
         return instance
 

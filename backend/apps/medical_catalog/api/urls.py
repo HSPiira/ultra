@@ -5,6 +5,7 @@ from apps.medical_catalog.api.views import (
     LabTestViewSet,
     MedicineViewSet,
     ServiceViewSet,
+    MedicalCatalogStatisticsViewSet,
 )
 
 router = DefaultRouter()
@@ -14,3 +15,4 @@ router.register(r"lab-tests", LabTestViewSet, basename="labtest")
 router.register(
     r"hospital-item-prices", HospitalItemPriceViewSet, basename="hospitalitemprice"
 )
+router.register(r"statistics", MedicalCatalogStatisticsViewSet, basename="statistics")
