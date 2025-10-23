@@ -5,7 +5,8 @@ import type {
   CompanyFilters, 
   CompanyCreateData, 
   CompanyUpdateData,
-  CompanyStatistics 
+  CompanyStatistics,
+  IndustryUpdateData
 } from '../types/companies';
 
 export const companiesApi = {
@@ -41,6 +42,22 @@ export const companiesApi = {
     await api.delete(`/companies/${id}/`);
   },
 
+  // Status management
+  activateCompany: async (id: string): Promise<Company> => {
+    const response = await api.post(`/companies/${id}/activate/`);
+    return response.data as Company;
+  },
+
+  deactivateCompany: async (id: string): Promise<Company> => {
+    const response = await api.post(`/companies/${id}/deactivate/`);
+    return response.data as Company;
+  },
+
+  suspendCompany: async (id: string, reason: string): Promise<Company> => {
+    const response = await api.post(`/companies/${id}/suspend/`, { reason });
+    return response.data as Company;
+  },
+
   // Industries
   getIndustries: async (): Promise<Industry[]> => {
     const response = await api.get('/industries/');
@@ -50,6 +67,16 @@ export const companiesApi = {
   createIndustry: async (data: { industry_name: string; description?: string }): Promise<Industry> => {
     const response = await api.post('/industries/', data);
     return response.data as Industry;
+  },
+
+  updateIndustry: async (data: IndustryUpdateData): Promise<Industry> => {
+    const { id, ...updateData } = data;
+    const response = await api.put(`/industries/${id}/`, updateData);
+    return response.data as Industry;
+  },
+
+  deleteIndustry: async (id: string): Promise<void> => {
+    await api.delete(`/industries/${id}/`);
   },
 
   // Analytics

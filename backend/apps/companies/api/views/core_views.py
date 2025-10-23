@@ -1,5 +1,6 @@
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import filters, status, viewsets
+from rest_framework.decorators import action
 from rest_framework.response import Response
 
 # JWT authentication removed - using global session authentication
@@ -104,5 +105,32 @@ class CompanyViewSet(viewsets.ModelViewSet):
 
     def destroy(self, request, *args, **kwargs):
         """Override delete → perform soft-delete via the service layer."""
-        CompanyService.company_deactivate(company_id=kwargs["pk"], user=request.user)
+        CompanyService.company_soft_delete(company_id=kwargs["pk"], user=request.user)
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+    @action(detail=True, methods=['post'])
+    def activate(self, request, pk=None):
+        """Activate a company."""
+        company = CompanyService.company_activate(company_id=pk, user=request.user)
+        serializer = self.get_serializer(company)
+        return Response(serializer.data)
+
+    @action(detail=True, methods=['post'])
+    def deactivate(self, request, pk=None):
+        """Deactivate a company."""
+        company = CompanyService.company_deactivate(company_id=pk, user=request.user)
+        serializer = self.get_serializer(company)
+        return Response(serializer.data)
+
+    @action(detail=True, methods=['post'])
+    def suspend(self, request, pk=None):
+        """Suspend a company with reason."""
+        reason = request.data.get('reason', '')
+        if not reason:
+            return Response(
+                {'error': 'Reason is required for suspension'}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        company = CompanyService.company_suspend(company_id=pk, reason=reason, user=request.user)
+        serializer = self.get_serializer(company)
+        return Response(serializer.data)

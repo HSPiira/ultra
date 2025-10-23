@@ -174,50 +174,66 @@ export const CompanyForm: React.FC<CompanyFormProps> = ({
 
   return (
     <div className="fixed inset-0 flex items-center justify-center z-50 p-4" style={{ backgroundColor: 'rgba(0, 0, 0, 0.5)' }}>
-      <div className="rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto" style={{ backgroundColor: '#2a2a2a' }}>
-        {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b" style={{ borderColor: '#4a4a4a' }}>
+      <div className="rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] flex flex-col" style={{ backgroundColor: '#2a2a2a' }}>
+        {/* Fixed Header */}
+        <div className="flex items-center justify-between p-6 border-b flex-shrink-0" style={{ backgroundColor: '#1f1f1f', borderColor: '#404040' }}>
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ backgroundColor: '#3b3b3b' }}>
-              <Building2 className="w-4 h-4" style={{ color: '#d1d5db' }} />
+            <div className="w-10 h-10 rounded-lg flex items-center justify-center" style={{ backgroundColor: '#3b3b3b' }}>
+              <Building2 className="w-5 h-5" style={{ color: '#d1d5db' }} />
             </div>
-            <h2 className="text-xl font-semibold" style={{ color: '#ffffff' }}>
-              {company ? 'Edit Company' : 'Add New Company'}
-            </h2>
+            <div>
+              <h2 className="text-xl font-semibold" style={{ color: '#ffffff' }}>
+                {company ? 'Edit Company' : 'Add New Company'}
+              </h2>
+              <p className="text-sm" style={{ color: '#9ca3af' }}>
+                {company ? 'Update company information' : 'Create a new company profile'}
+              </p>
+            </div>
           </div>
           <button
             onClick={onClose}
-            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+            className="p-2 rounded-lg transition-colors"
+            style={{ color: '#9ca3af' }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = '#404040';
+              e.currentTarget.style.color = '#ffffff';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = 'transparent';
+              e.currentTarget.style.color = '#9ca3af';
+            }}
           >
-            <X className="w-5 h-5 style={{ color: '#9ca3af' }}" />
+            <X className="w-5 h-5" />
           </button>
         </div>
 
-        {/* Form */}
-        <form onSubmit={handleSubmit} className="p-6 space-y-6">
+        {/* Scrollable Form Content */}
+        <div className="flex-1 overflow-y-auto">
+          <form onSubmit={handleSubmit} className="p-6 space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Company Name */}
             <div className="md:col-span-2">
-              <label className="block text-sm font-medium style={{ color: '#d1d5db' }} mb-2">
+              <label className="block text-sm font-medium mb-2" style={{ color: '#d1d5db' }}>
                 Company Name *
               </label>
               <input
                 type="text"
                 value={formData.company_name}
                 onChange={(e) => handleInputChange('company_name', e.target.value)}
-              className={`w-full px-3 py-2 border rounded-lg style={{ color: '#ffffff' }} placeholder-gray-400 transition-colors ${
+              className={`w-full px-3 py-2 border rounded-lg transition-colors ${
                 errors.company_name ? 'border-red-500' : ''
               }`}
               style={{ 
-                backgroundColor: '#2a2a2a', 
-                borderColor: errors.company_name ? '#ef4444' : '#3a3a3a'
+                backgroundColor: '#1f1f1f', 
+                color: '#ffffff',
+                borderColor: errors.company_name ? '#ef4444' : '#404040'
               }}
               onFocus={(e) => {
-                e.target.style.borderColor = '#4a4a4a';
-                e.target.style.boxShadow = '0 0 0 2px #4a4a4a';
+                e.target.style.borderColor = '#606060';
+                e.target.style.boxShadow = '0 0 0 2px rgba(96, 96, 96, 0.3)';
               }}
               onBlur={(e) => {
-                e.target.style.borderColor = errors.company_name ? '#ef4444' : '#3a3a3a';
+                e.target.style.borderColor = errors.company_name ? '#ef4444' : '#404040';
                 e.target.style.boxShadow = 'none';
               }}
                 placeholder="Enter company name"
@@ -229,15 +245,20 @@ export const CompanyForm: React.FC<CompanyFormProps> = ({
 
             {/* Industry */}
             <div>
-              <label className="block text-sm font-medium style={{ color: '#d1d5db' }} mb-2">
+              <label className="block text-sm font-medium mb-2" style={{ color: '#d1d5db' }}>
                 Industry *
               </label>
               <select
                 value={formData.industry}
                 onChange={(e) => handleInputChange('industry', e.target.value)}
-                className={`w-full px-3 py-2 border rounded-lg style={{ color: '#ffffff' }} placeholder-gray-400 transition-colors ${
-                  errors.industry ? 'border-red-500' : 'border-gray-600'
+                className={`w-full px-3 py-2 border rounded-lg transition-colors ${
+                  errors.industry ? 'border-red-500' : ''
                 }`}
+                style={{
+                  backgroundColor: '#1f1f1f',
+                  color: '#ffffff',
+                  borderColor: errors.industry ? '#ef4444' : '#404040'
+                }}
               >
                 <option value="">Select an industry</option>
                 {industries.map((industry) => (
@@ -253,16 +274,21 @@ export const CompanyForm: React.FC<CompanyFormProps> = ({
 
             {/* Contact Person */}
             <div>
-              <label className="block text-sm font-medium style={{ color: '#d1d5db' }} mb-2">
+              <label className="block text-sm font-medium mb-2" style={{ color: '#d1d5db' }}>
                 Contact Person *
               </label>
               <input
                 type="text"
                 value={formData.contact_person}
                 onChange={(e) => handleInputChange('contact_person', e.target.value)}
-                className={`w-full px-3 py-2 border rounded-lg style={{ color: '#ffffff' }} placeholder-gray-400 transition-colors ${
-                  errors.contact_person ? 'border-red-500' : 'border-gray-600'
+                className={`w-full px-3 py-2 border rounded-lg transition-colors ${
+                  errors.contact_person ? 'border-red-500' : ''
                 }`}
+                style={{
+                  backgroundColor: '#1f1f1f',
+                  color: '#ffffff',
+                  borderColor: errors.contact_person ? '#ef4444' : '#404040'
+                }}
                 placeholder="Enter contact person name"
               />
               {errors.contact_person && (
@@ -272,16 +298,21 @@ export const CompanyForm: React.FC<CompanyFormProps> = ({
 
             {/* Email */}
             <div>
-              <label className="block text-sm font-medium style={{ color: '#d1d5db' }} mb-2">
+              <label className="block text-sm font-medium mb-2" style={{ color: '#d1d5db' }}>
                 Email *
               </label>
               <input
                 type="email"
                 value={formData.email}
                 onChange={(e) => handleInputChange('email', e.target.value)}
-                className={`w-full px-3 py-2 border rounded-lg style={{ color: '#ffffff' }} placeholder-gray-400 transition-colors ${
-                  errors.email ? 'border-red-500' : 'border-gray-600'
+                className={`w-full px-3 py-2 border rounded-lg transition-colors ${
+                  errors.email ? 'border-red-500' : ''
                 }`}
+                style={{
+                  backgroundColor: '#1f1f1f',
+                  color: '#ffffff',
+                  borderColor: errors.email ? '#ef4444' : '#404040'
+                }}
                 placeholder="Enter email address"
               />
               {errors.email && (
@@ -291,16 +322,21 @@ export const CompanyForm: React.FC<CompanyFormProps> = ({
 
             {/* Phone Number */}
             <div>
-              <label className="block text-sm font-medium style={{ color: '#d1d5db' }} mb-2">
+              <label className="block text-sm font-medium mb-2" style={{ color: '#d1d5db' }}>
                 Phone Number *
               </label>
               <input
                 type="tel"
                 value={formData.phone_number}
                 onChange={(e) => handleInputChange('phone_number', e.target.value)}
-                className={`w-full px-3 py-2 border rounded-lg style={{ color: '#ffffff' }} placeholder-gray-400 transition-colors ${
-                  errors.phone_number ? 'border-red-500' : 'border-gray-600'
+                className={`w-full px-3 py-2 border rounded-lg transition-colors ${
+                  errors.phone_number ? 'border-red-500' : ''
                 }`}
+                style={{
+                  backgroundColor: '#1f1f1f',
+                  color: '#ffffff',
+                  borderColor: errors.phone_number ? '#ef4444' : '#404040'
+                }}
                 placeholder="Enter phone number"
               />
               {errors.phone_number && (
@@ -310,16 +346,21 @@ export const CompanyForm: React.FC<CompanyFormProps> = ({
 
             {/* Website */}
             <div>
-              <label className="block text-sm font-medium style={{ color: '#d1d5db' }} mb-2">
+              <label className="block text-sm font-medium mb-2" style={{ color: '#d1d5db' }}>
                 Website
               </label>
               <input
                 type="url"
                 value={formData.website}
                 onChange={(e) => handleInputChange('website', e.target.value)}
-                className={`w-full px-3 py-2 border rounded-lg style={{ color: '#ffffff' }} placeholder-gray-400 transition-colors ${
-                  errors.website ? 'border-red-500' : 'border-gray-600'
+                className={`w-full px-3 py-2 border rounded-lg transition-colors ${
+                  errors.website ? 'border-red-500' : ''
                 }`}
+                style={{
+                  backgroundColor: '#1f1f1f',
+                  color: '#ffffff',
+                  borderColor: errors.website ? '#ef4444' : '#404040'
+                }}
                 placeholder="https://example.com"
               />
               {errors.website && (
@@ -329,16 +370,21 @@ export const CompanyForm: React.FC<CompanyFormProps> = ({
 
             {/* Company Address */}
             <div className="md:col-span-2">
-              <label className="block text-sm font-medium style={{ color: '#d1d5db' }} mb-2">
+              <label className="block text-sm font-medium mb-2" style={{ color: '#d1d5db' }}>
                 Company Address *
               </label>
               <textarea
                 value={formData.company_address}
                 onChange={(e) => handleInputChange('company_address', e.target.value)}
                 rows={3}
-                className={`w-full px-3 py-2 border rounded-lg style={{ color: '#ffffff' }} placeholder-gray-400 transition-colors ${
-                  errors.company_address ? 'border-red-500' : 'border-gray-600'
+                className={`w-full px-3 py-2 border rounded-lg transition-colors ${
+                  errors.company_address ? 'border-red-500' : ''
                 }`}
+                style={{
+                  backgroundColor: '#1f1f1f',
+                  color: '#ffffff',
+                  borderColor: errors.company_address ? '#ef4444' : '#404040'
+                }}
                 placeholder="Enter company address"
               />
               {errors.company_address && (
@@ -348,42 +394,76 @@ export const CompanyForm: React.FC<CompanyFormProps> = ({
 
             {/* Remarks */}
             <div className="md:col-span-2">
-              <label className="block text-sm font-medium style={{ color: '#d1d5db' }} mb-2">
+              <label className="block text-sm font-medium mb-2" style={{ color: '#d1d5db' }}>
                 Remarks
               </label>
               <textarea
                 value={formData.remark}
                 onChange={(e) => handleInputChange('remark', e.target.value)}
                 rows={3}
-                className="w-full px-3 py-2 border border-gray-600 rounded-lg style={{ color: '#ffffff' }} placeholder-gray-400 transition-colors"
+                className="w-full px-3 py-2 border rounded-lg transition-colors"
+                style={{
+                  backgroundColor: '#1f1f1f',
+                  color: '#ffffff',
+                  borderColor: '#404040'
+                }}
                 placeholder="Additional notes about the company"
               />
             </div>
           </div>
+          </form>
+        </div>
 
-          {/* Actions */}
-          <div className="flex justify-end gap-3 pt-6 border-t #2a2a2a">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-4 py-2 style={{ color: '#d1d5db' }} #2a2a2a rounded-lg transition-colors"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={loading}
-              className="px-4 py-2 style={{ color: '#ffffff' }} rounded-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 transition-colors"
-            >
-              {loading ? (
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-              ) : (
-                <Save className="w-4 h-4" />
-              )}
-              {company ? 'Update Company' : 'Create Company'}
-            </button>
-          </div>
-        </form>
+        {/* Fixed Footer */}
+        <div className="flex justify-end gap-3 p-4 border-t flex-shrink-0" style={{ backgroundColor: '#1f1f1f', borderColor: '#404040' }}>
+          <button
+            type="button"
+            onClick={onClose}
+            className="px-4 py-2 rounded-lg transition-colors border text-sm"
+            style={{ 
+              backgroundColor: 'transparent',
+              color: '#d1d5db',
+              borderColor: '#404040'
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = '#404040';
+              e.currentTarget.style.color = '#ffffff';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = 'transparent';
+              e.currentTarget.style.color = '#d1d5db';
+            }}
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            disabled={loading}
+            onClick={handleSubmit}
+            className="px-4 py-2 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 transition-colors text-sm"
+            style={{ 
+              backgroundColor: '#3b3b3b',
+              color: '#ffffff'
+            }}
+            onMouseEnter={(e) => {
+              if (!loading) {
+                e.currentTarget.style.backgroundColor = '#4a4a4a';
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (!loading) {
+                e.currentTarget.style.backgroundColor = '#3b3b3b';
+              }
+            }}
+          >
+            {loading ? (
+              <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-white"></div>
+            ) : (
+              <Save className="w-3 h-3" />
+            )}
+            {company ? 'Update' : 'Save'}
+          </button>
+        </div>
       </div>
     </div>
   );

@@ -204,7 +204,7 @@ class CompanyService:
     @transaction.atomic
     def company_deactivate(*, company_id: str, user=None):
         """
-        Soft delete / deactivate company.
+        Deactivate company (change status to INACTIVE without soft-deleting).
 
         Args:
             company_id: ID of the company to deactivate
@@ -218,9 +218,35 @@ class CompanyService:
         except Company.DoesNotExist as e:
             raise ValidationError("Company not found") from e
 
+        # Only change status to INACTIVE, don't soft-delete the record
         company.status = BusinessStatusChoices.INACTIVE
-        company.is_deleted = True
-        company.save(update_fields=["status", "is_deleted"])
+        company.save(update_fields=["status"])
+        return company
+
+    @staticmethod
+    @transaction.atomic
+    def company_soft_delete(*, company_id: str, user=None):
+        """
+        Soft delete company (mark as deleted, remove from active lists).
+
+        Args:
+            company_id: ID of the company to soft delete
+            user: User performing the soft deletion
+
+        Returns:
+            Company: The soft-deleted company instance
+        """
+        try:
+            company = Company.objects.get(id=company_id, is_deleted=False)
+        except Company.DoesNotExist as e:
+            raise ValidationError("Company not found") from e
+
+        # Use the model's soft_delete method which handles all the soft delete fields
+        # Only pass user if it's authenticated (not AnonymousUser)
+        if user and user.is_authenticated:
+            company.soft_delete(user=user)
+        else:
+            company.soft_delete(user=None)
         return company
 
     @staticmethod

@@ -4,7 +4,7 @@ export interface Industry {
   description?: string;
   created_at: string;
   updated_at: string;
-  status: 'ACTIVE' | 'INACTIVE';
+  status: 'ACTIVE' | 'INACTIVE' | 'SUSPENDED';
 }
 
 export interface Company {
@@ -20,12 +20,12 @@ export interface Company {
   remark?: string;
   created_at: string;
   updated_at: string;
-  status: 'ACTIVE' | 'INACTIVE';
+  status: 'ACTIVE' | 'INACTIVE' | 'SUSPENDED';
 }
 
 export interface CompanyFilters {
   search?: string;
-  status?: 'ACTIVE' | 'INACTIVE';
+  status?: 'ACTIVE' | 'INACTIVE' | 'SUSPENDED';
   industry?: string;
   ordering?: string;
 }
@@ -42,6 +42,15 @@ export interface CompanyCreateData {
 }
 
 export interface CompanyUpdateData extends Partial<CompanyCreateData> {
+  id: string;
+}
+
+export interface IndustryCreateData {
+  industry_name: string;
+  description?: string;
+}
+
+export interface IndustryUpdateData extends Partial<IndustryCreateData> {
   id: string;
 }
 

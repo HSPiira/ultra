@@ -31,6 +31,7 @@ const CompaniesPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<TabType>('companies');
   const [statistics, setStatistics] = useState<CompanyStatistics | null>(null);
   const [loading, setLoading] = useState(true);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   useEffect(() => {
     loadStatistics();
@@ -60,8 +61,24 @@ const CompaniesPage: React.FC = () => {
 
   const handleCompanyDelete = (company: Company) => {
     console.log('Company deleted:', company);
-    // Refresh statistics after deletion
+    // Refresh statistics and companies list after deletion
     loadStatistics();
+    setRefreshTrigger(prev => {
+      const newValue = prev + 1;
+      console.log('Incrementing refresh trigger from', prev, 'to', newValue);
+      return newValue;
+    });
+  };
+
+  const handleCompanyStatusChange = (company: Company) => {
+    console.log('Company status changed:', company);
+    // Refresh statistics and companies list after status change
+    loadStatistics();
+    setRefreshTrigger(prev => {
+      const newValue = prev + 1;
+      console.log('Incrementing refresh trigger from', prev, 'to', newValue);
+      return newValue;
+    });
   };
 
   const handleAddCompany = () => {
@@ -72,8 +89,9 @@ const CompaniesPage: React.FC = () => {
   const handleFormSave = () => {
     setIsFormOpen(false);
     setEditingCompany(null);
-    // Refresh statistics after save
+    // Refresh statistics and companies list after save
     loadStatistics();
+    setRefreshTrigger(prev => prev + 1);
   };
 
   const handleFormClose = () => {
@@ -88,6 +106,7 @@ const CompaniesPage: React.FC = () => {
 
   const refreshData = () => {
     loadStatistics();
+    setRefreshTrigger(prev => prev + 1);
   };
 
   return (
@@ -200,7 +219,7 @@ const CompaniesPage: React.FC = () => {
               
               <button
                 onClick={handleAddCompany}
-                className="px-4 py-2 rounded-lg flex items-center gap-2 transition-colors"
+                className="p-2 rounded-lg transition-colors"
                 style={{ backgroundColor: '#3b3b3b', color: '#ffffff' }}
                 onMouseEnter={(e) => {
                   e.currentTarget.style.backgroundColor = '#4a4a4a';
@@ -208,9 +227,9 @@ const CompaniesPage: React.FC = () => {
                 onMouseLeave={(e) => {
                   e.currentTarget.style.backgroundColor = '#3b3b3b';
                 }}
+                title="Add Company"
               >
                 <Plus className="w-4 h-4" />
-                Add Company
               </button>
             </div>
           </div>
@@ -334,13 +353,15 @@ const CompaniesPage: React.FC = () => {
               </div>
             </div>
 
-            <CompaniesList
-              onCompanySelect={handleCompanySelect}
-              onCompanyEdit={handleCompanyEdit}
-              onCompanyDelete={handleCompanyDelete}
-              onAddCompany={handleAddCompany}
-              viewMode={viewMode}
-            />
+      <CompaniesList
+        onCompanySelect={handleCompanySelect}
+        onCompanyEdit={handleCompanyEdit}
+        onCompanyDelete={handleCompanyDelete}
+        onCompanyStatusChange={handleCompanyStatusChange}
+        onAddCompany={handleAddCompany}
+        viewMode={viewMode}
+        refreshTrigger={refreshTrigger}
+      />
           </div>
         )}
 
