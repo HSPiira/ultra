@@ -211,6 +211,7 @@ class SchemeItemSerializer(BaseSerializer):
                 "id": obj.item.id,
                 "name": str(obj.item),
                 "type": obj.content_type.model if obj.content_type else None,
+                "app_label": obj.content_type.app_label if obj.content_type else None,
             }
         return None
 
@@ -231,4 +232,49 @@ class SchemeItemSerializer(BaseSerializer):
                 raise serializers.ValidationError(
                     "Copayment percentage cannot exceed 100"
                 )
+        return value
+
+
+class BulkSchemeItemSerializer(serializers.Serializer):
+    """Serializer for bulk scheme item operations."""
+    
+    scheme_id = serializers.CharField(required=True)
+    assignments = serializers.ListField(
+        child=serializers.DictField(),
+        required=True,
+        allow_empty=False
+    )
+
+    def validate_assignments(self, value):
+        """Validate assignment data."""
+        if not value:
+            raise serializers.ValidationError("Assignments list cannot be empty")
+        
+        for i, assignment in enumerate(value):
+            required_fields = ["content_type", "object_id"]
+            for field in required_fields:
+                if not assignment.get(field):
+                    raise serializers.ValidationError(
+                        f"Assignment {i+1}: {field} is required"
+                    )
+            
+            # Validate limit amount
+            limit_amount = assignment.get("limit_amount")
+            if limit_amount is not None and limit_amount < 0:
+                raise serializers.ValidationError(
+                    f"Assignment {i+1}: Limit amount cannot be negative"
+                )
+            
+            # Validate copayment percentage
+            copayment = assignment.get("copayment_percent")
+            if copayment is not None:
+                if copayment < 0:
+                    raise serializers.ValidationError(
+                        f"Assignment {i+1}: Copayment percentage cannot be negative"
+                    )
+                if copayment > 100:
+                    raise serializers.ValidationError(
+                        f"Assignment {i+1}: Copayment percentage cannot exceed 100"
+                    )
+        
         return value

@@ -240,6 +240,85 @@ class SchemeItemService:
         return updated_count
 
     @staticmethod
+    @transaction.atomic
+    def scheme_items_bulk_create(*, scheme_id: str, assignments: list, user=None):
+        """
+        Bulk create scheme items for a specific scheme.
+
+        Args:
+            scheme_id: ID of the scheme to assign items to
+            assignments: List of assignment dictionaries with content_type, object_id, limit_amount, copayment_percent
+            user: User performing the bulk assignment
+
+        Returns:
+            list: List of created scheme items
+
+        Raises:
+            ValidationError: If data is invalid or duplicates exist
+        """
+        from apps.schemes.models import Scheme
+
+        # Validate scheme exists
+        try:
+            scheme = Scheme.objects.get(id=scheme_id, is_deleted=False)
+        except Scheme.DoesNotExist as e:
+            raise ValidationError("Scheme not found") from e
+
+        created_items = []
+        errors = []
+
+        for i, assignment in enumerate(assignments):
+            try:
+                # Prepare scheme item data
+                scheme_item_data = {
+                    "scheme": scheme_id,
+                    "content_type": assignment.get("content_type"),
+                    "object_id": assignment.get("object_id"),
+                    "limit_amount": assignment.get("limit_amount"),
+                    "copayment_percent": assignment.get("copayment_percent"),
+                }
+
+                # Create scheme item
+                scheme_item = SchemeItemService.scheme_item_create(
+                    scheme_item_data=scheme_item_data, user=user
+                )
+                created_items.append(scheme_item)
+
+            except ValidationError as e:
+                errors.append(f"Assignment {i+1}: {str(e)}")
+
+        if errors:
+            raise ValidationError(f"Bulk assignment failed: {'; '.join(errors)}")
+
+        return created_items
+
+    @staticmethod
+    @transaction.atomic
+    def scheme_items_bulk_remove(*, scheme_item_ids: list, user=None):
+        """
+        Bulk remove scheme items by deactivating them.
+
+        Args:
+            scheme_item_ids: List of scheme item IDs to remove
+            user: User performing the removal
+
+        Returns:
+            int: Number of scheme items removed
+        """
+        removed_count = 0
+        for scheme_item_id in scheme_item_ids:
+            try:
+                SchemeItemService.scheme_item_deactivate(
+                    scheme_item_id=scheme_item_id, user=user
+                )
+                removed_count += 1
+            except ValidationError:
+                # Skip invalid IDs
+                continue
+
+        return removed_count
+
+    @staticmethod
     def scheme_items_export_csv(*, filters: dict = None):
         """
         Export filtered scheme items to CSV format.

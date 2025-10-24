@@ -10,3 +10,4 @@ export { LabTestTable } from './LabTestTable';
 export { ServiceTable } from './ServiceTable';
 export { HospitalPriceTable } from './HospitalPriceTable';
 export { MemberTable } from './MemberTable';
+export { AssignmentTable } from './AssignmentTable';

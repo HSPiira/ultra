@@ -55,3 +55,56 @@ export interface SchemeStatistics {
   total_coverage_amount: number;
   average_coverage_amount: number;
 }
+
+export interface SchemeItem {
+  id: string;
+  scheme: string;
+  scheme_detail: {
+    id: string;
+    scheme_name: string;
+    card_code: string;
+  };
+  content_type: string;
+  object_id: string;
+  item_detail: {
+    id: string;
+    name: string;
+    type: string;
+    app_label: string;
+  };
+  limit_amount?: number;
+  copayment_percent?: number;
+  status: 'ACTIVE' | 'INACTIVE' | 'SUSPENDED';
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AvailableItem {
+  id: string;
+  name: string;
+  content_type: string;
+  status: string;
+}
+
+export interface SchemeAssignment {
+  content_type: string;
+  object_id: string;
+  limit_amount?: number;
+  copayment_percent?: number;
+}
+
+export interface BulkAssignmentRequest {
+  scheme_id: string;
+  assignments: SchemeAssignment[];
+}
+
+export interface BulkAssignmentResponse {
+  created_items: SchemeItem[];
+  errors?: string[];
+}
+
+export interface AssignmentFilters {
+  content_type?: string;
+  search?: string;
+  status?: string;
+}

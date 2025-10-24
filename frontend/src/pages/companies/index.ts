@@ -8,3 +8,4 @@ export { CompanyBranchesTab } from './CompanyBranchesTab';
 export { CompanySchemesTab } from './CompanySchemesTab';
 export { CompanyMembersTab } from './CompanyMembersTab';
 export { CompanyAnalyticsTab } from './CompanyAnalyticsTab';
+export { CompaniesList } from './CompaniesList';

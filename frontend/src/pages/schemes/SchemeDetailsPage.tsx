@@ -1,21 +1,21 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Shield, Info, Package, Users, BarChart3 } from 'lucide-react';
+import { ArrowLeft, Shield, Info, Users, BarChart3, Settings } from 'lucide-react';
 import { schemesApi } from '../../services/schemes';
 import type { Scheme } from '../../types/schemes';
-import { SchemeInfoTab } from './SchemeInfoTab';
-import { SchemeItemsTab } from './SchemeItemsTab';
+import { SchemeOverviewTab } from './SchemeOverviewTab';
+import { SchemeAssignmentsTab } from './SchemeAssignmentsTab';
 import { SchemeMembersTab } from './SchemeMembersTab';
 import { SchemeAnalyticsTab } from './SchemeAnalyticsTab';
 
-type SchemeDetailsTab = 'info' | 'items' | 'members' | 'analytics';
+type SchemeDetailsTab = 'overview' | 'assignments' | 'members' | 'analytics';
 
 export const SchemeDetailsPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [scheme, setScheme] = useState<Scheme | null>(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<SchemeDetailsTab>('info');
+  const [activeTab, setActiveTab] = useState<SchemeDetailsTab>('overview');
 
   useEffect(() => {
     if (id) {
@@ -123,12 +123,9 @@ export const SchemeDetailsPage: React.FC = () => {
               <Shield className="w-5 h-5" style={{ color: '#d1d5db' }} />
             </div>
             <div>
-              <h1 className="text-2xl font-semibold" style={{ color: '#ffffff' }}>
-                {scheme.scheme_name}
+              <h1 className="text-xl font-semibold" style={{ color: '#ffffff' }}>
+                {scheme.scheme_name} - <span className={`text-sm ${getStatusColor(scheme.status)}`}>{scheme.status}</span>
               </h1>
-              <p className="text-sm" style={{ color: '#9ca3af' }}>
-                {scheme.company_detail.company_name} • <span className={getStatusColor(scheme.status)}>{scheme.status}</span>
-              </p>
             </div>
           </div>
         </div>
@@ -139,8 +136,8 @@ export const SchemeDetailsPage: React.FC = () => {
         <div className="px-6">
           <div className="flex space-x-8">
             {[
-              { id: 'info', label: 'Info', icon: Info },
-              { id: 'items', label: 'Items', icon: Package },
+              { id: 'overview', label: 'Overview', icon: Info },
+              { id: 'assignments', label: 'Assignments', icon: Settings },
               { id: 'members', label: 'Members', icon: Users },
               { id: 'analytics', label: 'Analytics', icon: BarChart3 }
             ].map((tab) => {
@@ -180,8 +177,8 @@ export const SchemeDetailsPage: React.FC = () => {
 
       {/* Content */}
       <div className="flex-1 p-6 overflow-auto">
-        {activeTab === 'info' && <SchemeInfoTab scheme={scheme} />}
-        {activeTab === 'items' && <SchemeItemsTab scheme={scheme} />}
+        {activeTab === 'overview' && <SchemeOverviewTab scheme={scheme} />}
+        {activeTab === 'assignments' && <SchemeAssignmentsTab scheme={scheme} />}
         {activeTab === 'members' && <SchemeMembersTab scheme={scheme} />}
         {activeTab === 'analytics' && <SchemeAnalyticsTab scheme={scheme} />}
       </div>

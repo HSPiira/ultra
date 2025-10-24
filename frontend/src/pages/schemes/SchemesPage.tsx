@@ -1,20 +1,15 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { 
   Shield, 
   Users, 
   TrendingUp, 
   Plus,
-  Grid3X3,
-  List,
   BarChart3,
-  Filter,
-  Download,
-  RefreshCw,
-  Search
+  RefreshCw
 } from 'lucide-react';
 import { SchemesList } from './SchemesList';
 import { SchemeForm } from './SchemeForm';
-import { SchemeDetails } from './SchemeDetails';
 import { SchemeAnalytics } from './SchemeAnalytics';
 import { schemesApi } from '../../services/schemes';
 import type { Scheme, SchemeStatistics } from '../../types/schemes';
@@ -25,10 +20,9 @@ type ViewMode = 'list' | 'grid';
 type TabType = 'schemes' | 'analytics';
 
 const SchemesPage: React.FC = () => {
+  const navigate = useNavigate();
   const { colors, getPageStyles, getTabStyles, getIconButtonStyles } = useThemeStyles();
-  const [selectedScheme, setSelectedScheme] = useState<Scheme | null>(null);
   const [isFormOpen, setIsFormOpen] = useState(false);
-  const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [editingScheme, setEditingScheme] = useState<Scheme | null>(null);
   const [viewMode] = useState<ViewMode>('list');
   const [activeTab, setActiveTab] = useState<TabType>('schemes');
@@ -53,8 +47,7 @@ const SchemesPage: React.FC = () => {
   };
 
   const handleSchemeSelect = (scheme: Scheme) => {
-    setSelectedScheme(scheme);
-    setIsDetailsOpen(true);
+    navigate(`/schemes/${scheme.id}`);
   };
 
   const handleSchemeEdit = (scheme: Scheme) => {
@@ -102,10 +95,6 @@ const SchemesPage: React.FC = () => {
     setEditingScheme(null);
   };
 
-  const handleDetailsClose = () => {
-    setIsDetailsOpen(false);
-    setSelectedScheme(null);
-  };
 
   const refreshData = () => {
     loadStatistics();
@@ -227,13 +216,6 @@ const SchemesPage: React.FC = () => {
         isOpen={isFormOpen}
         onClose={handleFormClose}
         onSave={handleFormSave}
-      />
-
-      <SchemeDetails
-        scheme={selectedScheme}
-        isOpen={isDetailsOpen}
-        onClose={handleDetailsClose}
-        onEdit={handleSchemeEdit}
       />
     </div>
   );
