@@ -190,109 +190,93 @@ const MedicalCatalogPage: React.FC = () => {
 
   return (
     <div className="h-full flex flex-col" style={{ backgroundColor: '#1a1a1a' }}>
-      {/* Header with Statistics */}
-      <div className="px-6 py-1" style={{ backgroundColor: '#2a2a2a' }}>
-        {/* Statistics Row */}
-        <div className="flex items-center justify-between py-4">
-          <div className="flex items-center space-x-8">
-            <div className="flex items-center space-x-2">
-              <Stethoscope className="w-5 h-5" style={{ color: '#9ca3af' }} />
-              <div>
-                <div className="text-2xl font-bold text-white">{statistics.totalServices}</div>
-                <div className="text-sm" style={{ color: '#9ca3af' }}>Services</div>
-              </div>
+      {/* Tabs with Actions */}
+      <div className="border-b" style={{ backgroundColor: '#2a2a2a', borderColor: '#4a4a4a' }}>
+        <div className="px-6">
+          <div className="flex items-center justify-between">
+            <div className="flex space-x-8">
+              {tabs.map((tab) => {
+                const Icon = tab.icon;
+                const getCount = () => {
+                  switch (tab.id) {
+                    case 'services': return statistics.totalServices;
+                    case 'medicines': return statistics.totalMedicines;
+                    case 'labtests': return statistics.totalLabTests;
+                    case 'prices': return statistics.totalHospitalPrices;
+                    default: return 0;
+                  }
+                };
+                
+                return (
+                  <button
+                    key={tab.id}
+                    onClick={() => setActiveTab(tab.id)}
+                    className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
+                      activeTab === tab.id
+                        ? 'border-b-2'
+                        : 'border-b-2'
+                    }`}
+                    style={{
+                      borderBottomColor: activeTab === tab.id ? '#9ca3af' : 'transparent',
+                      color: activeTab === tab.id ? '#d1d5db' : '#9ca3af'
+                    }}
+                    onMouseEnter={(e) => {
+                      if (activeTab !== tab.id) {
+                        e.currentTarget.style.color = '#d1d5db';
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      if (activeTab !== tab.id) {
+                        e.currentTarget.style.color = '#9ca3af';
+                      }
+                    }}
+                  >
+                    <div className="flex items-center gap-2">
+                      <Icon className="w-4 h-4" />
+                      <span>{tab.label}</span>
+                      <span className="px-2 py-1 rounded-full text-xs" style={{ backgroundColor: '#3b3b3b', color: '#9ca3af' }}>
+                        {getCount()}
+                      </span>
+                    </div>
+                  </button>
+                );
+              })}
             </div>
-            
-            <div className="flex items-center space-x-2">
-              <Pill className="w-5 h-5" style={{ color: '#9ca3af' }} />
-              <div>
-                <div className="text-2xl font-bold text-white">{statistics.totalMedicines}</div>
-                <div className="text-sm" style={{ color: '#9ca3af' }}>Medicines</div>
-              </div>
-            </div>
-            
-            <div className="flex items-center space-x-2">
-              <TestTube className="w-5 h-5" style={{ color: '#9ca3af' }} />
-              <div>
-                <div className="text-2xl font-bold text-white">{statistics.totalLabTests}</div>
-                <div className="text-sm" style={{ color: '#9ca3af' }}>Lab Tests</div>
-              </div>
-            </div>
-            
-            <div className="flex items-center space-x-2">
-              <Building2 className="w-5 h-5" style={{ color: '#9ca3af' }} />
-              <div>
-                <div className="text-2xl font-bold text-white">{statistics.totalHospitalPrices}</div>
-                <div className="text-sm" style={{ color: '#9ca3af' }}>Hospital Prices</div>
-              </div>
-            </div>
-          </div>
-        </div>
 
-        {/* Tabs */}
-        <div className="flex items-center justify-between">
-          <div className="flex space-x-8">
-            {tabs.map((tab) => {
-              const Icon = tab.icon;
-              return (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
-                  className="flex items-center space-x-2 py-2 px-1 border-b-2 font-medium text-sm transition-colors"
-                  style={{
-                    borderBottomColor: activeTab === tab.id ? '#9ca3af' : 'transparent',
-                    color: activeTab === tab.id ? '#d1d5db' : '#9ca3af'
-                  }}
-                  onMouseEnter={(e) => {
-                    if (activeTab !== tab.id) {
-                      e.currentTarget.style.color = '#d1d5db';
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    if (activeTab !== tab.id) {
-                      e.currentTarget.style.color = '#9ca3af';
-                    }
-                  }}
-                >
-                  <Icon className="w-4 h-4" />
-                  <span>{tab.label}</span>
-                </button>
-              );
-            })}
-          </div>
+            <div className="flex items-center gap-3">
+              <button 
+                className="p-2 rounded-lg transition-colors" 
+                style={{ color: '#9ca3af' }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.color = '#ffffff';
+                  e.currentTarget.style.backgroundColor = '#3b3b3b';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.color = '#9ca3af';
+                  e.currentTarget.style.backgroundColor = 'transparent';
+                }}
+                title="Refresh"
+                onClick={() => setRefreshTrigger(prev => prev + 1)}
+              >
+                <RefreshCw className="w-5 h-5" />
+              </button>
 
-          <div className="flex items-center space-x-4">
-            <button 
-              className="p-2 rounded-lg transition-colors" 
-              style={{ color: '#9ca3af' }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.color = '#ffffff';
-                e.currentTarget.style.backgroundColor = '#3b3b3b';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.color = '#9ca3af';
-                e.currentTarget.style.backgroundColor = 'transparent';
-              }}
-              title="Refresh"
-            >
-              <RefreshCw className="w-4 h-4" />
-            </button>
-
-            <button 
-              className="p-2 rounded-lg transition-colors" 
-              style={{ color: '#9ca3af' }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.color = '#ffffff';
-                e.currentTarget.style.backgroundColor = '#3b3b3b';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.color = '#9ca3af';
-                e.currentTarget.style.backgroundColor = 'transparent';
-              }}
-              title="Export"
-            >
-              <Download className="w-4 h-4" />
-            </button>
+              <button 
+                className="p-2 rounded-lg transition-colors" 
+                style={{ color: '#9ca3af' }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.color = '#ffffff';
+                  e.currentTarget.style.backgroundColor = '#3b3b3b';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.color = '#9ca3af';
+                  e.currentTarget.style.backgroundColor = 'transparent';
+                }}
+                title="Export"
+              >
+                <Download className="w-5 h-5" />
+              </button>
+            </div>
           </div>
         </div>
       </div>

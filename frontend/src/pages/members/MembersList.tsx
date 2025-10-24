@@ -1,24 +1,24 @@
 import React, { useState, useEffect } from 'react';
-import { providersApi } from '../../services/providers';
-import type { Hospital } from '../../types/providers';
-import { HospitalTable } from '../../components/tables';
+import { membersApi } from '../../services/members';
+import type { Member } from '../../types/members';
+import { MemberTable } from '../../components/tables';
 import { SearchFilterBar } from '../../components/common';
 
-interface HospitalsListProps {
-  onHospitalSelect?: (hospital: Hospital) => void;
-  onHospitalEdit?: (hospital: Hospital) => void;
-  onHospitalDelete?: (hospital: Hospital) => void;
+interface MembersListProps {
+  onMemberSelect?: (member: Member) => void;
+  onMemberEdit?: (member: Member) => void;
+  onMemberDelete?: (member: Member) => void;
   refreshTrigger?: number;
 }
 
-export const HospitalsList: React.FC<HospitalsListProps> = ({
-  onHospitalSelect,
-  onHospitalEdit,
-  onHospitalDelete,
+export const MembersList: React.FC<MembersListProps> = ({
+  onMemberSelect,
+  onMemberEdit,
+  onMemberDelete,
   refreshTrigger
 }) => {
-  const [, setHospitals] = useState<Hospital[]>([]);
-  const [allFilteredHospitals, setAllFilteredHospitals] = useState<Hospital[]>([]);
+  const [, setMembers] = useState<Member[]>([]);
+  const [allFilteredMembers, setAllFilteredMembers] = useState<Member[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | undefined>(undefined);
   const [searchTerm, setSearchTerm] = useState('');
@@ -28,29 +28,29 @@ export const HospitalsList: React.FC<HospitalsListProps> = ({
   const [currentPage, setCurrentPage] = useState<number>(1);
 
   useEffect(() => {
-    loadHospitals();
+    loadMembers();
   }, []);
 
   // Watch for refresh trigger changes
   useEffect(() => {
     if (refreshTrigger !== undefined) {
       console.log('Refresh trigger changed:', refreshTrigger);
-      loadHospitals();
+      loadMembers();
     }
   }, [refreshTrigger]);
 
-  const loadHospitals = async () => {
+  const loadMembers = async () => {
     try {
       setLoading(true);
       setError(undefined);
-      console.log('Loading hospitals...');
-      const data = await providersApi.hospitals.getHospitals();
-      console.log('Hospitals loaded:', data);
-      setHospitals(data.results);
-      setAllFilteredHospitals(data.results);
+      console.log('Loading members...');
+      const data = await membersApi.getMembers();
+      console.log('Members loaded:', data);
+      setMembers(data.results);
+      setAllFilteredMembers(data.results);
     } catch (err) {
-      console.error('Error loading hospitals:', err);
-      setError('Failed to load hospitals');
+      console.error('Error loading members:', err);
+      setError('Failed to load members');
     } finally {
       setLoading(false);
     }
@@ -80,23 +80,25 @@ export const HospitalsList: React.FC<HospitalsListProps> = ({
   };
 
   // Filter and sort data
-  const filteredHospitals = sortData(
-    allFilteredHospitals.filter(hospital =>
-      hospital.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      hospital.address.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      hospital.contact_person.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      hospital.email.toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredMembers = sortData(
+    allFilteredMembers.filter(member =>
+      member.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      member.card_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      member.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      member.phone_number?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      member.company_detail?.company_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      member.scheme_detail?.scheme_name?.toLowerCase().includes(searchTerm.toLowerCase())
     ),
     sortField,
     sortDirection
   );
 
   // Pagination logic
-  const totalPages = Math.ceil(filteredHospitals.length / rowsPerPage);
+  const totalPages = Math.ceil(filteredMembers.length / rowsPerPage);
   const startIndex = (currentPage - 1) * rowsPerPage;
   const endIndex = startIndex + rowsPerPage;
   
-  const paginatedHospitals = filteredHospitals.slice(startIndex, endIndex);
+  const paginatedMembers = filteredMembers.slice(startIndex, endIndex);
 
   // Reset to first page when rows per page changes
   useEffect(() => {
@@ -108,16 +110,16 @@ export const HospitalsList: React.FC<HospitalsListProps> = ({
     setCurrentPage(1);
   }, [searchTerm]);
 
-  const handleHospitalView = (hospital: Hospital) => {
-    onHospitalSelect?.(hospital);
+  const handleMemberView = (member: Member) => {
+    onMemberSelect?.(member);
   };
 
-  const handleHospitalEdit = (hospital: Hospital) => {
-    onHospitalEdit?.(hospital);
+  const handleMemberEdit = (member: Member) => {
+    onMemberEdit?.(member);
   };
 
-  const handleHospitalDelete = (hospital: Hospital) => {
-    onHospitalDelete?.(hospital);
+  const handleMemberDelete = (member: Member) => {
+    onMemberDelete?.(member);
   };
 
   const handlePageChange = (page: number) => {
@@ -130,16 +132,16 @@ export const HospitalsList: React.FC<HospitalsListProps> = ({
       <SearchFilterBar
         searchTerm={searchTerm}
         onSearchChange={setSearchTerm}
-        searchPlaceholder="Search hospitals..."
+        searchPlaceholder="Search members..."
         rowsPerPage={rowsPerPage}
         onRowsPerPageChange={setRowsPerPage}
-        onExport={() => console.log('Export hospitals')}
+        onExport={() => console.log('Export members')}
       />
 
-      {/* Hospitals Table */}
-      <HospitalTable
-        hospitals={paginatedHospitals}
-        allFilteredHospitals={filteredHospitals}
+      {/* Members Table */}
+      <MemberTable
+        members={paginatedMembers}
+        allFilteredMembers={filteredMembers}
         currentPage={currentPage}
         totalPages={totalPages}
         startIndex={startIndex}
@@ -147,13 +149,13 @@ export const HospitalsList: React.FC<HospitalsListProps> = ({
         sortField={sortField}
         sortDirection={sortDirection}
         onSort={handleSort}
-        onHospitalView={handleHospitalView}
-        onHospitalEdit={handleHospitalEdit}
-        onHospitalDelete={handleHospitalDelete}
+        onMemberView={handleMemberView}
+        onMemberEdit={handleMemberEdit}
+        onMemberDelete={handleMemberDelete}
         onPageChange={handlePageChange}
         loading={loading}
         error={error}
-        onRetry={loadHospitals}
+        onRetry={loadMembers}
       />
     </div>
   );

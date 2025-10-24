@@ -19,7 +19,7 @@ export const SearchFilterBar: React.FC<SearchFilterBarProps> = ({
   searchPlaceholder = "Search...",
   rowsPerPage,
   onRowsPerPageChange,
-  rowsPerPageOptions = [5, 10, 25, 50, 100],
+  rowsPerPageOptions = [10, 25, 50, 100],
   onExport,
   showExport = true,
   className = ""

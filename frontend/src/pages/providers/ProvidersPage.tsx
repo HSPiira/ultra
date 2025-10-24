@@ -3,9 +3,7 @@ import {
   Stethoscope, 
   Building2, 
   Plus,
-  RefreshCw,
-  Users,
-  TrendingUp
+  RefreshCw
 } from 'lucide-react';
 import type { Doctor, Hospital } from '../../types/providers';
 import DoctorForm from '../../components/features/doctors/DoctorForm';
@@ -130,37 +128,6 @@ const ProvidersPage: React.FC = () => {
 
   return (
     <div className="h-full flex flex-col" style={{ backgroundColor: '#1a1a1a' }}>
-      {/* Header with Statistics */}
-      <div className="px-6 py-1" style={{ backgroundColor: '#2a2a2a' }}>
-        {/* Statistics Row */}
-        {statistics && !loading && (
-          <div className="flex items-center gap-8 mt-4">
-            <div className="flex items-center gap-2">
-              <Stethoscope className="w-5 h-5" style={{ color: '#d1d5db' }} />
-              <span className="text-sm" style={{ color: '#9ca3af' }}>Total Doctors</span>
-              <span className="text-lg font-semibold" style={{ color: '#ffffff' }}>{statistics.totalDoctors}</span>
-            </div>
-            
-            <div className="flex items-center gap-2">
-              <Building2 className="w-5 h-5" style={{ color: '#d1d5db' }} />
-              <span className="text-sm" style={{ color: '#9ca3af' }}>Total Hospitals</span>
-              <span className="text-lg font-semibold" style={{ color: '#ffffff' }}>{statistics.totalHospitals}</span>
-            </div>
-            
-            <div className="flex items-center gap-2">
-              <TrendingUp className="w-5 h-5" style={{ color: '#10b981' }} />
-              <span className="text-sm" style={{ color: '#9ca3af' }}>Active Doctors</span>
-              <span className="text-lg font-semibold" style={{ color: '#10b981' }}>{statistics.activeDoctors}</span>
-            </div>
-            
-            <div className="flex items-center gap-2">
-              <Users className="w-5 h-5" style={{ color: '#10b981' }} />
-              <span className="text-sm" style={{ color: '#9ca3af' }}>Active Hospitals</span>
-              <span className="text-lg font-semibold" style={{ color: '#10b981' }}>{statistics.activeHospitals}</span>
-            </div>
-          </div>
-        )}
-      </div>
 
       {/* Tabs with Actions */}
       <div className="border-b" style={{ backgroundColor: '#2a2a2a', borderColor: '#4a4a4a' }}>
@@ -189,7 +156,15 @@ const ProvidersPage: React.FC = () => {
                   }
                 }}
               >
-                Doctors
+                <div className="flex items-center gap-2">
+                  <Stethoscope className="w-4 h-4" />
+                  <span>Doctors</span>
+                  {statistics && (
+                    <span className="px-2 py-1 rounded-full text-xs" style={{ backgroundColor: '#3b3b3b', color: '#9ca3af' }}>
+                      {statistics.totalDoctors}
+                    </span>
+                  )}
+                </div>
               </button>
               <button
                 onClick={() => setActiveTab('hospitals')}
@@ -213,7 +188,15 @@ const ProvidersPage: React.FC = () => {
                   }
                 }}
               >
-                Hospitals
+                <div className="flex items-center gap-2">
+                  <Building2 className="w-4 h-4" />
+                  <span>Hospitals</span>
+                  {statistics && (
+                    <span className="px-2 py-1 rounded-full text-xs" style={{ backgroundColor: '#3b3b3b', color: '#9ca3af' }}>
+                      {statistics.totalHospitals}
+                    </span>
+                  )}
+                </div>
               </button>
             </div>
             
