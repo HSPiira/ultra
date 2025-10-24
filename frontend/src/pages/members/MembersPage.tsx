@@ -9,10 +9,9 @@ import {
 import type { Member } from '../../types/members';
 import { MembersList } from './MembersList';
 import { BulkUploadModal, Tooltip } from '../../components/common';
-import { useBulkUpload } from '../../hooks';
+import { useBulkUpload, useThemeStyles } from '../../hooks';
 import { MEMBER_BULK_UPLOAD_CONFIG } from '../../components/common/BulkUploadConfigs';
 import { membersApi } from '../../services/members';
-import { COLORS } from '../../constants/colors';
 
 interface MemberStatistics {
   totalMembers: number;
@@ -25,6 +24,7 @@ interface MemberStatistics {
 }
 
 const MembersPage: React.FC = () => {
+  const { colors, getPageStyles, getIconButtonStyles } = useThemeStyles();
   const [selectedMember, setSelectedMember] = useState<Member | null>(null);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
@@ -162,24 +162,24 @@ const MembersPage: React.FC = () => {
   };
 
   return (
-    <div className="h-full flex flex-col" style={{ backgroundColor: COLORS.background.primary }}>
+    <div className="h-full flex flex-col" style={getPageStyles()}>
       {/* Tabs with Actions */}
-      <div className="border-b" style={{ backgroundColor: COLORS.background.secondary, borderColor: COLORS.border.primary }}>
+      <div className="border-b" style={{ backgroundColor: colors.background.secondary, borderColor: colors.border.primary }}>
         <div className="px-6">
           <div className="flex items-center justify-between">
             <div className="flex space-x-8">
               <button
-                className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors border-b-2`}
+                className="py-4 px-1 border-b-2 font-medium text-sm transition-colors"
                 style={{
-                  borderBottomColor: COLORS.text.tertiary,
-                  color: COLORS.text.secondary
+                  borderBottomColor: colors.text.tertiary,
+                  color: colors.text.secondary
                 }}
               >
                 <div className="flex items-center gap-2">
                   <Users className="w-4 h-4" />
                   <span>Members</span>
                   {statistics && (
-                    <span className="px-2 py-1 rounded-full text-xs" style={{ backgroundColor: COLORS.background.quaternary, color: COLORS.text.tertiary }}>
+                    <span className="px-2 py-1 rounded-full text-xs" style={{ backgroundColor: colors.background.quaternary, color: colors.text.tertiary }}>
                       {statistics.totalMembers}
                     </span>
                   )}
@@ -188,69 +188,45 @@ const MembersPage: React.FC = () => {
             </div>
 
             <div className="flex items-center gap-3">
-              <Tooltip content="Refresh">
+              <Tooltip content="Refresh members data and statistics">
                 <button 
                   className="p-2 rounded-lg transition-colors" 
-                  style={{ color: COLORS.text.tertiary }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.color = COLORS.text.primary;
-                    e.currentTarget.style.backgroundColor = COLORS.background.quaternary;
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.color = COLORS.text.tertiary;
-                    e.currentTarget.style.backgroundColor = 'transparent';
-                  }}
+                  style={getIconButtonStyles()}
                   onClick={refreshData}
                 >
                   <RefreshCw className="w-5 h-5" />
                 </button>
               </Tooltip>
 
-              <Tooltip content="Export">
+              <Tooltip content="Export members data to CSV">
                 <button 
                   className="p-2 rounded-lg transition-colors" 
-                  style={{ color: COLORS.text.tertiary }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.color = COLORS.text.primary;
-                    e.currentTarget.style.backgroundColor = COLORS.background.quaternary;
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.color = COLORS.text.tertiary;
-                    e.currentTarget.style.backgroundColor = 'transparent';
-                  }}
+                  style={getIconButtonStyles()}
                 >
                   <Download className="w-5 h-5" />
                 </button>
               </Tooltip>
 
-              <Tooltip content="Bulk Upload Members">
+              <Tooltip content="Bulk upload members from CSV file">
                 <button
                   onClick={bulkUpload.openModal}
                   className="p-2 rounded-lg transition-colors"
-                  style={{ color: COLORS.text.tertiary }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.color = COLORS.text.primary;
-                    e.currentTarget.style.backgroundColor = COLORS.background.quaternary;
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.color = COLORS.text.tertiary;
-                    e.currentTarget.style.backgroundColor = 'transparent';
-                  }}
+                  style={getIconButtonStyles()}
                 >
                   <Upload className="w-4 h-4" />
                 </button>
               </Tooltip>
 
-              <Tooltip content="Add Member">
+              <Tooltip content="Add new member manually">
                 <button
                   onClick={handleAddMember}
                   className="p-2 rounded-lg transition-colors"
-                  style={{ backgroundColor: COLORS.background.quaternary, color: COLORS.text.primary }}
+                  style={{ backgroundColor: colors.background.quaternary, color: colors.text.primary }}
                   onMouseEnter={(e) => {
-                    e.currentTarget.style.backgroundColor = COLORS.background.hover;
+                    e.currentTarget.style.backgroundColor = colors.background.hover;
                   }}
                   onMouseLeave={(e) => {
-                    e.currentTarget.style.backgroundColor = COLORS.background.quaternary;
+                    e.currentTarget.style.backgroundColor = colors.background.quaternary;
                   }}
                 >
                   <Plus className="w-4 h-4" />
@@ -263,12 +239,21 @@ const MembersPage: React.FC = () => {
 
       {/* Content */}
       <div className="flex-1 p-6 overflow-auto">
-        <MembersList
-          onMemberSelect={handleMemberSelect}
-          onMemberEdit={handleMemberEdit}
-          onMemberDelete={handleMemberDelete}
-          refreshTrigger={refreshTrigger}
-        />
+        {loading ? (
+          <div className="flex items-center justify-center h-64">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto mb-4"></div>
+              <p style={{ color: colors.text.tertiary }}>Loading members...</p>
+            </div>
+          </div>
+        ) : (
+          <MembersList
+            onMemberSelect={handleMemberSelect}
+            onMemberEdit={handleMemberEdit}
+            onMemberDelete={handleMemberDelete}
+            refreshTrigger={refreshTrigger}
+          />
+        )}
       </div>
 
             {/* Modals - Placeholder for future forms and details */}
@@ -281,20 +266,20 @@ const MembersPage: React.FC = () => {
                 <div 
                   className="p-6 rounded-lg max-w-md w-full mx-4 shadow-2xl border"
                   style={{ 
-                    backgroundColor: COLORS.background.tertiary,
-                    borderColor: COLORS.border.secondary
+                    backgroundColor: colors.background.tertiary,
+                    borderColor: colors.border.secondary
                   }}
                   onClick={(e) => e.stopPropagation()}
                 >
                   <h3 
                     className="text-lg font-semibold mb-4"
-                    style={{ color: COLORS.text.primary }}
+                    style={{ color: colors.text.primary }}
                   >
                     {editingMember ? 'Edit Member' : 'Add Member'}
                   </h3>
                   <p 
                     className="mb-4"
-                    style={{ color: COLORS.text.tertiary }}
+                    style={{ color: colors.text.tertiary }}
                   >
                     Member form will be implemented here
                   </p>
@@ -303,14 +288,14 @@ const MembersPage: React.FC = () => {
                       onClick={handleFormClose}
                       className="px-4 py-2 rounded transition-colors"
                       style={{ 
-                        backgroundColor: COLORS.background.quaternary, 
-                        color: COLORS.text.primary 
+                        backgroundColor: colors.background.quaternary, 
+                        color: colors.text.primary 
                       }}
                       onMouseEnter={(e) => {
-                        e.currentTarget.style.backgroundColor = COLORS.background.hover;
+                        e.currentTarget.style.backgroundColor = colors.background.hover;
                       }}
                       onMouseLeave={(e) => {
-                        e.currentTarget.style.backgroundColor = COLORS.background.quaternary;
+                        e.currentTarget.style.backgroundColor = colors.background.quaternary;
                       }}
                     >
                       Cancel
@@ -319,14 +304,14 @@ const MembersPage: React.FC = () => {
                       onClick={handleFormSave}
                       className="px-4 py-2 rounded transition-colors"
                       style={{ 
-                        backgroundColor: COLORS.action.primary, 
-                        color: COLORS.text.primary 
+                        backgroundColor: colors.action.primary, 
+                        color: colors.text.primary 
                       }}
                       onMouseEnter={(e) => {
                         e.currentTarget.style.backgroundColor = '#2563eb';
                       }}
                       onMouseLeave={(e) => {
-                        e.currentTarget.style.backgroundColor = COLORS.action.primary;
+                        e.currentTarget.style.backgroundColor = colors.action.primary;
                       }}
                     >
                       Save
@@ -345,37 +330,37 @@ const MembersPage: React.FC = () => {
                 <div 
                   className="p-6 rounded-lg max-w-md w-full mx-4 shadow-2xl border"
                   style={{ 
-                    backgroundColor: COLORS.background.tertiary,
-                    borderColor: COLORS.border.secondary
+                    backgroundColor: colors.background.tertiary,
+                    borderColor: colors.border.secondary
                   }}
                   onClick={(e) => e.stopPropagation()}
                 >
                   <h3 
                     className="text-lg font-semibold mb-4"
-                    style={{ color: COLORS.text.primary }}
+                    style={{ color: colors.text.primary }}
                   >
                     Member Details
                   </h3>
                   <div className="space-y-2 text-sm">
-                    <p><span style={{ color: COLORS.text.tertiary }}>Name:</span> {selectedMember.name}</p>
-                    <p><span style={{ color: COLORS.text.tertiary }}>Card Number:</span> {selectedMember.card_number}</p>
-                    <p><span style={{ color: COLORS.text.tertiary }}>Gender:</span> {selectedMember.gender}</p>
-                    <p><span style={{ color: COLORS.text.tertiary }}>Relationship:</span> {selectedMember.relationship}</p>
-                    <p><span style={{ color: COLORS.text.tertiary }}>Status:</span> {selectedMember.status}</p>
+                    <p><span style={{ color: colors.text.tertiary }}>Name:</span> {selectedMember.name}</p>
+                    <p><span style={{ color: colors.text.tertiary }}>Card Number:</span> {selectedMember.card_number}</p>
+                    <p><span style={{ color: colors.text.tertiary }}>Gender:</span> {selectedMember.gender}</p>
+                    <p><span style={{ color: colors.text.tertiary }}>Relationship:</span> {selectedMember.relationship}</p>
+                    <p><span style={{ color: colors.text.tertiary }}>Status:</span> {selectedMember.status}</p>
                   </div>
                   <div className="flex gap-2 mt-4">
                     <button
                       onClick={handleDetailsClose}
                       className="px-4 py-2 rounded transition-colors"
                       style={{ 
-                        backgroundColor: COLORS.background.quaternary, 
-                        color: COLORS.text.primary 
+                        backgroundColor: colors.background.quaternary, 
+                        color: colors.text.primary 
                       }}
                       onMouseEnter={(e) => {
-                        e.currentTarget.style.backgroundColor = COLORS.background.hover;
+                        e.currentTarget.style.backgroundColor = colors.background.hover;
                       }}
                       onMouseLeave={(e) => {
-                        e.currentTarget.style.backgroundColor = COLORS.background.quaternary;
+                        e.currentTarget.style.backgroundColor = colors.background.quaternary;
                       }}
                     >
                       Close
@@ -384,14 +369,14 @@ const MembersPage: React.FC = () => {
                       onClick={() => handleMemberEdit(selectedMember)}
                       className="px-4 py-2 rounded transition-colors"
                       style={{ 
-                        backgroundColor: COLORS.action.primary, 
-                        color: COLORS.text.primary 
+                        backgroundColor: colors.action.primary, 
+                        color: colors.text.primary 
                       }}
                       onMouseEnter={(e) => {
                         e.currentTarget.style.backgroundColor = '#2563eb';
                       }}
                       onMouseLeave={(e) => {
-                        e.currentTarget.style.backgroundColor = COLORS.action.primary;
+                        e.currentTarget.style.backgroundColor = colors.action.primary;
                       }}
                     >
                       Edit

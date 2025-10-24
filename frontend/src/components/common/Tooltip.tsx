@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { useThemeStyles } from '../../hooks';
 
 interface TooltipProps {
   content: string;
@@ -15,6 +16,7 @@ export const Tooltip: React.FC<TooltipProps> = ({
   delay = 500,
   className = ''
 }) => {
+  const { colors } = useThemeStyles();
   const [isVisible, setIsVisible] = useState(false);
   const [tooltipPosition, setTooltipPosition] = useState({ top: 0, left: 0 });
   const [actualPosition, setActualPosition] = useState(position);
@@ -160,12 +162,13 @@ export const Tooltip: React.FC<TooltipProps> = ({
       {isVisible && content && (
         <div
           ref={tooltipRef}
-          className={`fixed z-50 px-3 py-2 text-sm text-white rounded-lg shadow-lg pointer-events-none ${className}`}
+          className={`fixed z-50 px-3 py-2 text-sm rounded-lg shadow-lg pointer-events-none ${className}`}
           style={{
             top: tooltipPosition.top,
             left: tooltipPosition.left,
-            backgroundColor: '#1f1f1f',
-            border: '1px solid #404040',
+            backgroundColor: colors.background.tertiary,
+            border: `1px solid ${colors.border.secondary}`,
+            color: colors.text.primary,
             maxWidth: '300px',
             wordWrap: 'break-word'
           }}
@@ -174,8 +177,8 @@ export const Tooltip: React.FC<TooltipProps> = ({
           <div
             className={getArrowClasses()}
             style={{
-              backgroundColor: '#1f1f1f',
-              border: '1px solid #404040'
+              backgroundColor: colors.background.tertiary,
+              border: `1px solid ${colors.border.secondary}`
             }}
           />
         </div>

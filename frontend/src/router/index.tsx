@@ -1,6 +1,7 @@
 import React from 'react';
 import { createBrowserRouter, RouterProvider } from 'react-router-dom';
 import Layout from '../components/layout/Layout';
+import { ThemeProvider } from '../contexts/ThemeContext';
 import Dashboard from '../pages/dashboard/Dashboard';
 import CompaniesPage from '../pages/companies/CompaniesPage';
 import { CompanyDetailsPage } from '../pages/companies';
@@ -72,7 +73,11 @@ const router = createBrowserRouter([
 ]);
 
 export const AppRouter: React.FC = () => {
-  return <RouterProvider router={router} />;
+  return (
+    <ThemeProvider>
+      <RouterProvider router={router} />
+    </ThemeProvider>
+  );
 };
 
 export default router;

@@ -1,4 +1,7 @@
 
+import React from 'react';
+import { Tooltip } from '../common';
+
 export interface TableColumn<T> {
   key: keyof T;
   label: string;
@@ -160,17 +163,17 @@ export function SortableTable<T>({
                           {actions.map((action, actionIndex) => {
                             const IconComponent = action.icon;
                             return (
-                              <button
-                                key={actionIndex}
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  action.onClick(item);
-                                }}
-                                className={`p-1 text-gray-400 hover:${action.hoverColor || 'text-white'} hover:bg-gray-700 rounded transition-colors relative group/btn ${action.className || ''}`}
-                              >
-                                <IconComponent className="w-4 h-4" />
-                                <span className="sr-only">{action.label}</span>
-                              </button>
+                              <Tooltip key={actionIndex} content={action.label}>
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    action.onClick(item);
+                                  }}
+                                  className={`p-1 text-gray-400 hover:${action.hoverColor || 'text-white'} hover:bg-gray-700 rounded transition-colors relative group/btn ${action.className || ''}`}
+                                >
+                                  <IconComponent className="w-4 h-4" />
+                                </button>
+                              </Tooltip>
                             );
                           })}
                         </div>

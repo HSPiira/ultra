@@ -1,12 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import {
-  Stethoscope,
-  Pill,
+import { 
+  Stethoscope, 
+  Pill, 
   TestTube,
   Building2,
   RefreshCw,
-  Download
+  Plus,
+  Upload
 } from 'lucide-react';
+import { useThemeStyles } from '../../hooks';
+import { Tooltip } from '../../components/common';
 import { ServicesListNew } from './ServicesListNew';
 import { MedicinesListNew } from './MedicinesListNew';
 import { LabTestsListNew } from './LabTestsListNew';
@@ -20,6 +23,7 @@ import type { Service, Medicine, LabTest, HospitalItemPrice } from '../../types/
 type TabType = 'services' | 'medicines' | 'labtests' | 'prices';
 
 const MedicalCatalogPage: React.FC = () => {
+  const { colors, getPageStyles, getTabStyles, getIconButtonStyles } = useThemeStyles();
   const [activeTab, setActiveTab] = useState<TabType>('services');
   const [showForm, setShowForm] = useState(false);
   const [formType, setFormType] = useState<'service' | 'medicine' | 'labtest' | 'price'>('service');
@@ -189,9 +193,9 @@ const MedicalCatalogPage: React.FC = () => {
 
 
   return (
-    <div className="h-full flex flex-col" style={{ backgroundColor: '#1a1a1a' }}>
+    <div className="h-full flex flex-col" style={getPageStyles()}>
       {/* Tabs with Actions */}
-      <div className="border-b" style={{ backgroundColor: '#2a2a2a', borderColor: '#4a4a4a' }}>
+      <div className="border-b" style={{ backgroundColor: colors.background.secondary, borderColor: colors.border.primary }}>
         <div className="px-6">
           <div className="flex items-center justify-between">
             <div className="flex space-x-8">
@@ -211,30 +215,13 @@ const MedicalCatalogPage: React.FC = () => {
                   <button
                     key={tab.id}
                     onClick={() => setActiveTab(tab.id)}
-                    className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
-                      activeTab === tab.id
-                        ? 'border-b-2'
-                        : 'border-b-2'
-                    }`}
-                    style={{
-                      borderBottomColor: activeTab === tab.id ? '#9ca3af' : 'transparent',
-                      color: activeTab === tab.id ? '#d1d5db' : '#9ca3af'
-                    }}
-                    onMouseEnter={(e) => {
-                      if (activeTab !== tab.id) {
-                        e.currentTarget.style.color = '#d1d5db';
-                      }
-                    }}
-                    onMouseLeave={(e) => {
-                      if (activeTab !== tab.id) {
-                        e.currentTarget.style.color = '#9ca3af';
-                      }
-                    }}
+                    className="py-4 px-1 border-b-2 font-medium text-sm transition-colors"
+                    style={getTabStyles(activeTab === tab.id)}
                   >
                     <div className="flex items-center gap-2">
                       <Icon className="w-4 h-4" />
                       <span>{tab.label}</span>
-                      <span className="px-2 py-1 rounded-full text-xs" style={{ backgroundColor: '#3b3b3b', color: '#9ca3af' }}>
+                      <span className="px-2 py-1 rounded-full text-xs" style={{ backgroundColor: colors.background.quaternary, color: colors.text.tertiary }}>
                         {getCount()}
                       </span>
                     </div>
@@ -244,45 +231,40 @@ const MedicalCatalogPage: React.FC = () => {
             </div>
 
             <div className="flex items-center gap-3">
-              <button 
-                className="p-2 rounded-lg transition-colors" 
-                style={{ color: '#9ca3af' }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.color = '#ffffff';
-                  e.currentTarget.style.backgroundColor = '#3b3b3b';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.color = '#9ca3af';
-                  e.currentTarget.style.backgroundColor = 'transparent';
-                }}
-                title="Refresh"
-                onClick={() => setRefreshTrigger(prev => prev + 1)}
-              >
-                <RefreshCw className="w-5 h-5" />
-              </button>
+              <Tooltip content="Refresh medical catalog data">
+                <button 
+                  className="p-2 rounded-lg transition-colors" 
+                  style={getIconButtonStyles()}
+                  onClick={() => setRefreshTrigger(prev => prev + 1)}
+                >
+                  <RefreshCw className="w-5 h-5" />
+                </button>
+              </Tooltip>
 
-              <button 
-                className="p-2 rounded-lg transition-colors" 
-                style={{ color: '#9ca3af' }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.color = '#ffffff';
-                  e.currentTarget.style.backgroundColor = '#3b3b3b';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.color = '#9ca3af';
-                  e.currentTarget.style.backgroundColor = 'transparent';
-                }}
-                title="Export"
-              >
-                <Download className="w-5 h-5" />
-              </button>
+              <Tooltip content="Add new medical item">
+                <button 
+                  className="p-2 rounded-lg transition-colors" 
+                  style={getIconButtonStyles()}
+                >
+                  <Plus className="w-5 h-5" />
+                </button>
+              </Tooltip>
+
+              <Tooltip content="Upload medical catalog data from CSV">
+                <button 
+                  className="p-2 rounded-lg transition-colors" 
+                  style={getIconButtonStyles()}
+                >
+                  <Upload className="w-5 h-5" />
+                </button>
+              </Tooltip>
             </div>
           </div>
         </div>
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 px-6 py-4" style={{ backgroundColor: '#1a1a1a' }}>
+      <div className="flex-1 px-6 py-4" style={getPageStyles()}>
         {renderTabContent()}
       </div>
 

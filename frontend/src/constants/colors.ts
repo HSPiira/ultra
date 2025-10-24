@@ -1,4 +1,5 @@
 // Color constants for consistent theming across the application
+// NOTE: This file is deprecated. Use the useTheme hook from ThemeContext instead.
 
 export const COLORS = {
   // Background colors

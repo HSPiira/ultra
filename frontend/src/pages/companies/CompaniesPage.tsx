@@ -4,13 +4,8 @@ import {
   Users, 
   TrendingUp, 
   Plus,
-  Grid3X3,
-  List,
   BarChart3,
-  Filter,
-  Download,
-  RefreshCw,
-  Search
+  RefreshCw
 } from 'lucide-react';
 import { CompaniesList } from './CompaniesList';
 import { CompanyForm } from './CompanyForm';
@@ -18,16 +13,19 @@ import { CompanyDetails } from './CompanyDetails';
 import { CompanyAnalytics } from './CompanyAnalytics';
 import { companiesApi } from '../../services/companies';
 import type { Company, CompanyStatistics } from '../../types/companies';
+import { useThemeStyles } from '../../hooks';
+import { Tooltip } from '../../components/common';
 
 type ViewMode = 'list' | 'grid';
 type TabType = 'companies' | 'analytics';
 
 const CompaniesPage: React.FC = () => {
+  const { colors, getPageStyles, getTabStyles, getIconButtonStyles } = useThemeStyles();
   const [selectedCompany, setSelectedCompany] = useState<Company | null>(null);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [editingCompany, setEditingCompany] = useState<Company | null>(null);
-  const [viewMode, setViewMode] = useState<ViewMode>('list');
+  const [viewMode] = useState<ViewMode>('list');
   const [activeTab, setActiveTab] = useState<TabType>('companies');
   const [statistics, setStatistics] = useState<CompanyStatistics | null>(null);
   const [loading, setLoading] = useState(true);
@@ -110,127 +108,87 @@ const CompaniesPage: React.FC = () => {
   };
 
   return (
-    <div className="h-full flex flex-col" style={{ backgroundColor: '#1a1a1a' }}>
+    <div className="h-full flex flex-col" style={getPageStyles()}>
       {/* Header with Statistics */}
-      <div className="px-6 py-1" style={{ backgroundColor: '#2a2a2a' }}>
+      <div className="px-6 py-1" style={{ backgroundColor: colors.background.secondary }}>
 
         {/* Statistics Row */}
         {statistics && !loading && (
           <div className="flex items-center gap-8 mt-4">
             <div className="flex items-center gap-2">
-              <Building2 className="w-5 h-5" style={{ color: '#d1d5db' }} />
-              <span className="text-sm" style={{ color: '#9ca3af' }}>Total Companies</span>
-              <span className="text-lg font-semibold" style={{ color: '#ffffff' }}>{statistics.total_companies}</span>
+              <Building2 className="w-5 h-5" style={{ color: colors.text.secondary }} />
+              <span className="text-sm" style={{ color: colors.text.tertiary }}>Total Companies</span>
+              <span className="text-lg font-semibold" style={{ color: colors.text.primary }}>{statistics.total_companies}</span>
             </div>
             
             <div className="flex items-center gap-2">
-              <TrendingUp className="w-5 h-5" style={{ color: '#10b981' }} />
-              <span className="text-sm" style={{ color: '#9ca3af' }}>Active</span>
-              <span className="text-lg font-semibold" style={{ color: '#10b981' }}>{statistics.active_companies}</span>
+              <TrendingUp className="w-5 h-5" style={{ color: colors.status.active }} />
+              <span className="text-sm" style={{ color: colors.text.tertiary }}>Active</span>
+              <span className="text-lg font-semibold" style={{ color: colors.status.active }}>{statistics.active_companies}</span>
             </div>
             
             <div className="flex items-center gap-2">
-              <Users className="w-5 h-5" style={{ color: '#ef4444' }} />
-              <span className="text-sm" style={{ color: '#9ca3af' }}>Inactive</span>
-              <span className="text-lg font-semibold" style={{ color: '#ef4444' }}>{statistics.inactive_companies}</span>
+              <Users className="w-5 h-5" style={{ color: colors.status.inactive }} />
+              <span className="text-sm" style={{ color: colors.text.tertiary }}>Inactive</span>
+              <span className="text-lg font-semibold" style={{ color: colors.status.inactive }}>{statistics.inactive_companies}</span>
             </div>
             
             <div className="flex items-center gap-2">
-              <BarChart3 className="w-5 h-5" style={{ color: '#f59e0b' }} />
-              <span className="text-sm" style={{ color: '#9ca3af' }}>Suspended</span>
-              <span className="text-lg font-semibold" style={{ color: '#f59e0b' }}>{statistics.suspended_companies}</span>
+              <BarChart3 className="w-5 h-5" style={{ color: colors.status.suspended }} />
+              <span className="text-sm" style={{ color: colors.text.tertiary }}>Suspended</span>
+              <span className="text-lg font-semibold" style={{ color: colors.status.suspended }}>{statistics.suspended_companies}</span>
             </div>
           </div>
         )}
       </div>
 
       {/* Tabs with Actions */}
-      <div className="border-b" style={{ backgroundColor: '#2a2a2a', borderColor: '#4a4a4a' }}>
+      <div className="border-b" style={{ backgroundColor: colors.background.secondary, borderColor: colors.border.primary }}>
         <div className="px-6">
           <div className="flex items-center justify-between">
             <div className="flex space-x-8">
               <button
                 onClick={() => setActiveTab('companies')}
-                className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
-                  activeTab === 'companies'
-                    ? 'border-b-2'
-                    : 'border-b-2'
-                }`}
-                style={{
-                  borderBottomColor: activeTab === 'companies' ? '#9ca3af' : 'transparent',
-                  color: activeTab === 'companies' ? '#d1d5db' : '#9ca3af'
-                }}
-                onMouseEnter={(e) => {
-                  if (activeTab !== 'companies') {
-                    e.currentTarget.style.color = '#d1d5db';
-                  }
-                }}
-                onMouseLeave={(e) => {
-                  if (activeTab !== 'companies') {
-                    e.currentTarget.style.color = '#9ca3af';
-                  }
-                }}
+                className="py-4 px-1 border-b-2 font-medium text-sm transition-colors"
+                style={getTabStyles(activeTab === 'companies')}
               >
                 Companies
               </button>
               <button
                 onClick={() => setActiveTab('analytics')}
-                className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
-                  activeTab === 'analytics'
-                    ? 'border-b-2'
-                    : 'border-b-2'
-                }`}
-                style={{
-                  borderBottomColor: activeTab === 'analytics' ? '#9ca3af' : 'transparent',
-                  color: activeTab === 'analytics' ? '#d1d5db' : '#9ca3af'
-                }}
-                onMouseEnter={(e) => {
-                  if (activeTab !== 'analytics') {
-                    e.currentTarget.style.color = '#d1d5db';
-                  }
-                }}
-                onMouseLeave={(e) => {
-                  if (activeTab !== 'analytics') {
-                    e.currentTarget.style.color = '#9ca3af';
-                  }
-                }}
+                className="py-4 px-1 border-b-2 font-medium text-sm transition-colors"
+                style={getTabStyles(activeTab === 'analytics')}
               >
                 Analytics
               </button>
             </div>
             
             <div className="flex items-center gap-3">
-              <button
-                onClick={refreshData}
-                className="p-2 rounded-lg transition-colors"
-                style={{ color: '#9ca3af' }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.color = '#ffffff';
-                  e.currentTarget.style.backgroundColor = '#3b3b3b';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.color = '#9ca3af';
-                  e.currentTarget.style.backgroundColor = 'transparent';
-                }}
-                title="Refresh Data"
-              >
-                <RefreshCw className="w-5 h-5" />
-              </button>
+              <Tooltip content="Refresh data and statistics">
+                <button
+                  onClick={refreshData}
+                  className="p-2 rounded-lg transition-colors"
+                  style={getIconButtonStyles()}
+                >
+                  <RefreshCw className="w-5 h-5" />
+                </button>
+              </Tooltip>
               
-              <button
-                onClick={handleAddCompany}
-                className="p-2 rounded-lg transition-colors"
-                style={{ backgroundColor: '#3b3b3b', color: '#ffffff' }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.backgroundColor = '#4a4a4a';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.backgroundColor = '#3b3b3b';
-                }}
-                title="Add Company"
-              >
-                <Plus className="w-4 h-4" />
-              </button>
+              <Tooltip content="Add new company">
+                <button
+                  onClick={handleAddCompany}
+                  className="p-2 rounded-lg transition-colors"
+                  style={{ backgroundColor: colors.background.quaternary, color: colors.text.primary }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.backgroundColor = colors.background.hover;
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = colors.background.quaternary;
+                  }}
+                >
+                  <Plus className="w-4 h-4" />
+                </button>
+              </Tooltip>
             </div>
           </div>
         </div>
