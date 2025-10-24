@@ -1,0 +1,7 @@
+cuid2==2.0.1
+Django==5.2.7
+djangorestframework==3.16.1
+django-filter==25.2
+drf-spectacular==0.28.0
+django-redis==6.0.0
+django-cors-headers==4.3.1

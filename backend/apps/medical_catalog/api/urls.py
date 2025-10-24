@@ -1,0 +1,18 @@
+from rest_framework.routers import DefaultRouter
+
+from apps.medical_catalog.api.views import (
+    HospitalItemPriceViewSet,
+    LabTestViewSet,
+    MedicineViewSet,
+    ServiceViewSet,
+    MedicalCatalogStatisticsViewSet,
+)
+
+router = DefaultRouter()
+router.register(r"services", ServiceViewSet, basename="service")
+router.register(r"medicines", MedicineViewSet, basename="medicine")
+router.register(r"lab-tests", LabTestViewSet, basename="labtest")
+router.register(
+    r"hospital-item-prices", HospitalItemPriceViewSet, basename="hospitalitemprice"
+)
+router.register(r"statistics", MedicalCatalogStatisticsViewSet, basename="statistics")
