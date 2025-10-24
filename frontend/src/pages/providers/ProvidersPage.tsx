@@ -4,262 +4,162 @@ import {
   Building2, 
   Plus,
   RefreshCw,
-  Filter,
-  Download,
-  CheckCircle
+  Users,
+  TrendingUp
 } from 'lucide-react';
-import type { Doctor, Hospital, DoctorFormData, HospitalFormData } from '../../types/providers';
-import { providersApi } from '../../services/providers';
+import type { Doctor, Hospital } from '../../types/providers';
 import DoctorForm from '../../components/features/doctors/DoctorForm';
 import DoctorDetail from '../../components/features/doctors/DoctorDetail';
 import HospitalForm from '../../components/features/hospitals/HospitalForm';
 import HospitalDetail from '../../components/features/hospitals/HospitalDetail';
-import { DoctorTable, HospitalTable } from '../../components/tables';
-import { SearchFilterBar } from '../../components/common';
-
+import { DoctorsList } from './DoctorsList';
+import { HospitalsList } from './HospitalsList';
 
 type TabType = 'doctors' | 'hospitals';
 
+interface ProviderStatistics {
+  totalDoctors: number;
+  totalHospitals: number;
+  activeDoctors: number;
+  activeHospitals: number;
+  inactiveDoctors: number;
+  inactiveHospitals: number;
+}
+
 const ProvidersPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<TabType>('doctors');
-  const [doctors, setDoctors] = useState<Doctor[]>([]);
-  const [hospitals, setHospitals] = useState<Hospital[]>([]);
-  const [selectedDoctor, setSelectedDoctor] = useState<Doctor | undefined>(undefined);
-  const [selectedHospital, setSelectedHospital] = useState<Hospital | undefined>(undefined);
+  const [selectedDoctor, setSelectedDoctor] = useState<Doctor | null>(null);
+  const [selectedHospital, setSelectedHospital] = useState<Hospital | null>(null);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
-  const [editingDoctor, setEditingDoctor] = useState<Doctor | undefined>(undefined);
-  const [editingHospital, setEditingHospital] = useState<Hospital | undefined>(undefined);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | undefined>(undefined);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [sortField, setSortField] = useState<string>('');
-  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
-  const [rowsPerPage, setRowsPerPage] = useState<number>(10);
-  const [currentPage, setCurrentPage] = useState<number>(1);
+  const [editingDoctor, setEditingDoctor] = useState<Doctor | null>(null);
+  const [editingHospital, setEditingHospital] = useState<Hospital | null>(null);
+  const [statistics, setStatistics] = useState<ProviderStatistics | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
 
-  // Load initial data
   useEffect(() => {
-    loadData();
+    loadStatistics();
   }, []);
 
-  const loadData = async () => {
-    setLoading(true);
-    setError(undefined);
+  const loadStatistics = async () => {
     try {
-      const [doctorsResponse, hospitalsResponse] = await Promise.all([
-        providersApi.doctors.getDoctors(),
-        providersApi.hospitals.getHospitals(),
-      ]);
-      setDoctors(doctorsResponse.results);
-      setHospitals(hospitalsResponse.results);
+      setLoading(true);
+      // Mock statistics - in real app, you'd fetch from API
+      setStatistics({
+        totalDoctors: 45,
+        totalHospitals: 23,
+        activeDoctors: 42,
+        activeHospitals: 20,
+        inactiveDoctors: 3,
+        inactiveHospitals: 3
+      });
     } catch (err) {
-      console.error('Error loading providers:', err);
-      setError('Failed to load providers data');
+      console.error('Error loading statistics:', err);
     } finally {
       setLoading(false);
     }
   };
 
-  // Doctor handlers
+  const handleDoctorSelect = (doctor: Doctor) => {
+    setSelectedDoctor(doctor);
+    setIsDetailsOpen(true);
+  };
+
   const handleDoctorEdit = (doctor: Doctor) => {
     setEditingDoctor(doctor);
     setIsFormOpen(true);
   };
 
-  const handleDoctorView = (doctor: Doctor) => {
-    setSelectedDoctor(doctor);
+  const handleDoctorDelete = (doctor: Doctor) => {
+    console.log('Doctor deleted:', doctor);
+    loadStatistics();
+    setRefreshTrigger(prev => prev + 1);
+  };
+
+  const handleHospitalSelect = (hospital: Hospital) => {
+    setSelectedHospital(hospital);
     setIsDetailsOpen(true);
   };
 
-  const handleDoctorDelete = async (doctor: Doctor) => {
-    if (window.confirm(`Are you sure you want to delete ${doctor.name}?`)) {
-      try {
-        await providersApi.doctors.deleteDoctor(doctor.id);
-        await loadData();
-      } catch (err) {
-        setError('Failed to delete doctor');
-        console.error('Error deleting doctor:', err);
-      }
-    }
-  };
-
-  const handleDoctorSubmit = async (data: DoctorFormData) => {
-    setLoading(true);
-    try {
-      if (editingDoctor) {
-        await providersApi.doctors.updateDoctor(editingDoctor.id, data);
-      } else {
-        await providersApi.doctors.createDoctor(data);
-      }
-      await loadData();
-      setIsFormOpen(false);
-      setEditingDoctor(undefined);
-    } catch (err) {
-      setError('Failed to save doctor');
-      console.error('Error saving doctor:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Hospital handlers
   const handleHospitalEdit = (hospital: Hospital) => {
     setEditingHospital(hospital);
     setIsFormOpen(true);
   };
 
-  const handleHospitalView = (hospital: Hospital) => {
-    setSelectedHospital(hospital);
-    setIsDetailsOpen(true);
+  const handleHospitalDelete = (hospital: Hospital) => {
+    console.log('Hospital deleted:', hospital);
+    loadStatistics();
+    setRefreshTrigger(prev => prev + 1);
   };
 
-  const handleHospitalDelete = async (hospital: Hospital) => {
-    if (window.confirm(`Are you sure you want to delete ${hospital.name}?`)) {
-      try {
-        await providersApi.hospitals.deleteHospital(hospital.id);
-        await loadData();
-      } catch (err) {
-        setError('Failed to delete hospital');
-        console.error('Error deleting hospital:', err);
-      }
-    }
+  const handleAddDoctor = () => {
+    setEditingDoctor(null);
+    setIsFormOpen(true);
   };
 
-  const handleHospitalSubmit = async (data: HospitalFormData) => {
-    setLoading(true);
-    try {
-      if (editingHospital) {
-        await providersApi.hospitals.updateHospital(editingHospital.id, data);
-      } else {
-        await providersApi.hospitals.createHospital(data);
-      }
-      await loadData();
-      setIsFormOpen(false);
-      setEditingHospital(undefined);
-    } catch (err) {
-      setError('Failed to save hospital');
-      console.error('Error saving hospital:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleAddProvider = () => {
-    if (activeTab === 'doctors') {
-      setEditingDoctor(undefined);
-    } else {
-      setEditingHospital(undefined);
-    }
+  const handleAddHospital = () => {
+    setEditingHospital(null);
     setIsFormOpen(true);
   };
 
   const handleFormClose = () => {
     setIsFormOpen(false);
-    setEditingDoctor(undefined);
-    setEditingHospital(undefined);
+    setEditingDoctor(null);
+    setEditingHospital(null);
+  };
+
+  const handleFormSave = () => {
+    setIsFormOpen(false);
+    setEditingDoctor(null);
+    setEditingHospital(null);
+    loadStatistics();
+    setRefreshTrigger(prev => prev + 1);
   };
 
   const handleDetailsClose = () => {
     setIsDetailsOpen(false);
-    setSelectedDoctor(undefined);
-    setSelectedHospital(undefined);
+    setSelectedDoctor(null);
+    setSelectedHospital(null);
   };
 
   const refreshData = () => {
-    loadData();
+    loadStatistics();
+    setRefreshTrigger(prev => prev + 1);
   };
-
-  // Sort function
-  const sortData = <T,>(data: T[], field: string, direction: 'asc' | 'desc'): T[] => {
-    if (!field) return data;
-    
-    return [...data].sort((a, b) => {
-      const aValue = (a as any)[field];
-      const bValue = (b as any)[field];
-      
-      if (aValue < bValue) return direction === 'asc' ? -1 : 1;
-      if (aValue > bValue) return direction === 'asc' ? 1 : -1;
-      return 0;
-    });
-  };
-
-  // Handle sorting
-  const handleSort = (field: string) => {
-    if (sortField === field) {
-      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
-    } else {
-      setSortField(field);
-      setSortDirection('asc');
-    }
-  };
-
-  // Filter and sort data
-  const allFilteredDoctors = sortData(
-    doctors.filter(doctor =>
-      doctor.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      doctor.specialization.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      doctor.email.toLowerCase().includes(searchTerm.toLowerCase())
-    ),
-    sortField,
-    sortDirection
-  );
-
-  const allFilteredHospitals = sortData(
-    hospitals.filter(hospital =>
-      hospital.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      hospital.contact_person.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      hospital.email.toLowerCase().includes(searchTerm.toLowerCase())
-    ),
-    sortField,
-    sortDirection
-  );
-
-  // Pagination logic
-  const totalPages = Math.ceil(allFilteredDoctors.length / rowsPerPage);
-  const startIndex = (currentPage - 1) * rowsPerPage;
-  const endIndex = startIndex + rowsPerPage;
-  
-  const filteredDoctors = allFilteredDoctors.slice(startIndex, endIndex);
-  const filteredHospitals = allFilteredHospitals.slice(startIndex, endIndex);
-
-  // Reset to first page when rows per page changes
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [rowsPerPage]);
-
-  // Reset to first page when search term changes
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [searchTerm]);
-
 
   return (
     <div className="h-full flex flex-col" style={{ backgroundColor: '#1a1a1a' }}>
       {/* Header with Statistics */}
       <div className="px-6 py-1" style={{ backgroundColor: '#2a2a2a' }}>
         {/* Statistics Row */}
-        <div className="flex items-center gap-8 mt-4">
-          <div className="flex items-center gap-2">
-            <Stethoscope className="w-5 h-5" style={{ color: '#d1d5db' }} />
-            <span className="text-sm" style={{ color: '#9ca3af' }}>Total Doctors</span>
-            <span className="text-lg font-semibold" style={{ color: '#ffffff' }}>{doctors.length}</span>
+        {statistics && !loading && (
+          <div className="flex items-center gap-8 mt-4">
+            <div className="flex items-center gap-2">
+              <Stethoscope className="w-5 h-5" style={{ color: '#d1d5db' }} />
+              <span className="text-sm" style={{ color: '#9ca3af' }}>Total Doctors</span>
+              <span className="text-lg font-semibold" style={{ color: '#ffffff' }}>{statistics.totalDoctors}</span>
+            </div>
+            
+            <div className="flex items-center gap-2">
+              <Building2 className="w-5 h-5" style={{ color: '#d1d5db' }} />
+              <span className="text-sm" style={{ color: '#9ca3af' }}>Total Hospitals</span>
+              <span className="text-lg font-semibold" style={{ color: '#ffffff' }}>{statistics.totalHospitals}</span>
+            </div>
+            
+            <div className="flex items-center gap-2">
+              <TrendingUp className="w-5 h-5" style={{ color: '#10b981' }} />
+              <span className="text-sm" style={{ color: '#9ca3af' }}>Active Doctors</span>
+              <span className="text-lg font-semibold" style={{ color: '#10b981' }}>{statistics.activeDoctors}</span>
+            </div>
+            
+            <div className="flex items-center gap-2">
+              <Users className="w-5 h-5" style={{ color: '#10b981' }} />
+              <span className="text-sm" style={{ color: '#9ca3af' }}>Active Hospitals</span>
+              <span className="text-lg font-semibold" style={{ color: '#10b981' }}>{statistics.activeHospitals}</span>
+            </div>
           </div>
-          
-          <div className="flex items-center gap-2">
-            <Building2 className="w-5 h-5" style={{ color: '#10b981' }} />
-            <span className="text-sm" style={{ color: '#9ca3af' }}>Total Hospitals</span>
-            <span className="text-lg font-semibold" style={{ color: '#10b981' }}>{hospitals.length}</span>
-          </div>
-          
-          <div className="flex items-center gap-2">
-            <CheckCircle className="w-5 h-5" style={{ color: '#10b981' }} />
-            <span className="text-sm" style={{ color: '#9ca3af' }}>Active Providers</span>
-            <span className="text-lg font-semibold" style={{ color: '#10b981' }}>
-              {doctors.filter(d => d.status === 'ACTIVE').length + hospitals.filter(h => h.status === 'ACTIVE').length}
-            </span>
-          </div>
-        </div>
+        )}
       </div>
 
       {/* Tabs with Actions */}
@@ -269,7 +169,11 @@ const ProvidersPage: React.FC = () => {
             <div className="flex space-x-8">
               <button
                 onClick={() => setActiveTab('doctors')}
-                className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors`}
+                className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
+                  activeTab === 'doctors'
+                    ? 'border-b-2'
+                    : 'border-b-2'
+                }`}
                 style={{
                   borderBottomColor: activeTab === 'doctors' ? '#9ca3af' : 'transparent',
                   color: activeTab === 'doctors' ? '#d1d5db' : '#9ca3af'
@@ -289,7 +193,11 @@ const ProvidersPage: React.FC = () => {
               </button>
               <button
                 onClick={() => setActiveTab('hospitals')}
-                className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors`}
+                className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
+                  activeTab === 'hospitals'
+                    ? 'border-b-2'
+                    : 'border-b-2'
+                }`}
                 style={{
                   borderBottomColor: activeTab === 'hospitals' ? '#9ca3af' : 'transparent',
                   color: activeTab === 'hospitals' ? '#d1d5db' : '#9ca3af'
@@ -328,7 +236,7 @@ const ProvidersPage: React.FC = () => {
               </button>
               
               <button
-                onClick={handleAddProvider}
+                onClick={activeTab === 'doctors' ? handleAddDoctor : handleAddHospital}
                 className="p-2 rounded-lg transition-colors"
                 style={{ backgroundColor: '#3b3b3b', color: '#ffffff' }}
                 onMouseEnter={(e) => {
@@ -337,174 +245,74 @@ const ProvidersPage: React.FC = () => {
                 onMouseLeave={(e) => {
                   e.currentTarget.style.backgroundColor = '#3b3b3b';
                 }}
-                title={`Add ${activeTab === 'doctors' ? 'Doctor' : 'Hospital'}`}
+                title={activeTab === 'doctors' ? 'Add Doctor' : 'Add Hospital'}
               >
-                <Plus className="w-5 h-5" />
+                <Plus className="w-4 h-4" />
               </button>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Search and Filters */}
-      <div className="px-6 py-4" style={{ backgroundColor: '#2a2a2a' }}>
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <SearchFilterBar
-              searchTerm={searchTerm}
-              onSearchChange={setSearchTerm}
-              searchPlaceholder={`Search ${activeTab}...`}
-              rowsPerPage={rowsPerPage}
-              onRowsPerPageChange={setRowsPerPage}
-              onExport={() => console.log(`Export ${activeTab}`)}
-              showExport={false}
-            />
-            
-            <button 
-              className="flex items-center gap-2 px-3 py-2 rounded-lg transition-colors" 
-              style={{ 
-                backgroundColor: '#3b3b3b', 
-                color: '#9ca3af',
-                borderColor: '#4a4a4a'
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.color = '#ffffff';
-                e.currentTarget.style.backgroundColor = '#4a4a4a';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.color = '#9ca3af';
-                e.currentTarget.style.backgroundColor = '#3b3b3b';
-              }}
-              title="Filters"
-            >
-              <Filter className="w-4 h-4" />
-              <span className="text-sm">Filters</span>
-            </button>
-          </div>
-
-          <div className="flex items-center gap-4">
-            <button 
-              className="p-2 rounded-lg transition-colors" 
-              style={{ color: '#9ca3af' }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.color = '#ffffff';
-                e.currentTarget.style.backgroundColor = '#3b3b3b';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.color = '#9ca3af';
-                e.currentTarget.style.backgroundColor = 'transparent';
-              }}
-              title="Export"
-            >
-              <Download className="w-4 h-4" />
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* Main Content */}
-      <div className="flex-1 px-6 py-4" style={{ backgroundColor: '#1a1a1a' }}>
+      {/* Content */}
+      <div className="flex-1 p-6 overflow-auto">
         {activeTab === 'doctors' && (
-          <DoctorTable
-            doctors={filteredDoctors}
-            allFilteredDoctors={allFilteredDoctors}
-            currentPage={currentPage}
-            totalPages={totalPages}
-            startIndex={startIndex}
-            endIndex={endIndex}
-            sortField={sortField}
-            sortDirection={sortDirection}
-            onSort={handleSort}
-            onDoctorView={handleDoctorView}
+          <DoctorsList
+            onDoctorSelect={handleDoctorSelect}
             onDoctorEdit={handleDoctorEdit}
             onDoctorDelete={handleDoctorDelete}
-            onPageChange={setCurrentPage}
-            loading={loading}
-            error={error}
-            onRetry={loadData}
+            refreshTrigger={refreshTrigger}
           />
         )}
 
         {activeTab === 'hospitals' && (
-          <HospitalTable
-            hospitals={filteredHospitals}
-            allFilteredHospitals={allFilteredHospitals}
-            currentPage={currentPage}
-            totalPages={totalPages}
-            startIndex={startIndex}
-            endIndex={endIndex}
-            sortField={sortField}
-            sortDirection={sortDirection}
-            onSort={handleSort}
-            onHospitalView={handleHospitalView}
+          <HospitalsList
+            onHospitalSelect={handleHospitalSelect}
             onHospitalEdit={handleHospitalEdit}
             onHospitalDelete={handleHospitalDelete}
-            onPageChange={setCurrentPage}
-            loading={loading}
-            error={error}
-            onRetry={loadData}
+            refreshTrigger={refreshTrigger}
           />
         )}
       </div>
 
       {/* Modals */}
-      {isFormOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-gray-800 rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-            {activeTab === 'doctors' ? (
-              <DoctorForm
-                doctor={editingDoctor}
-                hospitals={hospitals}
-                onSubmit={handleDoctorSubmit}
-                onCancel={handleFormClose}
-                loading={loading}
-              />
-            ) : (
-              <HospitalForm
-                hospital={editingHospital}
-                hospitals={hospitals}
-                onSubmit={handleHospitalSubmit}
-                onCancel={handleFormClose}
-                loading={loading}
-              />
-            )}
-          </div>
-        </div>
+      {isFormOpen && editingDoctor && (
+        <DoctorForm
+          doctor={editingDoctor}
+          hospitals={[]}
+          onSubmit={handleFormSave}
+          onCancel={handleFormClose}
+          loading={false}
+        />
       )}
 
-      {isDetailsOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-gray-800 rounded-lg p-6 w-full max-w-4xl max-h-[90vh] overflow-y-auto">
-            {activeTab === 'doctors' && selectedDoctor ? (
-              <DoctorDetail
-                doctor={selectedDoctor}
-                onEdit={() => {
-                  setIsDetailsOpen(false);
-                  handleDoctorEdit(selectedDoctor);
-                }}
-                onDelete={() => {
-                  setIsDetailsOpen(false);
-                  handleDoctorDelete(selectedDoctor);
-                }}
-                onBack={handleDetailsClose}
-              />
-            ) : activeTab === 'hospitals' && selectedHospital ? (
-              <HospitalDetail
-                hospital={selectedHospital}
-                hospitals={hospitals}
-                onEdit={() => {
-                  setIsDetailsOpen(false);
-                  handleHospitalEdit(selectedHospital);
-                }}
-                onDelete={() => {
-                  setIsDetailsOpen(false);
-                  handleHospitalDelete(selectedHospital);
-                }}
-                onBack={handleDetailsClose}
-              />
-            ) : null}
-          </div>
-        </div>
+      {isFormOpen && editingHospital && (
+        <HospitalForm
+          hospital={editingHospital}
+          hospitals={[]}
+          onSubmit={handleFormSave}
+          onCancel={handleFormClose}
+          loading={false}
+        />
+      )}
+
+      {isDetailsOpen && selectedDoctor && (
+        <DoctorDetail
+          doctor={selectedDoctor}
+          onEdit={() => handleDoctorEdit(selectedDoctor)}
+          onDelete={() => handleDoctorDelete(selectedDoctor)}
+          onBack={handleDetailsClose}
+        />
+      )}
+
+      {isDetailsOpen && selectedHospital && (
+        <HospitalDetail
+          hospital={selectedHospital}
+          hospitals={[]}
+          onEdit={() => handleHospitalEdit(selectedHospital)}
+          onDelete={() => handleHospitalDelete(selectedHospital)}
+          onBack={handleDetailsClose}
+        />
       )}
     </div>
   );
