@@ -4,3 +4,4 @@ export * from './schemes';
 export * from './plans';
 export * from './benefits';
 export * from './medical-catalog';
+export * from './providers';

@@ -15,9 +15,9 @@
     "axios": "^1.12.2",
     "clsx": "^2.1.1",
     "lucide-react": "^0.546.0",
-    "react": "^19.1.1",
-    "react-dom": "^19.1.1",
-    "react-router-dom": "^7.9.4",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-router-dom": "^6.28.0",
     "tailwind-merge": "^3.3.1",
     "tailwindcss": "^4.1.14"
   },
