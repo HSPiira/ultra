@@ -3,10 +3,16 @@ import {
   Users, 
   Plus,
   RefreshCw,
-  Download
+  Download,
+  Upload
 } from 'lucide-react';
 import type { Member } from '../../types/members';
 import { MembersList } from './MembersList';
+import { BulkUploadModal, Tooltip } from '../../components/common';
+import { useBulkUpload } from '../../hooks';
+import { MEMBER_BULK_UPLOAD_CONFIG } from '../../components/common/BulkUploadConfigs';
+import { membersApi } from '../../services/members';
+import { COLORS } from '../../constants/colors';
 
 interface MemberStatistics {
   totalMembers: number;
@@ -26,6 +32,67 @@ const MembersPage: React.FC = () => {
   const [statistics, setStatistics] = useState<MemberStatistics | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
+
+  // Bulk upload functionality
+  const bulkUpload = useBulkUpload({
+    onUpload: async (data) => {
+      try {
+        // Process bulk upload - in real implementation, you'd call a bulk API endpoint
+        console.log('Bulk uploading members:', data);
+        
+        // For now, simulate individual API calls
+        const results = await Promise.allSettled(
+          data.map(member => {
+            // Map the bulk upload data to MemberFormData
+            const memberFormData: any = {
+              company: member.company || '',
+              scheme: member.scheme || '',
+              name: member.name || '',
+              gender: member.gender || 'MALE',
+              relationship: member.relationship || 'SELF',
+              card_number: member.card_number || '',
+              national_id: member.national_id || '',
+              date_of_birth: member.date_of_birth || '',
+              address: member.address || '',
+              phone_number: member.phone_number || '',
+              email: member.email || '',
+              parent: member.parent || undefined
+            };
+            return membersApi.createMember(memberFormData);
+          })
+        );
+        
+        const errors = results
+          .map((result, index) => {
+            if (result.status === 'rejected') {
+              return {
+                row: index + 1,
+                field: 'general',
+                message: result.reason?.message || 'Upload failed'
+              };
+            }
+            return null;
+          })
+          .filter((error): error is { row: number; field: string; message: string } => error !== null);
+        
+        return {
+          success: errors.length === 0,
+          errors: errors.length > 0 ? errors : undefined
+        };
+      } catch (error) {
+        console.error('Bulk upload error:', error);
+        return { success: false, errors: [] };
+      }
+    },
+    onSuccess: () => {
+      console.log('Bulk upload successful');
+      loadStatistics();
+      setRefreshTrigger(prev => prev + 1);
+    },
+    onError: (error) => {
+      console.error('Bulk upload error:', error);
+    }
+  });
 
   useEffect(() => {
     loadStatistics();
@@ -95,24 +162,24 @@ const MembersPage: React.FC = () => {
   };
 
   return (
-    <div className="h-full flex flex-col" style={{ backgroundColor: '#1a1a1a' }}>
+    <div className="h-full flex flex-col" style={{ backgroundColor: COLORS.background.primary }}>
       {/* Tabs with Actions */}
-      <div className="border-b" style={{ backgroundColor: '#2a2a2a', borderColor: '#4a4a4a' }}>
+      <div className="border-b" style={{ backgroundColor: COLORS.background.secondary, borderColor: COLORS.border.primary }}>
         <div className="px-6">
           <div className="flex items-center justify-between">
             <div className="flex space-x-8">
               <button
                 className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors border-b-2`}
                 style={{
-                  borderBottomColor: '#9ca3af',
-                  color: '#d1d5db'
+                  borderBottomColor: COLORS.text.tertiary,
+                  color: COLORS.text.secondary
                 }}
               >
                 <div className="flex items-center gap-2">
                   <Users className="w-4 h-4" />
                   <span>Members</span>
                   {statistics && (
-                    <span className="px-2 py-1 rounded-full text-xs" style={{ backgroundColor: '#3b3b3b', color: '#9ca3af' }}>
+                    <span className="px-2 py-1 rounded-full text-xs" style={{ backgroundColor: COLORS.background.quaternary, color: COLORS.text.tertiary }}>
                       {statistics.totalMembers}
                     </span>
                   )}
@@ -121,53 +188,74 @@ const MembersPage: React.FC = () => {
             </div>
 
             <div className="flex items-center gap-3">
-              <button 
-                className="p-2 rounded-lg transition-colors" 
-                style={{ color: '#9ca3af' }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.color = '#ffffff';
-                  e.currentTarget.style.backgroundColor = '#3b3b3b';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.color = '#9ca3af';
-                  e.currentTarget.style.backgroundColor = 'transparent';
-                }}
-                title="Refresh"
-                onClick={refreshData}
-              >
-                <RefreshCw className="w-5 h-5" />
-              </button>
+              <Tooltip content="Refresh">
+                <button 
+                  className="p-2 rounded-lg transition-colors" 
+                  style={{ color: COLORS.text.tertiary }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.color = COLORS.text.primary;
+                    e.currentTarget.style.backgroundColor = COLORS.background.quaternary;
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.color = COLORS.text.tertiary;
+                    e.currentTarget.style.backgroundColor = 'transparent';
+                  }}
+                  onClick={refreshData}
+                >
+                  <RefreshCw className="w-5 h-5" />
+                </button>
+              </Tooltip>
 
-              <button 
-                className="p-2 rounded-lg transition-colors" 
-                style={{ color: '#9ca3af' }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.color = '#ffffff';
-                  e.currentTarget.style.backgroundColor = '#3b3b3b';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.color = '#9ca3af';
-                  e.currentTarget.style.backgroundColor = 'transparent';
-                }}
-                title="Export"
-              >
-                <Download className="w-5 h-5" />
-              </button>
+              <Tooltip content="Export">
+                <button 
+                  className="p-2 rounded-lg transition-colors" 
+                  style={{ color: COLORS.text.tertiary }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.color = COLORS.text.primary;
+                    e.currentTarget.style.backgroundColor = COLORS.background.quaternary;
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.color = COLORS.text.tertiary;
+                    e.currentTarget.style.backgroundColor = 'transparent';
+                  }}
+                >
+                  <Download className="w-5 h-5" />
+                </button>
+              </Tooltip>
 
-              <button
-                onClick={handleAddMember}
-                className="p-2 rounded-lg transition-colors"
-                style={{ backgroundColor: '#3b3b3b', color: '#ffffff' }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.backgroundColor = '#4a4a4a';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.backgroundColor = '#3b3b3b';
-                }}
-                title="Add Member"
-              >
-                <Plus className="w-4 h-4" />
-              </button>
+              <Tooltip content="Bulk Upload Members">
+                <button
+                  onClick={bulkUpload.openModal}
+                  className="p-2 rounded-lg transition-colors"
+                  style={{ color: COLORS.text.tertiary }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.color = COLORS.text.primary;
+                    e.currentTarget.style.backgroundColor = COLORS.background.quaternary;
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.color = COLORS.text.tertiary;
+                    e.currentTarget.style.backgroundColor = 'transparent';
+                  }}
+                >
+                  <Upload className="w-4 h-4" />
+                </button>
+              </Tooltip>
+
+              <Tooltip content="Add Member">
+                <button
+                  onClick={handleAddMember}
+                  className="p-2 rounded-lg transition-colors"
+                  style={{ backgroundColor: COLORS.background.quaternary, color: COLORS.text.primary }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.backgroundColor = COLORS.background.hover;
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = COLORS.background.quaternary;
+                  }}
+                >
+                  <Plus className="w-4 h-4" />
+                </button>
+              </Tooltip>
             </div>
           </div>
         </div>
@@ -183,64 +271,143 @@ const MembersPage: React.FC = () => {
         />
       </div>
 
-      {/* Modals - Placeholder for future forms and details */}
-      {isFormOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-gray-800 p-6 rounded-lg max-w-md w-full mx-4">
-            <h3 className="text-lg font-semibold text-white mb-4">
-              {editingMember ? 'Edit Member' : 'Add Member'}
-            </h3>
-            <p className="text-gray-400 mb-4">
-              Member form will be implemented here
-            </p>
-            <div className="flex gap-2">
-              <button
+            {/* Modals - Placeholder for future forms and details */}
+            {isFormOpen && (
+              <div 
+                className="fixed inset-0 flex items-center justify-center z-50 backdrop-blur-xs"
+                style={{ backgroundColor: 'rgba(0, 0, 0, 0.05)' }}
                 onClick={handleFormClose}
-                className="px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700"
               >
-                Cancel
-              </button>
-              <button
-                onClick={handleFormSave}
-                className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-              >
-                Save
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+                <div 
+                  className="p-6 rounded-lg max-w-md w-full mx-4 shadow-2xl border"
+                  style={{ 
+                    backgroundColor: COLORS.background.tertiary,
+                    borderColor: COLORS.border.secondary
+                  }}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <h3 
+                    className="text-lg font-semibold mb-4"
+                    style={{ color: COLORS.text.primary }}
+                  >
+                    {editingMember ? 'Edit Member' : 'Add Member'}
+                  </h3>
+                  <p 
+                    className="mb-4"
+                    style={{ color: COLORS.text.tertiary }}
+                  >
+                    Member form will be implemented here
+                  </p>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={handleFormClose}
+                      className="px-4 py-2 rounded transition-colors"
+                      style={{ 
+                        backgroundColor: COLORS.background.quaternary, 
+                        color: COLORS.text.primary 
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.backgroundColor = COLORS.background.hover;
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.backgroundColor = COLORS.background.quaternary;
+                      }}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={handleFormSave}
+                      className="px-4 py-2 rounded transition-colors"
+                      style={{ 
+                        backgroundColor: COLORS.action.primary, 
+                        color: COLORS.text.primary 
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.backgroundColor = '#2563eb';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.backgroundColor = COLORS.action.primary;
+                      }}
+                    >
+                      Save
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
 
-      {isDetailsOpen && selectedMember && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-gray-800 p-6 rounded-lg max-w-md w-full mx-4">
-            <h3 className="text-lg font-semibold text-white mb-4">
-              Member Details
-            </h3>
-            <div className="space-y-2 text-sm">
-              <p><span className="text-gray-400">Name:</span> {selectedMember.name}</p>
-              <p><span className="text-gray-400">Card Number:</span> {selectedMember.card_number}</p>
-              <p><span className="text-gray-400">Gender:</span> {selectedMember.gender}</p>
-              <p><span className="text-gray-400">Relationship:</span> {selectedMember.relationship}</p>
-              <p><span className="text-gray-400">Status:</span> {selectedMember.status}</p>
-            </div>
-            <div className="flex gap-2 mt-4">
-              <button
+            {isDetailsOpen && selectedMember && (
+              <div 
+                className="fixed inset-0 flex items-center justify-center z-50 backdrop-blur-xs"
+                style={{ backgroundColor: 'rgba(0, 0, 0, 0.05)' }}
                 onClick={handleDetailsClose}
-                className="px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700"
               >
-                Close
-              </button>
-              <button
-                onClick={() => handleMemberEdit(selectedMember)}
-                className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-              >
-                Edit
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+                <div 
+                  className="p-6 rounded-lg max-w-md w-full mx-4 shadow-2xl border"
+                  style={{ 
+                    backgroundColor: COLORS.background.tertiary,
+                    borderColor: COLORS.border.secondary
+                  }}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <h3 
+                    className="text-lg font-semibold mb-4"
+                    style={{ color: COLORS.text.primary }}
+                  >
+                    Member Details
+                  </h3>
+                  <div className="space-y-2 text-sm">
+                    <p><span style={{ color: COLORS.text.tertiary }}>Name:</span> {selectedMember.name}</p>
+                    <p><span style={{ color: COLORS.text.tertiary }}>Card Number:</span> {selectedMember.card_number}</p>
+                    <p><span style={{ color: COLORS.text.tertiary }}>Gender:</span> {selectedMember.gender}</p>
+                    <p><span style={{ color: COLORS.text.tertiary }}>Relationship:</span> {selectedMember.relationship}</p>
+                    <p><span style={{ color: COLORS.text.tertiary }}>Status:</span> {selectedMember.status}</p>
+                  </div>
+                  <div className="flex gap-2 mt-4">
+                    <button
+                      onClick={handleDetailsClose}
+                      className="px-4 py-2 rounded transition-colors"
+                      style={{ 
+                        backgroundColor: COLORS.background.quaternary, 
+                        color: COLORS.text.primary 
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.backgroundColor = COLORS.background.hover;
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.backgroundColor = COLORS.background.quaternary;
+                      }}
+                    >
+                      Close
+                    </button>
+                    <button
+                      onClick={() => handleMemberEdit(selectedMember)}
+                      className="px-4 py-2 rounded transition-colors"
+                      style={{ 
+                        backgroundColor: COLORS.action.primary, 
+                        color: COLORS.text.primary 
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.backgroundColor = '#2563eb';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.backgroundColor = COLORS.action.primary;
+                      }}
+                    >
+                      Edit
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+      {/* Bulk Upload Modal */}
+      <BulkUploadModal
+        isOpen={bulkUpload.isModalOpen}
+        onClose={bulkUpload.closeModal}
+        onUpload={bulkUpload.handleUpload}
+        {...MEMBER_BULK_UPLOAD_CONFIG}
+      />
     </div>
   );
 };

@@ -173,7 +173,10 @@ export const CompanyForm: React.FC<CompanyFormProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 flex items-center justify-center z-50 p-4" style={{ backgroundColor: 'rgba(0, 0, 0, 0.5)' }}>
+    <div 
+      className="fixed inset-0 flex items-center justify-center z-50 p-4 backdrop-blur-xs"
+      style={{ backgroundColor: 'rgba(0, 0, 0, 0.05)' }}
+    >
       <div className="rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] flex flex-col" style={{ backgroundColor: '#2a2a2a' }}>
         {/* Fixed Header */}
         <div className="flex items-center justify-between p-6 border-b flex-shrink-0" style={{ backgroundColor: '#1f1f1f', borderColor: '#404040' }}>

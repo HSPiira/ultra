@@ -200,7 +200,10 @@ export const SchemeForm: React.FC<SchemeFormProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div 
+      className="fixed inset-0 flex items-center justify-center z-50 backdrop-blur-xs"
+      style={{ backgroundColor: 'rgba(0, 0, 0, 0.05)' }}
+    >
       <div className="bg-gray-900 rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col" style={{ backgroundColor: '#1a1a1a' }}>
         {/* Fixed Header */}
         <div className="flex items-center justify-between p-6 border-b flex-shrink-0" style={{ borderColor: '#4a4a4a' }}>
