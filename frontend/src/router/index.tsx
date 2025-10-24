@@ -8,14 +8,11 @@ import { SettingsPage } from '../pages/settings';
 import ClaimsPage from '../pages/claims/ClaimsPage';
 import MembersPage from '../pages/members/MembersPage';
 import ProvidersPage from '../pages/providers/ProvidersPage';
-import { ProvidersPageDemo } from '../pages/providers/ProvidersPageDemo';
-import { TableComponentsDemo } from '../pages/providers/TableComponentsDemo';
 import MedicalCatalogPage from '../pages/medical-catalog/MedicalCatalogPage';
 import SchemesPage from '../pages/schemes/SchemesPage';
 import { SchemeDetailsPage } from '../pages/schemes';
 import ReportsPage from '../pages/reports/ReportsPage';
 import AnalyticsPage from '../pages/analytics/AnalyticsPage';
-import DoctorListDemo from '../pages/DoctorListDemo';
 
 const router = createBrowserRouter([
   {
@@ -51,14 +48,6 @@ const router = createBrowserRouter([
         element: <ProvidersPage />
       },
       {
-        path: 'providers-demo',
-        element: <ProvidersPageDemo />
-      },
-      {
-        path: 'table-demo',
-        element: <TableComponentsDemo />
-      },
-      {
         path: 'medical-catalog',
         element: <MedicalCatalogPage />
       },
@@ -78,10 +67,6 @@ const router = createBrowserRouter([
         path: 'analytics',
         element: <AnalyticsPage />
       },
-      {
-        path: 'doctor-list-demo',
-        element: <DoctorListDemo />
-      }
     ]
   }
 ]);

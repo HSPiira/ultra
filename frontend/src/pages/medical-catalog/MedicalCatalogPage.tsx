@@ -1,15 +1,16 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Stethoscope,
   Pill,
   TestTube,
   Building2,
-  Plus
+  RefreshCw,
+  Download
 } from 'lucide-react';
-import { ServicesList } from './ServicesList';
-import { MedicinesList } from './MedicinesList';
-import { LabTestsList } from './LabTestsList';
-import { HospitalPricesList } from './HospitalPricesList';
+import { ServicesListNew } from './ServicesListNew';
+import { MedicinesListNew } from './MedicinesListNew';
+import { LabTestsListNew } from './LabTestsListNew';
+import { HospitalPricesListNew } from './HospitalPricesListNew';
 import { ServiceForm } from './ServiceForm';
 import { MedicineForm } from './MedicineForm';
 import { LabTestForm } from './LabTestForm';
@@ -24,12 +25,39 @@ const MedicalCatalogPage: React.FC = () => {
   const [formType, setFormType] = useState<'service' | 'medicine' | 'labtest' | 'price'>('service');
   const [editingItem, setEditingItem] = useState<any>(null);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const [statistics, setStatistics] = useState({
+    totalServices: 0,
+    totalMedicines: 0,
+    totalLabTests: 0,
+    totalHospitalPrices: 0,
+    activeServices: 0,
+    activeMedicines: 0,
+    activeLabTests: 0,
+    activeHospitalPrices: 0
+  });
 
-  const handleAddItem = (type: 'service' | 'medicine' | 'labtest' | 'price') => {
-    setFormType(type);
-    setEditingItem(null);
-    setShowForm(true);
+  useEffect(() => {
+    loadStatistics();
+  }, []);
+
+  const loadStatistics = async () => {
+    try {
+      // Mock statistics - in real app, you'd fetch from API
+      setStatistics({
+        totalServices: 45,
+        totalMedicines: 128,
+        totalLabTests: 67,
+        totalHospitalPrices: 234,
+        activeServices: 42,
+        activeMedicines: 115,
+        activeLabTests: 61,
+        activeHospitalPrices: 201
+      });
+    } catch (err) {
+      console.error('Error loading statistics:', err);
+    }
   };
+
 
   const handleEditItem = (item: Service | Medicine | LabTest | HospitalItemPrice, type: 'service' | 'medicine' | 'labtest' | 'price') => {
     setFormType(type);
@@ -75,7 +103,7 @@ const MedicalCatalogPage: React.FC = () => {
     switch (activeTab) {
       case 'services':
         return (
-          <ServicesList
+          <ServicesListNew
             onServiceEdit={(service: Service) => handleEditItem(service, 'service')}
             onServiceDelete={() => setRefreshTrigger(prev => prev + 1)}
             onServiceStatusChange={() => setRefreshTrigger(prev => prev + 1)}
@@ -84,7 +112,7 @@ const MedicalCatalogPage: React.FC = () => {
         );
       case 'medicines':
         return (
-          <MedicinesList
+          <MedicinesListNew
             onMedicineEdit={(medicine: Medicine) => handleEditItem(medicine, 'medicine')}
             onMedicineDelete={() => setRefreshTrigger(prev => prev + 1)}
             onMedicineStatusChange={() => setRefreshTrigger(prev => prev + 1)}
@@ -93,7 +121,7 @@ const MedicalCatalogPage: React.FC = () => {
         );
       case 'labtests':
         return (
-          <LabTestsList
+          <LabTestsListNew
             onLabTestEdit={(labTest: LabTest) => handleEditItem(labTest, 'labtest')}
             onLabTestDelete={() => setRefreshTrigger(prev => prev + 1)}
             onLabTestStatusChange={() => setRefreshTrigger(prev => prev + 1)}
@@ -102,10 +130,10 @@ const MedicalCatalogPage: React.FC = () => {
         );
       case 'prices':
         return (
-          <HospitalPricesList
-            onPriceEdit={(price: HospitalItemPrice) => handleEditItem(price, 'price')}
-            onPriceDelete={() => setRefreshTrigger(prev => prev + 1)}
-            onPriceStatusChange={() => setRefreshTrigger(prev => prev + 1)}
+          <HospitalPricesListNew
+            onHospitalPriceEdit={(price: HospitalItemPrice) => handleEditItem(price, 'price')}
+            onHospitalPriceDelete={() => setRefreshTrigger(prev => prev + 1)}
+            onHospitalPriceStatusChange={() => setRefreshTrigger(prev => prev + 1)}
             refreshTrigger={refreshTrigger}
           />
         );
@@ -160,67 +188,122 @@ const MedicalCatalogPage: React.FC = () => {
   };
 
 
-      return (
-        <div className="h-screen overflow-hidden" style={{ backgroundColor: '#0f0f0f' }}>
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 sm:py-4 lg:py-6 h-full flex flex-col">
-        {/* Header Section */}
-        <div className="mb-4 flex-shrink-0">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div className="flex-1">
-              <h1 className="text-3xl font-bold text-white">Medical Catalog</h1>
-              <p className="text-gray-400 mt-2">
-                Manage medical services, medicines, lab tests, and hospital pricing
-              </p>
+  return (
+    <div className="h-full flex flex-col" style={{ backgroundColor: '#1a1a1a' }}>
+      {/* Header with Statistics */}
+      <div className="px-6 py-1" style={{ backgroundColor: '#2a2a2a' }}>
+        {/* Statistics Row */}
+        <div className="flex items-center justify-between py-4">
+          <div className="flex items-center space-x-8">
+            <div className="flex items-center space-x-2">
+              <Stethoscope className="w-5 h-5" style={{ color: '#9ca3af' }} />
+              <div>
+                <div className="text-2xl font-bold text-white">{statistics.totalServices}</div>
+                <div className="text-sm" style={{ color: '#9ca3af' }}>Services</div>
+              </div>
             </div>
-            <div className="flex items-center gap-3">
-              <button
-                onClick={() => handleAddItem(activeTab === 'prices' ? 'price' : activeTab.slice(0, -1) as any)}
-                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors flex items-center gap-2 whitespace-nowrap"
-              >
-                <Plus className="w-4 h-4" />
-                Add {tabs.find(t => t.id === activeTab)?.label.slice(0, -1)}
-              </button>
+            
+            <div className="flex items-center space-x-2">
+              <Pill className="w-5 h-5" style={{ color: '#9ca3af' }} />
+              <div>
+                <div className="text-2xl font-bold text-white">{statistics.totalMedicines}</div>
+                <div className="text-sm" style={{ color: '#9ca3af' }}>Medicines</div>
+              </div>
+            </div>
+            
+            <div className="flex items-center space-x-2">
+              <TestTube className="w-5 h-5" style={{ color: '#9ca3af' }} />
+              <div>
+                <div className="text-2xl font-bold text-white">{statistics.totalLabTests}</div>
+                <div className="text-sm" style={{ color: '#9ca3af' }}>Lab Tests</div>
+              </div>
+            </div>
+            
+            <div className="flex items-center space-x-2">
+              <Building2 className="w-5 h-5" style={{ color: '#9ca3af' }} />
+              <div>
+                <div className="text-2xl font-bold text-white">{statistics.totalHospitalPrices}</div>
+                <div className="text-sm" style={{ color: '#9ca3af' }}>Hospital Prices</div>
+              </div>
             </div>
           </div>
         </div>
-
 
         {/* Tabs */}
-        <div className="mb-3 flex-shrink-0">
-          <div className="border-b overflow-x-auto" style={{ borderColor: '#374151' }}>
-            <nav className="-mb-px flex space-x-2 sm:space-x-8 min-w-max">
-              {tabs.map((tab) => {
-                const Icon = tab.icon;
-                return (
-                  <button
-                    key={tab.id}
-                    onClick={() => setActiveTab(tab.id)}
-                    className={`py-2 px-1 border-b-2 font-medium text-sm flex items-center gap-2 transition-colors whitespace-nowrap ${
-                      activeTab === tab.id
-                        ? 'border-blue-500 text-blue-400'
-                        : 'border-transparent text-gray-400 hover:text-gray-300 hover:border-gray-300'
-                    }`}
-                  >
-                    <Icon className="w-4 h-4 flex-shrink-0" />
-                    <span className="hidden sm:inline">{tab.label}</span>
-                    <span className="sm:hidden">{tab.label.split(' ')[0]}</span>
-                  </button>
-                );
-              })}
-            </nav>
+        <div className="flex items-center justify-between">
+          <div className="flex space-x-8">
+            {tabs.map((tab) => {
+              const Icon = tab.icon;
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  className="flex items-center space-x-2 py-2 px-1 border-b-2 font-medium text-sm transition-colors"
+                  style={{
+                    borderBottomColor: activeTab === tab.id ? '#9ca3af' : 'transparent',
+                    color: activeTab === tab.id ? '#d1d5db' : '#9ca3af'
+                  }}
+                  onMouseEnter={(e) => {
+                    if (activeTab !== tab.id) {
+                      e.currentTarget.style.color = '#d1d5db';
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (activeTab !== tab.id) {
+                      e.currentTarget.style.color = '#9ca3af';
+                    }
+                  }}
+                >
+                  <Icon className="w-4 h-4" />
+                  <span>{tab.label}</span>
+                </button>
+              );
+            })}
+          </div>
+
+          <div className="flex items-center space-x-4">
+            <button 
+              className="p-2 rounded-lg transition-colors" 
+              style={{ color: '#9ca3af' }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.color = '#ffffff';
+                e.currentTarget.style.backgroundColor = '#3b3b3b';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.color = '#9ca3af';
+                e.currentTarget.style.backgroundColor = 'transparent';
+              }}
+              title="Refresh"
+            >
+              <RefreshCw className="w-4 h-4" />
+            </button>
+
+            <button 
+              className="p-2 rounded-lg transition-colors" 
+              style={{ color: '#9ca3af' }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.color = '#ffffff';
+                e.currentTarget.style.backgroundColor = '#3b3b3b';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.color = '#9ca3af';
+                e.currentTarget.style.backgroundColor = 'transparent';
+              }}
+              title="Export"
+            >
+              <Download className="w-4 h-4" />
+            </button>
           </div>
         </div>
-
-        {/* Tab Content */}
-        <div className="flex-1 overflow-hidden">
-          <div className="rounded-lg border h-full flex flex-col" style={{ backgroundColor: '#1a1a1a', borderColor: '#2a2a2a' }}>
-            {renderTabContent()}
-          </div>
-        </div>
-
-        {/* Forms */}
-        {renderForm()}
       </div>
+
+      {/* Main Content */}
+      <div className="flex-1 px-6 py-4" style={{ backgroundColor: '#1a1a1a' }}>
+        {renderTabContent()}
+      </div>
+
+      {/* Forms */}
+      {renderForm()}
     </div>
   );
 };

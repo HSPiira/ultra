@@ -1,116 +1,131 @@
-import React from 'react';
 
 export interface TablePaginationProps {
   currentPage: number;
   totalPages: number;
-  totalItems: number;
-  itemsPerPage: number;
   onPageChange: (page: number) => void;
-  onItemsPerPageChange?: (itemsPerPage: number) => void;
-  showItemsPerPage?: boolean;
-  className?: string;
+  startIndex: number;
+  endIndex: number;
+  totalCount: number;
+  filteredCount: number;
 }
 
 export function TablePagination({
   currentPage,
   totalPages,
-  totalItems,
-  itemsPerPage,
   onPageChange,
-  onItemsPerPageChange,
-  showItemsPerPage = false,
-  className = "px-4 py-3 flex items-center justify-between rounded-b-lg"
+  startIndex,
+  endIndex,
+  totalCount,
+  filteredCount,
 }: TablePaginationProps) {
-  const startItem = (currentPage - 1) * itemsPerPage + 1;
-  const endItem = Math.min(currentPage * itemsPerPage, totalItems);
-
-  const getVisiblePages = () => {
-    const delta = 2;
-    const range = [];
-    const rangeWithDots = [];
-
-    for (let i = Math.max(2, currentPage - delta); i <= Math.min(totalPages - 1, currentPage + delta); i++) {
-      range.push(i);
-    }
-
-    if (currentPage - delta > 2) {
-      rangeWithDots.push(1, '...');
-    } else {
-      rangeWithDots.push(1);
-    }
-
-    rangeWithDots.push(...range);
-
-    if (currentPage + delta < totalPages - 1) {
-      rangeWithDots.push('...', totalPages);
-    } else if (totalPages > 1) {
-      rangeWithDots.push(totalPages);
-    }
-
-    return rangeWithDots;
-  };
-
-  const visiblePages = getVisiblePages();
-
   return (
-    <div className={className} style={{ backgroundColor: '#1a1a1a' }}>
-      <div className="flex items-center">
-        <span className="text-sm text-gray-400">
-          Showing {startItem} to {endItem} of {totalItems} entries
-        </span>
-        {showItemsPerPage && onItemsPerPageChange && (
-          <div className="ml-4 flex items-center gap-2">
-            <span className="text-sm text-gray-400">Show:</span>
-            <select
-              value={itemsPerPage}
-              onChange={(e) => onItemsPerPageChange(Number(e.target.value))}
-              className="px-2 py-1 text-sm bg-gray-700 text-white border border-gray-600 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value={10}>10</option>
-              <option value={25}>25</option>
-              <option value={50}>50</option>
-              <option value={100}>100</option>
-            </select>
-          </div>
-        )}
-      </div>
-      
-      <div className="flex items-center space-x-1">
-        <button
-          onClick={() => onPageChange(currentPage - 1)}
+    <div className="px-4 py-3 flex items-center justify-between bg-[#1a1a1a]">
+      <div className="flex items-center space-x-2">
+        {/* Previous button with arrow */}
+        <button 
+          onClick={() => onPageChange(Math.max(1, currentPage - 1))}
           disabled={currentPage === 1}
-          className="px-2 py-1 text-sm text-gray-400 hover:text-white hover:bg-gray-600 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          className="flex items-center gap-1 px-2 py-1 text-sm text-gray-400 hover:text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+          </svg>
           Previous
         </button>
         
-        {visiblePages.map((page, index) => (
-          <React.Fragment key={index}>
-            {page === '...' ? (
+        {/* Page numbers */}
+        <div className="flex items-center space-x-1">
+          {/* First page */}
+          <button
+            onClick={() => onPageChange(1)}
+            className={`px-3 py-1 text-sm rounded transition-colors ${
+              currentPage === 1
+                ? 'text-white border-2'
+                : 'text-gray-400 hover:text-white hover:bg-gray-600'
+            }`}
+            style={{
+              backgroundColor: currentPage === 1 ? '#2E3333' : 'transparent',
+              borderColor: currentPage === 1 ? '#66D9EF' : 'transparent',
+            }}
+          >
+            1
+          </button>
+          
+          {/* Second page */}
+          {totalPages > 1 && (
+            <button
+              onClick={() => onPageChange(2)}
+              className={`px-3 py-1 text-sm rounded transition-colors ${
+                currentPage === 2
+                  ? 'text-white border-2'
+                  : 'text-gray-400 hover:text-white hover:bg-gray-600'
+              }`}
+              style={{
+                backgroundColor: currentPage === 2 ? '#2E3333' : 'transparent',
+                borderColor: currentPage === 2 ? '#66D9EF' : 'transparent',
+              }}
+            >
+              2
+            </button>
+          )}
+          
+          {/* Third page */}
+          {totalPages > 2 && (
+            <button
+              onClick={() => onPageChange(3)}
+              className={`px-3 py-1 text-sm rounded transition-colors ${
+                currentPage === 3
+                  ? 'text-white border-2'
+                  : 'text-gray-400 hover:text-white hover:bg-gray-600'
+              }`}
+              style={{
+                backgroundColor: currentPage === 3 ? '#2E3333' : 'transparent',
+                borderColor: currentPage === 3 ? '#66D9EF' : 'transparent',
+              }}
+            >
+              3
+            </button>
+          )}
+          
+          {/* Ellipsis and last page for large datasets */}
+          {totalPages > 3 && (
+            <>
               <span className="px-1 text-gray-400">...</span>
-            ) : (
               <button
-                onClick={() => onPageChange(page as number)}
-                className={`px-2 py-1 text-sm rounded transition-colors ${
-                  currentPage === page
-                    ? 'text-white bg-gray-600'
+                onClick={() => onPageChange(totalPages)}
+                className={`px-3 py-1 text-sm rounded transition-colors ${
+                  currentPage === totalPages
+                    ? 'text-white border-2'
                     : 'text-gray-400 hover:text-white hover:bg-gray-600'
                 }`}
+                style={{
+                  backgroundColor: currentPage === totalPages ? '#2E3333' : 'transparent',
+                  borderColor: currentPage === totalPages ? '#66D9EF' : 'transparent',
+                }}
               >
-                {page}
+                {totalPages}
               </button>
-            )}
-          </React.Fragment>
-        ))}
+            </>
+          )}
+        </div>
         
-        <button
-          onClick={() => onPageChange(currentPage + 1)}
+        {/* Next button with arrow */}
+        <button 
+          onClick={() => onPageChange(Math.min(totalPages, currentPage + 1))}
           disabled={currentPage === totalPages}
-          className="px-2 py-1 text-sm text-gray-400 hover:text-white hover:bg-gray-600 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          className="flex items-center gap-1 px-2 py-1 text-sm text-gray-400 hover:text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         >
           Next
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+          </svg>
         </button>
       </div>
+      
+      {/* Entries info */}
+      <span className="text-sm text-gray-400">
+        Showing {startIndex + 1} to {Math.min(endIndex, filteredCount)} of {filteredCount} entries
+      </span>
     </div>
   );
 }

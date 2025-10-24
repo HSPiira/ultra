@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { Outlet } from 'react-router-dom';
 import { Header } from '../common/Header';
 import Sidebar from '../common/SideBar';
-import { DemoNavigation } from '../tables/DemoNavigation';
 
 const Layout: React.FC = () => {
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -49,8 +48,6 @@ const Layout: React.FC = () => {
           onMenuToggle={handleSidebarToggle}
         />
         
-        {/* Demo Navigation */}
-        <DemoNavigation />
         
         {/* Main content */}
         <main 

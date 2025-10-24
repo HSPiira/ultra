@@ -1,32 +1,28 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { companiesApi } from '../../services/companies';
-import type { Company } from '../../types/companies';
-import { CompanyTable } from '../../components/tables';
+import { medicalCatalogApi } from '../../services/medical-catalog';
+import type { LabTest } from '../../types/medical-catalog';
+import { LabTestTable } from '../../components/tables';
 import { SearchFilterBar } from '../../components/common';
 
-interface CompaniesListProps {
-  onCompanySelect?: (company: Company) => void;
-  onCompanyEdit?: (company: Company) => void;
-  onCompanyDelete?: (company: Company) => void;
-  onCompanyStatusChange?: (company: Company) => void;
-  onAddCompany?: () => void;
-  viewMode?: 'list' | 'grid';
+interface LabTestsListNewProps {
+  onLabTestSelect?: (labTest: LabTest) => void;
+  onLabTestEdit?: (labTest: LabTest) => void;
+  onLabTestDelete?: (labTest: LabTest) => void;
+  onLabTestStatusChange?: (labTest: LabTest) => void;
+  onAddLabTest?: () => void;
   refreshTrigger?: number;
 }
 
-export const CompaniesList: React.FC<CompaniesListProps> = ({
-  onCompanySelect,
-  onCompanyEdit,
-  onCompanyDelete,
-  onCompanyStatusChange,
-  onAddCompany,
-  viewMode = 'list',
+export const LabTestsListNew: React.FC<LabTestsListNewProps> = ({
+  onLabTestSelect,
+  onLabTestEdit,
+  onLabTestDelete,
+  onLabTestStatusChange,
+  onAddLabTest,
   refreshTrigger
 }) => {
-  const navigate = useNavigate();
-  const [companies, setCompanies] = useState<Company[]>([]);
-  const [allFilteredCompanies, setAllFilteredCompanies] = useState<Company[]>([]);
+  const [labTests, setLabTests] = useState<LabTest[]>([]);
+  const [allFilteredLabTests, setAllFilteredLabTests] = useState<LabTest[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | undefined>(undefined);
   const [searchTerm, setSearchTerm] = useState('');
@@ -36,29 +32,32 @@ export const CompaniesList: React.FC<CompaniesListProps> = ({
   const [currentPage, setCurrentPage] = useState<number>(1);
 
   useEffect(() => {
-    loadCompanies();
+    loadLabTests();
   }, []);
 
   // Watch for refresh trigger changes
   useEffect(() => {
     if (refreshTrigger !== undefined) {
       console.log('Refresh trigger changed:', refreshTrigger);
-      loadCompanies();
+      loadLabTests();
     }
   }, [refreshTrigger]);
 
-  const loadCompanies = async () => {
+  const loadLabTests = async () => {
     try {
       setLoading(true);
       setError(undefined);
-      console.log('Loading companies...');
-      const data = await companiesApi.getCompanies();
-      console.log('Companies loaded:', data);
-      setCompanies(data);
-      setAllFilteredCompanies(data);
+      console.log('Loading lab tests...');
+      const data = await medicalCatalogApi.getLabTests({
+        page: currentPage,
+        page_size: rowsPerPage
+      });
+      console.log('Lab tests loaded:', data);
+      setLabTests(data.results);
+      setAllFilteredLabTests(data.results);
     } catch (err) {
-      console.error('Error loading companies:', err);
-      setError('Failed to load companies');
+      console.error('Error loading lab tests:', err);
+      setError('Failed to load lab tests');
     } finally {
       setLoading(false);
     }
@@ -89,23 +88,22 @@ export const CompaniesList: React.FC<CompaniesListProps> = ({
   };
 
   // Filter and sort data
-  const filteredCompanies = sortData(
-    allFilteredCompanies.filter(company =>
-      company.company_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      company.industry_detail.industry_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      company.contact_person.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      company.email.toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredLabTests = sortData(
+    allFilteredLabTests.filter(labTest =>
+      labTest.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      labTest.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      labTest.category.toLowerCase().includes(searchTerm.toLowerCase())
     ),
     sortField,
     sortDirection
   );
 
   // Pagination logic
-  const totalPages = Math.ceil(filteredCompanies.length / rowsPerPage);
+  const totalPages = Math.ceil(filteredLabTests.length / rowsPerPage);
   const startIndex = (currentPage - 1) * rowsPerPage;
   const endIndex = startIndex + rowsPerPage;
   
-  const paginatedCompanies = filteredCompanies.slice(startIndex, endIndex);
+  const paginatedLabTests = filteredLabTests.slice(startIndex, endIndex);
 
   // Reset to first page when rows per page changes
   useEffect(() => {
@@ -117,20 +115,16 @@ export const CompaniesList: React.FC<CompaniesListProps> = ({
     setCurrentPage(1);
   }, [searchTerm]);
 
-  const handleRowDoubleClick = (company: Company) => {
-    onCompanySelect?.(company);
+  const handleLabTestView = (labTest: LabTest) => {
+    onLabTestSelect?.(labTest);
   };
 
-  const handleCompanyView = (company: Company) => {
-    onCompanySelect?.(company);
+  const handleLabTestEdit = (labTest: LabTest) => {
+    onLabTestEdit?.(labTest);
   };
 
-  const handleCompanyEdit = (company: Company) => {
-    onCompanyEdit?.(company);
-  };
-
-  const handleCompanyDelete = (company: Company) => {
-    onCompanyDelete?.(company);
+  const handleLabTestDelete = (labTest: LabTest) => {
+    onLabTestDelete?.(labTest);
   };
 
   const handlePageChange = (page: number) => {
@@ -138,21 +132,21 @@ export const CompaniesList: React.FC<CompaniesListProps> = ({
   };
 
   return (
-        <div>
+    <div>
       {/* Search and Filter Bar */}
       <SearchFilterBar
         searchTerm={searchTerm}
         onSearchChange={setSearchTerm}
-        searchPlaceholder="Search companies..."
+        searchPlaceholder="Search lab tests..."
         rowsPerPage={rowsPerPage}
         onRowsPerPageChange={setRowsPerPage}
-        onExport={() => console.log('Export companies')}
+        onExport={() => console.log('Export lab tests')}
       />
 
-      {/* Companies Table */}
-      <CompanyTable
-        companies={paginatedCompanies}
-        allFilteredCompanies={filteredCompanies}
+      {/* Lab Tests Table */}
+      <LabTestTable
+        labTests={paginatedLabTests}
+        allFilteredLabTests={filteredLabTests}
         currentPage={currentPage}
         totalPages={totalPages}
         startIndex={startIndex}
@@ -160,13 +154,13 @@ export const CompaniesList: React.FC<CompaniesListProps> = ({
         sortField={sortField}
         sortDirection={sortDirection}
         onSort={handleSort}
-        onCompanyView={handleCompanyView}
-        onCompanyEdit={handleCompanyEdit}
-        onCompanyDelete={handleCompanyDelete}
+        onLabTestView={handleLabTestView}
+        onLabTestEdit={handleLabTestEdit}
+        onLabTestDelete={handleLabTestDelete}
         onPageChange={handlePageChange}
         loading={loading}
         error={error}
-        onRetry={loadCompanies}
+        onRetry={loadLabTests}
       />
     </div>
   );

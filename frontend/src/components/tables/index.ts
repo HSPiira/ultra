@@ -1,5 +1,11 @@
-export { DataTable } from './DataTable';
-export { TableHeader, type TableColumn, type TableHeaderProps } from './TableHeader';
-export { TableRow, type TableRowProps } from './TableRow';
-export { StatusColor, getStatusTextColor, type StatusColorProps } from './StatusColor';
 export { TablePagination, type TablePaginationProps } from './TablePagination';
+export { SortableTable } from './SortableTable';
+export type { TableColumn as SortableTableColumn, ActionButton } from './SortableTable';
+export { DoctorTable } from './DoctorTable';
+export { HospitalTable } from './HospitalTable';
+export { CompanyTable } from './CompanyTable';
+export { SchemeTable } from './SchemeTable';
+export { MedicineTable } from './MedicineTable';
+export { LabTestTable } from './LabTestTable';
+export { ServiceTable } from './ServiceTable';
+export { HospitalPriceTable } from './HospitalPriceTable';
