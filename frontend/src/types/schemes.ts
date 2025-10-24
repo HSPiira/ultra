@@ -87,7 +87,7 @@ export interface AvailableItem {
 }
 
 export interface SchemeAssignment {
-  content_type: string;
+  content_type: number;
   object_id: string;
   limit_amount?: number;
   copayment_percent?: number;

@@ -24,8 +24,8 @@ type ContentType = 'benefit' | 'plan' | 'hospital' | 'service' | 'labtest' | 'me
 type GroupType = 'coverage' | 'medical';
 
 const CONTENT_TYPES: Record<ContentType, { label: string; icon: any; group: GroupType }> = {
-  benefit: { label: 'Benefits', icon: Heart, group: 'coverage' },
   plan: { label: 'Plans', icon: FileText, group: 'coverage' },
+  benefit: { label: 'Benefits', icon: Heart, group: 'coverage' },
   hospital: { label: 'Hospitals', icon: Building2, group: 'medical' },
   service: { label: 'Services', icon: Stethoscope, group: 'medical' },
   labtest: { label: 'Lab Tests', icon: TestTube, group: 'medical' },
@@ -34,7 +34,7 @@ const CONTENT_TYPES: Record<ContentType, { label: string; icon: any; group: Grou
 
 export const SchemeAssignmentsTab: React.FC<SchemeAssignmentsTabProps> = ({ scheme }) => {
   const [activeGroup, setActiveGroup] = useState<GroupType>('coverage');
-  const [activeType, setActiveType] = useState<ContentType>('benefit');
+  const [activeType, setActiveType] = useState<ContentType>('plan');
   const [assignedItems, setAssignedItems] = useState<SchemeItem[]>([]);
   const [availableItems, setAvailableItems] = useState<AvailableItem[]>([]);
   const [selectedAvailable, setSelectedAvailable] = useState<Set<string>>(new Set());
@@ -43,23 +43,64 @@ export const SchemeAssignmentsTab: React.FC<SchemeAssignmentsTabProps> = ({ sche
   const [error, setError] = useState<string | undefined>(undefined);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
+  const [assignedPlans, setAssignedPlans] = useState<SchemeItem[]>([]);
+  const [contentTypeMapping, setContentTypeMapping] = useState<Record<string, number>>({});
 
   useEffect(() => {
+    loadContentTypeMapping();
     loadItems();
   }, [scheme.id, activeType]);
+
+  const loadContentTypeMapping = async () => {
+    try {
+      // Fetch ContentType mapping from backend
+      const response = await fetch('http://localhost:8000/content-types/');
+      if (response.ok) {
+        const contentTypes = await response.json();
+        const mapping: Record<string, number> = {};
+        contentTypes.forEach((ct: any) => {
+          if (ct.app_label === 'schemes' && ct.model === 'plan') mapping['plan'] = ct.id;
+          if (ct.app_label === 'schemes' && ct.model === 'benefit') mapping['benefit'] = ct.id;
+          if (ct.app_label === 'providers' && ct.model === 'hospital') mapping['hospital'] = ct.id;
+          if (ct.app_label === 'medical_catalog' && ct.model === 'service') mapping['service'] = ct.id;
+          if (ct.app_label === 'medical_catalog' && ct.model === 'labtest') mapping['labtest'] = ct.id;
+          if (ct.app_label === 'medical_catalog' && ct.model === 'medicine') mapping['medicine'] = ct.id;
+        });
+        setContentTypeMapping(mapping);
+      }
+    } catch (err) {
+      console.error('Error loading ContentType mapping:', err);
+      // Fallback to hardcoded values if API fails
+      setContentTypeMapping({
+        'plan': 10,
+        'benefit': 9,
+        'hospital': 15,
+        'service': 19,
+        'labtest': 18,
+        'medicine': 16,
+      });
+    }
+  };
 
   const loadItems = async () => {
     try {
       setLoading(true);
       setError(undefined);
       
-      const [assigned, available] = await Promise.all([
+      const [assigned, available, plans] = await Promise.all([
         schemeItemsApi.getSchemeItems(scheme.id, { content_type: activeType }),
-        schemeItemsApi.getAvailableItems(scheme.id, activeType)
+        schemeItemsApi.getAvailableItems(scheme.id, activeType),
+        schemeItemsApi.getSchemeItems(scheme.id, { content_type: 'plan' })
       ]);
       
-      setAssignedItems(assigned);
-      setAvailableItems(available);
+      // Filter out any items with null/undefined properties
+      const validAssigned = assigned.filter(item => item && item.id);
+      const validAvailable = available.filter(item => item && item.id && item.name);
+      const validPlans = plans.filter(item => item && item.id);
+      
+      setAssignedItems(validAssigned);
+      setAvailableItems(validAvailable);
+      setAssignedPlans(validPlans);
     } catch (err) {
       console.error('Error loading items:', err);
       setError('Failed to load items');
@@ -69,13 +110,13 @@ export const SchemeAssignmentsTab: React.FC<SchemeAssignmentsTabProps> = ({ sche
   };
 
   const filteredAvailable = availableItems.filter(item => {
-    const matchesSearch = item.name.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesSearch = item.name?.toLowerCase().includes(searchTerm.toLowerCase()) || false;
     const matchesStatus = !statusFilter || item.status === statusFilter;
     return matchesSearch && matchesStatus;
   });
 
   const filteredAssigned = assignedItems.filter(item => {
-    const matchesSearch = item.item_detail.name.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesSearch = item.item_detail?.name?.toLowerCase().includes(searchTerm.toLowerCase()) || false;
     const matchesStatus = !statusFilter || item.status === statusFilter;
     return matchesSearch && matchesStatus;
   });
@@ -123,9 +164,21 @@ export const SchemeAssignmentsTab: React.FC<SchemeAssignmentsTabProps> = ({ sche
   const handleAssignItems = async () => {
     if (selectedAvailable.size === 0) return;
 
+    // Check if trying to assign benefits without plans
+    if (activeType === 'benefit' && assignedPlans.length === 0) {
+      setError('You must assign at least one plan before assigning benefits. Benefits fall under plans.');
+      return;
+    }
+
     try {
+      const contentTypeId = contentTypeMapping[activeType];
+      if (!contentTypeId) {
+        setError(`ContentType mapping not found for ${activeType}`);
+        return;
+      }
+
       const assignments: SchemeAssignment[] = Array.from(selectedAvailable).map(itemId => ({
-        content_type: activeType,
+        content_type: contentTypeId,
         object_id: itemId,
       }));
 
@@ -224,7 +277,7 @@ export const SchemeAssignmentsTab: React.FC<SchemeAssignmentsTabProps> = ({ sche
 
       {/* Group Tabs */}
       <div className="border-b" style={{ borderColor: '#4a4a4a' }}>
-        <div className="flex space-x-8">
+        <div className="flex space-x-6">
           {[
             { id: 'coverage', label: 'Coverage', icon: Heart },
             { id: 'medical', label: 'Medical Catalog', icon: Stethoscope }
@@ -240,7 +293,7 @@ export const SchemeAssignmentsTab: React.FC<SchemeAssignmentsTabProps> = ({ sche
                     setActiveType(types[0]);
                   }
                 }}
-                className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors flex items-center gap-2 ${
+                className={`px-1 border-b-2 font-medium text-sm transition-colors flex items-center gap-2 ${
                   activeGroup === group.id
                     ? 'border-b-2'
                     : 'border-b-2'
@@ -270,33 +323,37 @@ export const SchemeAssignmentsTab: React.FC<SchemeAssignmentsTabProps> = ({ sche
 
       {/* Type Sub-tabs */}
       <div className="border-b" style={{ borderColor: '#4a4a4a' }}>
-        <div className="flex space-x-6">
+        <div className="flex space-x-4">
           {getGroupTypes(activeGroup).map((type) => {
             const config = CONTENT_TYPES[type];
             const Icon = config.icon;
+            const isDisabled = type === 'benefit' && assignedPlans.length === 0;
+            
             return (
               <button
                 key={type}
-                onClick={() => setActiveType(type)}
-                className={`py-3 px-1 border-b-2 font-medium text-sm transition-colors flex items-center gap-2 ${
+                onClick={() => !isDisabled && setActiveType(type)}
+                disabled={isDisabled}
+                className={`px-1 border-b-2 font-medium text-sm transition-colors flex items-center gap-2 ${
                   activeType === type
                     ? 'border-b-2'
                     : 'border-b-2'
-                }`}
+                } ${isDisabled ? 'opacity-50 cursor-not-allowed' : ''}`}
                 style={{
                   borderBottomColor: activeType === type ? '#9ca3af' : 'transparent',
-                  color: activeType === type ? '#d1d5db' : '#9ca3af'
+                  color: isDisabled ? '#6b7280' : (activeType === type ? '#d1d5db' : '#9ca3af')
                 }}
                 onMouseEnter={(e) => {
-                  if (activeType !== type) {
+                  if (!isDisabled && activeType !== type) {
                     e.currentTarget.style.color = '#d1d5db';
                   }
                 }}
                 onMouseLeave={(e) => {
-                  if (activeType !== type) {
+                  if (!isDisabled && activeType !== type) {
                     e.currentTarget.style.color = '#9ca3af';
                   }
                 }}
+                title={isDisabled ? 'Assign plans first before assigning benefits' : ''}
               >
                 <Icon className="w-4 h-4" />
                 {config.label}
@@ -340,6 +397,21 @@ export const SchemeAssignmentsTab: React.FC<SchemeAssignmentsTabProps> = ({ sche
           <option value="SUSPENDED">Suspended</option>
         </select>
       </div>
+
+      {/* Warning for benefits without plans */}
+      {activeType === 'benefit' && assignedPlans.length === 0 && (
+        <div className="bg-amber-900 border border-amber-700 rounded-lg p-4">
+          <div className="flex items-center gap-2">
+            <Heart className="w-5 h-5 text-amber-400" />
+            <div>
+              <h3 className="text-sm font-medium text-amber-200">Benefits Require Plans</h3>
+              <p className="text-xs text-amber-300 mt-1">
+                You must assign at least one plan before you can assign benefits. Benefits fall under plans.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Assignment Interface */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

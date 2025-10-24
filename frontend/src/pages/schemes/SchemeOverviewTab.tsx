@@ -264,30 +264,33 @@ export const SchemeOverviewTab: React.FC<SchemeOverviewTabProps> = ({ scheme }) 
               </p>
             </div>
           ) : (
-            <div className="space-y-4">
-              {plansWithBenefits.map((planWithBenefits) => (
-                <div key={planWithBenefits.plan.id} className="border rounded-lg" style={{ borderColor: '#374151' }}>
+            <div className="space-y-0" style={{ backgroundColor: '#1a1a1a' }}>
+              {plansWithBenefits.map((planWithBenefits, index) => (
+                <div key={planWithBenefits.plan.id}>
                   <button
                     onClick={() => togglePlanExpansion(planWithBenefits.plan.id)}
-                    className="w-full px-4 py-4 flex items-center justify-between hover:bg-gray-800 transition-colors rounded-lg"
+                    className="w-full px-4 py-2 flex items-center justify-between transition-colors border-b"
+                    style={{ backgroundColor: '#1a1a1a', borderBottomColor: '#4a4a4a' }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.backgroundColor = '#2a2a2a';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.backgroundColor = '#1a1a1a';
+                    }}
                   >
-                    <div className="flex items-center gap-3">
-                      <FileText className="w-5 h-5" style={{ color: '#9ca3af' }} />
+                    <div className="flex items-center gap-4">
                       <div className="text-left">
-                        <h3 className="font-medium" style={{ color: '#ffffff' }}>
-                          {planWithBenefits.plan.plan_name}
+                        <h3 className="text-lg font-medium" style={{ color: '#ffffff' }}>
+                          {planWithBenefits.plan.plan_name} ({planWithBenefits.benefits.length})
                         </h3>
                         {planWithBenefits.plan.description && (
-                          <p className="text-sm" style={{ color: '#9ca3af' }}>
+                          <p className="text-sm mt-1" style={{ color: '#9ca3af' }}>
                             {planWithBenefits.plan.description}
                           </p>
                         )}
                       </div>
                     </div>
                     <div className="flex items-center gap-3">
-                      <span className="text-sm px-3 py-1 rounded-full" style={{ backgroundColor: '#374151', color: '#9ca3af' }}>
-                        {planWithBenefits.benefits.length} benefits
-                      </span>
                       {expandedPlans.has(planWithBenefits.plan.id) ? (
                         <ChevronDown className="w-5 h-5" style={{ color: '#9ca3af' }} />
                       ) : (
@@ -297,34 +300,44 @@ export const SchemeOverviewTab: React.FC<SchemeOverviewTabProps> = ({ scheme }) 
                   </button>
 
                   {expandedPlans.has(planWithBenefits.plan.id) && (
-                    <div className="border-t px-4 py-4" style={{ borderColor: '#374151' }}>
+                    <div className="px-4 pb-2" style={{ backgroundColor: '#1a1a1a' }}>
                       {planWithBenefits.benefits.length === 0 ? (
                         <p className="text-sm" style={{ color: '#9ca3af' }}>
                           No benefits assigned to this plan.
                         </p>
                       ) : (
-                        <div className="space-y-3">
-                          {planWithBenefits.benefits.map((benefit) => (
-                            <div key={benefit.id} className="flex items-center gap-3 p-3 rounded-lg" style={{ backgroundColor: '#1f2937' }}>
-                              <Heart className="w-4 h-4" style={{ color: '#9ca3af' }} />
-                              <div className="flex-1">
-                                <h4 className="text-sm font-medium" style={{ color: '#ffffff' }}>
-                                  {benefit.benefit_name}
-                                </h4>
-                                {benefit.description && (
-                                  <p className="text-xs mt-1" style={{ color: '#9ca3af' }}>
-                                    {benefit.description}
-                                  </p>
-                                )}
+                        <div className="space-y-0">
+                          {planWithBenefits.benefits.map((benefit, benefitIndex) => (
+                            <div key={benefit.id}>
+                              <div className="flex items-center gap-2 py-1 px-0">
+                                <span className="text-sm font-medium" style={{ color: '#ffffff', minWidth: '25px' }}>
+                                  {String(benefitIndex + 1).padStart(2, '0')}.
+                                </span>
+                                <div className="flex-1">
+                                  <h4 className="text-sm font-medium" style={{ color: '#ffffff' }}>
+                                    {benefit.benefit_name}
+                                  </h4>
+                                  {benefit.description && (
+                                    <p className="text-xs mt-1" style={{ color: '#9ca3af' }}>
+                                      {benefit.description}
+                                    </p>
+                                  )}
+                                </div>
                               </div>
-                              <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(benefit.status)}`}>
-                                {benefit.in_or_out_patient}
-                              </span>
+                              {/* Separator line between benefits */}
+                              {benefitIndex < planWithBenefits.benefits.length - 1 && (
+                                <div className="h-px" style={{ backgroundColor: '#4a4a4a' }}></div>
+                              )}
                             </div>
                           ))}
                         </div>
                       )}
                     </div>
+                  )}
+
+                  {/* Separator line */}
+                  {index < plansWithBenefits.length - 1 && (
+                    <div className="h-px" style={{ backgroundColor: '#4a4a4a' }}></div>
                   )}
                 </div>
               ))}

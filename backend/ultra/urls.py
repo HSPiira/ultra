@@ -26,7 +26,7 @@ from rest_framework.routers import DefaultRouter
 
 from apps.claims.api.urls import router as claims_router
 from apps.companies.api.urls import router as companies_router
-from apps.core.views import APILoginView, APILogoutView
+from apps.core.views import APILoginView, APILogoutView, content_types_view
 from apps.medical_catalog.api.urls import router as medical_catalog_router
 from apps.members.api.urls import router as members_router
 from apps.providers.api.urls import router as providers_router
@@ -44,6 +44,7 @@ urlpatterns = [
     path("admin/", admin.site.urls),
     path("api/login/", APILoginView.as_view(), name="api_login"),
     path("api/logout/", APILogoutView.as_view(), name="api_logout"),
+    path("content-types/", content_types_view, name="content_types"),
     # OpenAPI schema and docs
     path("api/schema/", SpectacularAPIView.as_view(), name="schema"),
     path(

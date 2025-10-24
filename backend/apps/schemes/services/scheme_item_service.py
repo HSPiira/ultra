@@ -269,10 +269,14 @@ class SchemeItemService:
 
         for i, assignment in enumerate(assignments):
             try:
+                # Get ContentType instance
+                from django.contrib.contenttypes.models import ContentType
+                content_type = ContentType.objects.get(id=assignment.get("content_type"))
+                
                 # Prepare scheme item data
                 scheme_item_data = {
-                    "scheme": scheme_id,
-                    "content_type": assignment.get("content_type"),
+                    "scheme": scheme,
+                    "content_type": content_type,
                     "object_id": assignment.get("object_id"),
                     "limit_amount": assignment.get("limit_amount"),
                     "copayment_percent": assignment.get("copayment_percent"),

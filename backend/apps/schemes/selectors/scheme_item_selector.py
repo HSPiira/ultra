@@ -402,7 +402,19 @@ def scheme_assigned_items_get(*, scheme_id: str, content_type: str = None):
 
     if content_type:
         from django.contrib.contenttypes.models import ContentType
-        ct = ContentType.objects.get_for_model(content_type)
-        qs = qs.filter(content_type=ct)
+        # Map content type strings to app_label and model_name
+        model_mapping = {
+            'benefit': ('schemes', 'benefit'),
+            'plan': ('schemes', 'plan'),
+            'hospital': ('providers', 'hospital'),
+            'service': ('medical_catalog', 'service'),
+            'labtest': ('medical_catalog', 'labtest'),
+            'medicine': ('medical_catalog', 'medicine'),
+        }
+        
+        if content_type in model_mapping:
+            app_label, model_name = model_mapping[content_type]
+            ct = ContentType.objects.get(app_label=app_label, model=model_name)
+            qs = qs.filter(content_type=ct)
 
     return qs

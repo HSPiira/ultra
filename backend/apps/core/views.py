@@ -1,6 +1,7 @@
 import json
 
 from django.contrib.auth import authenticate, login
+from django.contrib.contenttypes.models import ContentType
 from django.http import JsonResponse
 from django.utils.decorators import method_decorator
 from django.views import View
@@ -66,3 +67,15 @@ class APILogoutView(View):
 
         logout(request)
         return JsonResponse({"success": True, "message": "Logout successful"})
+
+
+def content_types_view(request):
+    """
+    API endpoint to get ContentType mapping for frontend.
+    Returns ContentTypes for schemes, providers, and medical_catalog apps.
+    """
+    content_types = ContentType.objects.filter(
+        app_label__in=['schemes', 'providers', 'medical_catalog']
+    ).values('id', 'app_label', 'model')
+    
+    return JsonResponse(list(content_types), safe=False)

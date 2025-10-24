@@ -134,7 +134,7 @@ export const SchemeDetailsPage: React.FC = () => {
       {/* Tabs */}
       <div className="border-b" style={{ backgroundColor: '#2a2a2a', borderColor: '#4a4a4a' }}>
         <div className="px-6">
-          <div className="flex space-x-8">
+          <div className="flex space-x-4">
             {[
               { id: 'overview', label: 'Overview', icon: Info },
               { id: 'assignments', label: 'Assignments', icon: Settings },
@@ -146,7 +146,7 @@ export const SchemeDetailsPage: React.FC = () => {
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id as SchemeDetailsTab)}
-                  className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors flex items-center gap-2 ${
+                  className={`py-2 px-1 border-b-2 font-medium text-sm transition-colors flex items-center gap-2 ${
                     activeTab === tab.id
                       ? 'border-b-2'
                       : 'border-b-2'
