@@ -12,7 +12,8 @@ import {
   AlertTriangle,
   RefreshCw,
   Heart,
-  Activity
+  Activity,
+  FileText
 } from 'lucide-react';
 import { benefitsApi } from '../../services/benefits';
 import type { Benefit } from '../../types/benefits';
@@ -355,6 +356,9 @@ export const BenefitsSection: React.FC = () => {
                     Type
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Plan
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Limit Amount
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -384,6 +388,14 @@ export const BenefitsSection: React.FC = () => {
                         {getPatientTypeIcon(benefit.in_or_out_patient)}
                         {benefit.in_or_out_patient}
                       </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="flex items-center gap-2">
+                        <FileText className="w-4 h-4" style={{ color: '#9ca3af' }} />
+                        <span className="text-sm" style={{ color: '#d1d5db' }}>
+                          {benefit.plan_detail?.plan_name || 'No plan'}
+                        </span>
+                      </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm" style={{ color: '#d1d5db' }}>
                       {benefit.limit_amount ? formatCurrency(benefit.limit_amount) : 'No limit'}

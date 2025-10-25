@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, Heart, Activity, Calendar, Edit, DollarSign } from 'lucide-react';
+import { X, Heart, Activity, Calendar, Edit, DollarSign, FileText } from 'lucide-react';
 import type { Benefit } from '../../types/benefits';
 
 interface BenefitDetailsProps {
@@ -180,6 +180,18 @@ export const BenefitDetails: React.FC<BenefitDetailsProps> = ({
                       {benefit.limit_amount ? formatCurrency(benefit.limit_amount) : 'No limit set'}
                     </p>
                   </div>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-2" style={{ color: '#d1d5db' }}>
+                  Plan
+                </label>
+                <div className="flex items-center gap-2 px-3 py-2 rounded-lg" style={{ backgroundColor: '#2a2a2a' }}>
+                  <FileText className="w-4 h-4" style={{ color: '#9ca3af' }} />
+                  <p className="text-sm" style={{ color: '#ffffff' }}>
+                    {benefit.plan_detail?.plan_name || 'No plan assigned'}
+                  </p>
                 </div>
               </div>
 

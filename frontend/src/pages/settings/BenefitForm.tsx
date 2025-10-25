@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { X, Heart, Activity } from 'lucide-react';
+import { X, Heart, Activity, FileText } from 'lucide-react';
 import { benefitsApi } from '../../services/benefits';
+import { plansApi } from '../../services/plans';
 import type { Benefit, BenefitCreateData, BenefitUpdateData } from '../../types/benefits';
+import type { Plan } from '../../types/plans';
 
 interface BenefitFormProps {
   benefit?: Benefit;
@@ -20,10 +22,13 @@ export const BenefitForm: React.FC<BenefitFormProps> = ({
     benefit_name: '',
     description: '',
     in_or_out_patient: 'BOTH',
-    limit_amount: undefined
+    limit_amount: undefined,
+    plan: undefined
   });
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [plans, setPlans] = useState<Plan[]>([]);
+  const [plansLoading, setPlansLoading] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
@@ -32,19 +37,34 @@ export const BenefitForm: React.FC<BenefitFormProps> = ({
           benefit_name: benefit.benefit_name,
           description: benefit.description || '',
           in_or_out_patient: benefit.in_or_out_patient,
-          limit_amount: benefit.limit_amount
+          limit_amount: benefit.limit_amount,
+          plan: benefit.plan
         });
       } else {
         setFormData({
           benefit_name: '',
           description: '',
           in_or_out_patient: 'BOTH',
-          limit_amount: undefined
+          limit_amount: undefined,
+          plan: undefined
         });
       }
       setErrors({});
+      loadPlans();
     }
   }, [isOpen, benefit]);
+
+  const loadPlans = async () => {
+    try {
+      setPlansLoading(true);
+      const data = await plansApi.getPlans({ status: 'ACTIVE', ordering: 'plan_name' });
+      setPlans(data);
+    } catch (error) {
+      console.error('Error loading plans:', error);
+    } finally {
+      setPlansLoading(false);
+    }
+  };
 
   const handleInputChange = (field: keyof BenefitCreateData, value: string | number | undefined) => {
     setFormData(prev => ({
@@ -215,6 +235,36 @@ export const BenefitForm: React.FC<BenefitFormProps> = ({
 
               <div>
                 <label className="block text-sm font-medium mb-2" style={{ color: '#d1d5db' }}>
+                  Plan
+                </label>
+                <select
+                  value={formData.plan || ''}
+                  onChange={(e) => handleInputChange('plan', e.target.value === '' ? undefined : e.target.value)}
+                  className="w-full px-3 py-2 border rounded-lg transition-colors"
+                  style={{ 
+                    backgroundColor: '#3b3b3b', 
+                    color: '#ffffff',
+                    borderColor: '#4a4a4a'
+                  }}
+                  disabled={plansLoading}
+                >
+                  <option value="">Select a plan (optional)</option>
+                  {plans.map((plan) => (
+                    <option key={plan.id} value={plan.id}>
+                      {plan.plan_name}
+                    </option>
+                  ))}
+                </select>
+                {plansLoading && (
+                  <p className="mt-1 text-xs text-gray-400">Loading plans...</p>
+                )}
+                <p className="mt-1 text-xs text-gray-400">
+                  Assign this benefit to a specific plan for better organization
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-2" style={{ color: '#d1d5db' }}>
                   Description
                 </label>
                 <textarea
@@ -289,7 +339,6 @@ export const BenefitForm: React.FC<BenefitFormProps> = ({
           <button
             type="submit"
             disabled={loading}
-            onClick={handleSubmit}
             className="px-6 py-2 rounded-lg transition-colors disabled:opacity-50"
             style={{ backgroundColor: '#3b82f6', color: '#ffffff' }}
             onMouseEnter={(e) => {

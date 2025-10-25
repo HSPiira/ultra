@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { 
   Building2, 
   Users, 
@@ -9,7 +10,6 @@ import {
 } from 'lucide-react';
 import { CompaniesList } from './CompaniesList';
 import { CompanyForm } from './CompanyForm';
-import { CompanyDetails } from './CompanyDetails';
 import { CompanyAnalytics } from './CompanyAnalytics';
 import { companiesApi } from '../../services/companies';
 import type { Company, CompanyStatistics } from '../../types/companies';
@@ -20,10 +20,9 @@ type ViewMode = 'list' | 'grid';
 type TabType = 'companies' | 'analytics';
 
 const CompaniesPage: React.FC = () => {
+  const navigate = useNavigate();
   const { colors, getPageStyles, getTabStyles, getIconButtonStyles } = useThemeStyles();
-  const [selectedCompany, setSelectedCompany] = useState<Company | null>(null);
   const [isFormOpen, setIsFormOpen] = useState(false);
-  const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [editingCompany, setEditingCompany] = useState<Company | null>(null);
   const [viewMode] = useState<ViewMode>('list');
   const [activeTab, setActiveTab] = useState<TabType>('companies');
@@ -48,8 +47,7 @@ const CompaniesPage: React.FC = () => {
   };
 
   const handleCompanySelect = (company: Company) => {
-    setSelectedCompany(company);
-    setIsDetailsOpen(true);
+    navigate(`/companies/${company.id}`);
   };
 
   const handleCompanyEdit = (company: Company) => {
@@ -97,10 +95,6 @@ const CompaniesPage: React.FC = () => {
     setEditingCompany(null);
   };
 
-  const handleDetailsClose = () => {
-    setIsDetailsOpen(false);
-    setSelectedCompany(null);
-  };
 
   const refreshData = () => {
     loadStatistics();
@@ -222,13 +216,6 @@ const CompaniesPage: React.FC = () => {
         isOpen={isFormOpen}
         onClose={handleFormClose}
         onSave={handleFormSave}
-      />
-
-      <CompanyDetails
-        company={selectedCompany}
-        isOpen={isDetailsOpen}
-        onClose={handleDetailsClose}
-        onEdit={handleCompanyEdit}
       />
     </div>
   );

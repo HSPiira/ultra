@@ -18,6 +18,10 @@ import type { SchemeItem, AvailableItem, SchemeAssignment } from '../../types/sc
 
 interface SchemeAssignmentsTabProps {
   scheme: Scheme;
+  activeGroup?: GroupType;
+  activeType?: ContentType;
+  onGroupChange?: (group: GroupType) => void;
+  onTypeChange?: (type: ContentType) => void;
 }
 
 type ContentType = 'benefit' | 'plan' | 'hospital' | 'service' | 'labtest' | 'medicine';
@@ -32,9 +36,15 @@ const CONTENT_TYPES: Record<ContentType, { label: string; icon: any; group: Grou
   medicine: { label: 'Medicines', icon: Pill, group: 'medical' },
 };
 
-export const SchemeAssignmentsTab: React.FC<SchemeAssignmentsTabProps> = ({ scheme }) => {
-  const [activeGroup, setActiveGroup] = useState<GroupType>('coverage');
-  const [activeType, setActiveType] = useState<ContentType>('plan');
+export const SchemeAssignmentsTab: React.FC<SchemeAssignmentsTabProps> = ({ 
+  scheme, 
+  activeGroup: propActiveGroup, 
+  activeType: propActiveType,
+  onGroupChange,
+  onTypeChange
+}) => {
+  const [activeGroup, setActiveGroup] = useState<GroupType>(propActiveGroup || 'coverage');
+  const [activeType, setActiveType] = useState<ContentType>(propActiveType || 'plan');
   const [assignedItems, setAssignedItems] = useState<SchemeItem[]>([]);
   const [availableItems, setAvailableItems] = useState<AvailableItem[]>([]);
   const [selectedAvailable, setSelectedAvailable] = useState<Set<string>>(new Set());
@@ -50,6 +60,19 @@ export const SchemeAssignmentsTab: React.FC<SchemeAssignmentsTabProps> = ({ sche
     loadContentTypeMapping();
     loadItems();
   }, [scheme.id, activeType]);
+
+  // Sync with props
+  useEffect(() => {
+    if (propActiveGroup && propActiveGroup !== activeGroup) {
+      setActiveGroup(propActiveGroup);
+    }
+  }, [propActiveGroup, activeGroup]);
+
+  useEffect(() => {
+    if (propActiveType && propActiveType !== activeType) {
+      setActiveType(propActiveType);
+    }
+  }, [propActiveType, activeType]);
 
   const loadContentTypeMapping = async () => {
     try {
@@ -286,13 +309,17 @@ export const SchemeAssignmentsTab: React.FC<SchemeAssignmentsTabProps> = ({ sche
             return (
               <button
                 key={group.id}
-                onClick={() => {
-                  setActiveGroup(group.id as GroupType);
-                  const types = getGroupTypes(group.id as GroupType);
-                  if (types.length > 0) {
-                    setActiveType(types[0]);
-                  }
-                }}
+                    onClick={() => {
+                      const newGroup = group.id as GroupType;
+                      setActiveGroup(newGroup);
+                      onGroupChange?.(newGroup);
+                      const types = getGroupTypes(newGroup);
+                      if (types.length > 0) {
+                        const newType = types[0];
+                        setActiveType(newType);
+                        onTypeChange?.(newType);
+                      }
+                    }}
                 className={`px-1 border-b-2 font-medium text-sm transition-colors flex items-center gap-2 ${
                   activeGroup === group.id
                     ? 'border-b-2'
@@ -332,7 +359,13 @@ export const SchemeAssignmentsTab: React.FC<SchemeAssignmentsTabProps> = ({ sche
             return (
               <button
                 key={type}
-                onClick={() => !isDisabled && setActiveType(type)}
+                    onClick={() => {
+                      if (!isDisabled) {
+                        const newType = type;
+                        setActiveType(newType);
+                        onTypeChange?.(newType);
+                      }
+                    }}
                 disabled={isDisabled}
                 className={`px-1 border-b-2 font-medium text-sm transition-colors flex items-center gap-2 ${
                   activeType === type

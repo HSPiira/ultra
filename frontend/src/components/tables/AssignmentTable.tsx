@@ -78,7 +78,7 @@ export const AssignmentTable: React.FC<AssignmentTableProps> = ({
   return (
     <div className="rounded-lg overflow-hidden" style={{ backgroundColor: '#1f1f1f' }}>
       {/* Header */}
-      <div className="px-4 py-3">
+      <div className="px-4 py-2 border-b" style={{ borderBottomColor: '#4a4a4a' }}>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <input
@@ -97,14 +97,14 @@ export const AssignmentTable: React.FC<AssignmentTableProps> = ({
 
       {/* Items List */}
       <div>
-        {items.map((item) => {
+        {items.map((item, index) => {
           const isSelected = selectedItems.has(item.id);
           const schemeItem = item as SchemeItem;
 
           return (
             <div
               key={item.id}
-              className={`px-4 py-2 transition-colors ${
+              className={`px-4 py-1 transition-colors ${
                 isSelected ? 'bg-gray-700' : 'hover:bg-gray-700'
               }`}
               style={{ backgroundColor: isSelected ? '#2a2a2a' : 'transparent' }}
@@ -120,7 +120,7 @@ export const AssignmentTable: React.FC<AssignmentTableProps> = ({
               }}
             >
               <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3 flex-1">
+                <div className="flex items-center gap-2 flex-1">
                   <input
                     type="checkbox"
                     checked={isSelected}

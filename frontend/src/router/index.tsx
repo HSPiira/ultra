@@ -14,16 +14,20 @@ import SchemesPage from '../pages/schemes/SchemesPage';
 import { SchemeDetailsPage } from '../pages/schemes';
 import ReportsPage from '../pages/reports/ReportsPage';
 import AnalyticsPage from '../pages/analytics/AnalyticsPage';
+// import { ROUTES } from './routes'; // For future use
 
 const router = createBrowserRouter([
   {
     path: '/',
     element: <Layout />,
     children: [
+      // Dashboard
       {
         index: true,
         element: <Dashboard />
       },
+      
+      // Companies
       {
         path: 'companies',
         element: <CompaniesPage />
@@ -32,6 +36,44 @@ const router = createBrowserRouter([
         path: 'companies/:id',
         element: <CompanyDetailsPage />
       },
+      {
+        path: 'companies/:id/:tab',
+        element: <CompanyDetailsPage />
+      },
+      
+      // Schemes with nested tabs
+      {
+        path: 'schemes',
+        element: <SchemesPage />
+      },
+      {
+        path: 'schemes/:id',
+        element: <SchemeDetailsPage />
+      },
+      {
+        path: 'schemes/:id/:tab',
+        element: <SchemeDetailsPage />
+      },
+      {
+        path: 'schemes/:id/:tab/:subTab',
+        element: <SchemeDetailsPage />
+      },
+      {
+        path: 'schemes/:id/:tab/:subTab/:subSubTab',
+        element: <SchemeDetailsPage />
+      },
+      
+      // Medical Catalog with tabs
+      {
+        path: 'medical-catalog',
+        element: <MedicalCatalogPage />
+      },
+      {
+        path: 'medical-catalog/:tab',
+        element: <MedicalCatalogPage />
+      },
+      
+      // Other pages
       {
         path: 'settings',
         element: <SettingsPage />
@@ -47,18 +89,6 @@ const router = createBrowserRouter([
       {
         path: 'providers',
         element: <ProvidersPage />
-      },
-      {
-        path: 'medical-catalog',
-        element: <MedicalCatalogPage />
-      },
-      {
-        path: 'schemes',
-        element: <SchemesPage />
-      },
-      {
-        path: 'schemes/:id',
-        element: <SchemeDetailsPage />
       },
       {
         path: 'reports',

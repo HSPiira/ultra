@@ -66,7 +66,7 @@ export const SchemeOverviewTab: React.FC<SchemeOverviewTabProps> = ({ scheme }) 
         }
       });
 
-      // Process benefit items
+      // Process benefit items and group them by their plans
       benefitItems.forEach(item => {
         if (item.item_detail && item.item_detail.type === 'benefit') {
           const benefit: Benefit = {
@@ -80,24 +80,8 @@ export const SchemeOverviewTab: React.FC<SchemeOverviewTabProps> = ({ scheme }) 
             updated_at: item.updated_at
           };
           
-          // For now, we'll add all benefits to a general category
-          // In a real implementation, you'd have a relationship between plans and benefits
-          if (plansMap.size === 0) {
-            // If no plans, create a general category
-            plansMap.set('general', {
-              plan: { 
-                id: 'general', 
-                plan_name: 'General Benefits', 
-                description: 'General scheme benefits',
-                status: 'ACTIVE',
-                created_at: new Date().toISOString(),
-                updated_at: new Date().toISOString()
-              } as Plan,
-              benefits: []
-            });
-          }
-          
-          // Add benefit to the first plan (in a real app, you'd have proper plan-benefit relationships)
+          // For now, add all benefits to the first plan
+          // TODO: Implement proper plan-benefit grouping based on the plan relationship
           const firstPlan = Array.from(plansMap.values())[0];
           if (firstPlan) {
             firstPlan.benefits.push(benefit);

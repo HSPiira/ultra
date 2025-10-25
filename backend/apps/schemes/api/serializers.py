@@ -133,7 +133,26 @@ class PlanSerializer(BaseSerializer):
         return value
 
 
+class PlanField(serializers.Field):
+    """Custom field to handle plan ID to Plan instance conversion."""
+    
+    def to_internal_value(self, data):
+        if data is None or data == '':
+            return None
+        try:
+            return Plan.objects.get(id=data)
+        except Plan.DoesNotExist:
+            raise serializers.ValidationError(f'Plan with id {data} does not exist.')
+    
+    def to_representation(self, value):
+        if value is None:
+            return None
+        return value.id
+
 class BenefitSerializer(BaseSerializer):
+    plan_detail = serializers.SerializerMethodField()
+    plan = PlanField(required=False, allow_null=True)
+    
     class Meta(BaseSerializer.Meta):
         model = Benefit
         fields = BaseSerializer.Meta.fields + [
@@ -141,7 +160,17 @@ class BenefitSerializer(BaseSerializer):
             "description",
             "in_or_out_patient",
             "limit_amount",
+            "plan",
+            "plan_detail",
         ]
+    
+    def get_plan_detail(self, obj) -> dict | None:
+        if obj.plan:
+            return {
+                "id": obj.plan.id,
+                "plan_name": obj.plan.plan_name,
+            }
+        return None
 
     def validate_benefit_name(self, value):
         """Validate benefit name."""

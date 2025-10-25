@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
 import { 
   Stethoscope, 
   Pill, 
@@ -23,6 +24,8 @@ import type { Service, Medicine, LabTest, HospitalItemPrice } from '../../types/
 type TabType = 'services' | 'medicines' | 'labtests' | 'prices';
 
 const MedicalCatalogPage: React.FC = () => {
+  const { tab } = useParams<{ tab?: string }>();
+  const navigate = useNavigate();
   const { colors, getPageStyles, getTabStyles, getIconButtonStyles } = useThemeStyles();
   const [activeTab, setActiveTab] = useState<TabType>('services');
   const [showForm, setShowForm] = useState(false);
@@ -43,6 +46,25 @@ const MedicalCatalogPage: React.FC = () => {
   useEffect(() => {
     loadStatistics();
   }, []);
+
+  // Handle tab from URL
+  useEffect(() => {
+    if (tab && isValidTab(tab)) {
+      setActiveTab(tab as TabType);
+    } else if (tab && !isValidTab(tab)) {
+      // Invalid tab, redirect to default tab
+      navigate('/medical-catalog', { replace: true });
+    }
+  }, [tab, navigate]);
+
+  const isValidTab = (tabName: string): tabName is TabType => {
+    return ['services', 'medicines', 'labtests', 'prices'].includes(tabName);
+  };
+
+  const handleTabChange = (newTab: TabType) => {
+    setActiveTab(newTab);
+    navigate(`/medical-catalog/${newTab}`, { replace: true });
+  };
 
   const loadStatistics = async () => {
     try {
@@ -214,7 +236,7 @@ const MedicalCatalogPage: React.FC = () => {
                 return (
                   <button
                     key={tab.id}
-                    onClick={() => setActiveTab(tab.id)}
+                    onClick={() => handleTabChange(tab.id)}
                     className="py-4 px-1 border-b-2 font-medium text-sm transition-colors"
                     style={getTabStyles(activeTab === tab.id)}
                   >

@@ -16,6 +16,7 @@ interface SchemeTableProps {
   onSchemeView?: (scheme: Scheme) => void;
   onSchemeEdit?: (scheme: Scheme) => void;
   onSchemeDelete?: (scheme: Scheme) => void;
+  onSchemeSelect?: (scheme: Scheme) => void;
   onPageChange?: (page: number) => void;
   loading?: boolean;
   error?: string;
@@ -95,6 +96,7 @@ export function SchemeTable({
   onSchemeView,
   onSchemeEdit,
   onSchemeDelete,
+  onSchemeSelect,
   onPageChange,
   loading = false,
   error,
@@ -257,7 +259,7 @@ export function SchemeTable({
         sortField={sortField}
         sortDirection={sortDirection}
         onSort={onSort}
-        onRowClick={onSchemeView}
+        onRowClick={onSchemeSelect}
         getTextColor={getItemTextColor}
         statusField="status"
         loading={loading}

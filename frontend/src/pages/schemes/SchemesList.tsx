@@ -163,6 +163,7 @@ export const SchemesList: React.FC<SchemesListProps> = ({
         onSchemeView={handleSchemeView}
         onSchemeEdit={handleSchemeEdit}
         onSchemeDelete={handleSchemeDelete}
+        onSchemeSelect={onSchemeSelect}
         onPageChange={handlePageChange}
         loading={loading}
         error={error}

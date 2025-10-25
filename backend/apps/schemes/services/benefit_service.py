@@ -74,6 +74,17 @@ class BenefitService:
                 "Benefit with this name and patient type already exists"
             )
 
+        # Handle plan field conversion
+        if 'plan' in benefit_data and benefit_data['plan']:
+            from apps.schemes.models import Plan
+            try:
+                plan = Plan.objects.get(id=benefit_data['plan'])
+                benefit_data['plan'] = plan
+            except Plan.DoesNotExist:
+                raise ValidationError(f"Plan with id {benefit_data['plan']} does not exist.")
+        elif 'plan' in benefit_data and benefit_data['plan'] is None:
+            benefit_data['plan'] = None
+
         # Create benefit
         benefit = Benefit.objects.create(**benefit_data)
         return benefit
@@ -140,6 +151,18 @@ class BenefitService:
                 raise ValidationError(
                     "Another benefit with this name and patient type already exists"
                 )
+
+        # Handle plan field conversion
+        if 'plan' in update_data:
+            if update_data['plan']:
+                from apps.schemes.models import Plan
+                try:
+                    plan = Plan.objects.get(id=update_data['plan'])
+                    update_data['plan'] = plan
+                except Plan.DoesNotExist:
+                    raise ValidationError(f"Plan with id {update_data['plan']} does not exist.")
+            else:
+                update_data['plan'] = None
 
         # Update fields
         for field, value in update_data.items():

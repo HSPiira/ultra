@@ -273,20 +273,35 @@ class SchemeItemService:
                 from django.contrib.contenttypes.models import ContentType
                 content_type = ContentType.objects.get(id=assignment.get("content_type"))
                 
-                # Prepare scheme item data
-                scheme_item_data = {
-                    "scheme": scheme,
-                    "content_type": content_type,
-                    "object_id": assignment.get("object_id"),
-                    "limit_amount": assignment.get("limit_amount"),
-                    "copayment_percent": assignment.get("copayment_percent"),
-                }
+                # Check if item is already assigned but soft-deleted
+                existing_item = SchemeItem.objects.filter(
+                    scheme=scheme,
+                    content_type=content_type,
+                    object_id=assignment.get("object_id")
+                ).first()
+                
+                if existing_item and existing_item.is_deleted:
+                    # Restore the soft-deleted item
+                    existing_item.is_deleted = False
+                    existing_item.status = BusinessStatusChoices.ACTIVE
+                    existing_item.limit_amount = assignment.get("limit_amount")
+                    existing_item.copayment_percent = assignment.get("copayment_percent")
+                    existing_item.save()
+                    created_items.append(existing_item)
+                else:
+                    # Create new scheme item
+                    scheme_item_data = {
+                        "scheme": scheme,
+                        "content_type": content_type,
+                        "object_id": assignment.get("object_id"),
+                        "limit_amount": assignment.get("limit_amount"),
+                        "copayment_percent": assignment.get("copayment_percent"),
+                    }
 
-                # Create scheme item
-                scheme_item = SchemeItemService.scheme_item_create(
-                    scheme_item_data=scheme_item_data, user=user
-                )
-                created_items.append(scheme_item)
+                    scheme_item = SchemeItemService.scheme_item_create(
+                        scheme_item_data=scheme_item_data, user=user
+                    )
+                    created_items.append(scheme_item)
 
             except ValidationError as e:
                 errors.append(f"Assignment {i+1}: {str(e)}")

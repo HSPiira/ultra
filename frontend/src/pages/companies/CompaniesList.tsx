@@ -163,6 +163,7 @@ export const CompaniesList: React.FC<CompaniesListProps> = ({
         onCompanyView={handleCompanyView}
         onCompanyEdit={handleCompanyEdit}
         onCompanyDelete={handleCompanyDelete}
+        onCompanySelect={onCompanySelect}
         onPageChange={handlePageChange}
         loading={loading}
         error={error}

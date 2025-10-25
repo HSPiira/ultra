@@ -3,26 +3,39 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Building2 } from 'lucide-react';
 import { companiesApi } from '../../services/companies';
 import type { Company } from '../../types/companies';
-import { CompanyInfoTab } from './CompanyInfoTab';
-import { CompanyBranchesTab } from './CompanyBranchesTab';
+import { CompanyOverviewTab } from './CompanyOverviewTab';
 import { CompanySchemesTab } from './CompanySchemesTab';
 import { CompanyMembersTab } from './CompanyMembersTab';
 import { CompanyAnalyticsTab } from './CompanyAnalyticsTab';
 
-type CompanyDetailsTab = 'info' | 'branches' | 'schemes' | 'members' | 'analytics';
+type CompanyDetailsTab = 'overview' | 'schemes' | 'members' | 'analytics';
 
 export const CompanyDetailsPage: React.FC = () => {
-  const { id } = useParams<{ id: string }>();
+  const { id, tab } = useParams<{ id: string; tab?: string }>();
   const navigate = useNavigate();
   const [company, setCompany] = useState<Company | null>(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<CompanyDetailsTab>('info');
+  const [activeTab, setActiveTab] = useState<CompanyDetailsTab>('overview');
 
   useEffect(() => {
     if (id) {
       loadCompany();
     }
   }, [id]);
+
+  // Handle tab from URL
+  useEffect(() => {
+    if (tab && isValidTab(tab)) {
+      setActiveTab(tab as CompanyDetailsTab);
+    } else if (tab && !isValidTab(tab)) {
+      // Invalid tab, redirect to default tab
+      navigate(`/companies/${id}`, { replace: true });
+    }
+  }, [tab, id, navigate]);
+
+  const isValidTab = (tabName: string): tabName is CompanyDetailsTab => {
+    return ['overview', 'schemes', 'members', 'analytics'].includes(tabName);
+  };
 
   const loadCompany = async () => {
     if (!id) return;
@@ -47,6 +60,11 @@ export const CompanyDetailsPage: React.FC = () => {
 
   const handleBack = () => {
     navigate('/companies');
+  };
+
+  const handleTabChange = (newTab: CompanyDetailsTab) => {
+    setActiveTab(newTab);
+    navigate(`/companies/${id}/${newTab}`, { replace: true });
   };
 
   if (loading) {
@@ -111,12 +129,11 @@ export const CompanyDetailsPage: React.FC = () => {
               <Building2 className="w-5 h-5" style={{ color: '#d1d5db' }} />
             </div>
             <div>
-              <h1 className="text-2xl font-semibold" style={{ color: '#ffffff' }}>
-                {company.company_name}
+              <h1 className="text-xl font-semibold" style={{ color: '#ffffff' }}>
+                {company.company_name} - <span className="text-sm font-normal" style={{ color: '#9ca3af' }}>
+                  {company.industry_detail?.industry_name || 'Unknown Industry'} • {company.status}
+                </span>
               </h1>
-              <p className="text-sm" style={{ color: '#9ca3af' }}>
-                {company.industry_detail.industry_name} • {company.status}
-              </p>
             </div>
           </div>
         </div>
@@ -127,15 +144,14 @@ export const CompanyDetailsPage: React.FC = () => {
         <div className="px-6">
           <div className="flex space-x-8">
             {[
-              { id: 'info', label: 'Info' },
-              { id: 'branches', label: 'Branches' },
+              { id: 'overview', label: 'Overview' },
               { id: 'schemes', label: 'Schemes' },
               { id: 'members', label: 'Members' },
               { id: 'analytics', label: 'Analytics' }
             ].map((tab) => (
               <button
                 key={tab.id}
-                onClick={() => setActiveTab(tab.id as CompanyDetailsTab)}
+                onClick={() => handleTabChange(tab.id as CompanyDetailsTab)}
                 className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
                   activeTab === tab.id
                     ? 'border-b-2'
@@ -165,8 +181,7 @@ export const CompanyDetailsPage: React.FC = () => {
 
       {/* Content */}
       <div className="flex-1 p-6 overflow-auto">
-        {activeTab === 'info' && <CompanyInfoTab company={company} />}
-        {activeTab === 'branches' && <CompanyBranchesTab company={company} />}
+        {activeTab === 'overview' && <CompanyOverviewTab company={company} />}
         {activeTab === 'schemes' && <CompanySchemesTab company={company} />}
         {activeTab === 'members' && <CompanyMembersTab company={company} />}
         {activeTab === 'analytics' && <CompanyAnalyticsTab company={company} />}
