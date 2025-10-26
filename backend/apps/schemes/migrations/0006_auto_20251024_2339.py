@@ -42,6 +42,6 @@ class Migration(migrations.Migration):
     operations = [
         migrations.RunPython(
             assign_benefits_to_plans,
-            reverse_assign_benefits_to_plans
+            reverse_code=migrations.RunPython.noop,
         ),
     ]

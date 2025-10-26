@@ -59,7 +59,7 @@ export const CompanySchemesTab: React.FC<CompanySchemesTabProps> = ({ company })
     if (searchTerm) {
       filtered = filtered.filter(scheme =>
         scheme.scheme_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        scheme.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (scheme.description ?? '').toLowerCase().includes(searchTerm.toLowerCase()) ||
         scheme.card_code.toLowerCase().includes(searchTerm.toLowerCase())
       );
     }
@@ -126,7 +126,7 @@ export const CompanySchemesTab: React.FC<CompanySchemesTabProps> = ({ company })
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-xl font-semibold" style={{ color: '#ffffff' }}>Insurance Schemes</h2>
+        <h2 className="text-xl font-semibold" style={{ color: '#ffffff' }}>Insurance Schemes</h2>
           <p className="text-sm mt-1" style={{ color: '#9ca3af' }}>
             Manage insurance schemes for {company.company_name}
           </p>
@@ -179,7 +179,7 @@ export const CompanySchemesTab: React.FC<CompanySchemesTabProps> = ({ company })
           error={error}
           onRetry={loadSchemes}
         />
-      </div>
+        </div>
     </div>
   );
 };

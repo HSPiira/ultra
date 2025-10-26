@@ -21,7 +21,7 @@ type TabType = 'schemes' | 'analytics';
 
 const SchemesPage: React.FC = () => {
   const navigate = useNavigate();
-  const { colors, getPageStyles, getTabStyles, getIconButtonStyles } = useThemeStyles();
+  const { colors, getPageStyles, getTabProps, getIconButtonProps } = useThemeStyles();
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingScheme, setEditingScheme] = useState<Scheme | null>(null);
   const [viewMode] = useState<ViewMode>('list');
@@ -144,14 +144,14 @@ const SchemesPage: React.FC = () => {
               <button
                 onClick={() => setActiveTab('schemes')}
                 className="py-4 px-1 border-b-2 font-medium text-sm transition-colors"
-                style={getTabStyles(activeTab === 'schemes')}
+                {...getTabProps(activeTab === 'schemes')}
               >
                 Schemes
               </button>
               <button
                 onClick={() => setActiveTab('analytics')}
                 className="py-4 px-1 border-b-2 font-medium text-sm transition-colors"
-                style={getTabStyles(activeTab === 'analytics')}
+                {...getTabProps(activeTab === 'analytics')}
               >
                 Analytics
               </button>
@@ -162,7 +162,9 @@ const SchemesPage: React.FC = () => {
                 <button
                   onClick={refreshData}
                   className="p-2 rounded-lg transition-colors"
-                  style={getIconButtonStyles()}
+                  aria-label="Refresh schemes data and statistics"
+                  title="Refresh schemes data and statistics"
+                  {...getIconButtonProps()}
                 >
                   <RefreshCw className="w-5 h-5" />
                 </button>

@@ -21,7 +21,7 @@ type TabType = 'companies' | 'analytics';
 
 const CompaniesPage: React.FC = () => {
   const navigate = useNavigate();
-  const { colors, getPageStyles, getTabStyles, getIconButtonStyles } = useThemeStyles();
+  const { colors, getPageStyles, getTabProps, getIconButtonProps } = useThemeStyles();
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingCompany, setEditingCompany] = useState<Company | null>(null);
   const [viewMode] = useState<ViewMode>('list');
@@ -144,14 +144,14 @@ const CompaniesPage: React.FC = () => {
               <button
                 onClick={() => setActiveTab('companies')}
                 className="py-4 px-1 border-b-2 font-medium text-sm transition-colors"
-                style={getTabStyles(activeTab === 'companies')}
+                {...getTabProps(activeTab === 'companies')}
               >
                 Companies
               </button>
               <button
                 onClick={() => setActiveTab('analytics')}
                 className="py-4 px-1 border-b-2 font-medium text-sm transition-colors"
-                style={getTabStyles(activeTab === 'analytics')}
+                {...getTabProps(activeTab === 'analytics')}
               >
                 Analytics
               </button>
@@ -162,7 +162,7 @@ const CompaniesPage: React.FC = () => {
                 <button
                   onClick={refreshData}
                   className="p-2 rounded-lg transition-colors"
-                  style={getIconButtonStyles()}
+                  {...getIconButtonProps()}
                 >
                   <RefreshCw className="w-5 h-5" />
                 </button>

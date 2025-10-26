@@ -24,7 +24,7 @@ interface MemberStatistics {
 }
 
 const MembersPage: React.FC = () => {
-  const { colors, getPageStyles, getIconButtonStyles } = useThemeStyles();
+  const { colors, getPageStyles, getIconButtonProps } = useThemeStyles();
   const [selectedMember, setSelectedMember] = useState<Member | null>(null);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
@@ -191,7 +191,7 @@ const MembersPage: React.FC = () => {
               <Tooltip content="Refresh members data and statistics">
                 <button 
                   className="p-2 rounded-lg transition-colors" 
-                  style={getIconButtonStyles()}
+                  {...getIconButtonProps()}
                   onClick={refreshData}
                 >
                   <RefreshCw className="w-5 h-5" />
@@ -201,7 +201,7 @@ const MembersPage: React.FC = () => {
               <Tooltip content="Export members data to CSV">
                 <button 
                   className="p-2 rounded-lg transition-colors" 
-                  style={getIconButtonStyles()}
+                  {...getIconButtonProps()}
                 >
                   <Download className="w-5 h-5" />
                 </button>
@@ -211,7 +211,7 @@ const MembersPage: React.FC = () => {
                 <button
                   onClick={bulkUpload.openModal}
                   className="p-2 rounded-lg transition-colors"
-                  style={getIconButtonStyles()}
+                  {...getIconButtonProps()}
                 >
                   <Upload className="w-4 h-4" />
                 </button>

@@ -80,8 +80,8 @@ class BenefitService:
             try:
                 plan = Plan.objects.get(id=benefit_data['plan'])
                 benefit_data['plan'] = plan
-            except Plan.DoesNotExist:
-                raise ValidationError(f"Plan with id {benefit_data['plan']} does not exist.")
+            except Plan.DoesNotExist as e:
+                raise ValidationError(f"Plan with id {benefit_data['plan']} does not exist.") from e
         elif 'plan' in benefit_data and benefit_data['plan'] is None:
             benefit_data['plan'] = None
 
@@ -159,8 +159,8 @@ class BenefitService:
                 try:
                     plan = Plan.objects.get(id=update_data['plan'])
                     update_data['plan'] = plan
-                except Plan.DoesNotExist:
-                    raise ValidationError(f"Plan with id {update_data['plan']} does not exist.")
+                except Plan.DoesNotExist as e:
+                    raise ValidationError(f"Plan with id {update_data['plan']} does not exist.") from e
             else:
                 update_data['plan'] = None
 

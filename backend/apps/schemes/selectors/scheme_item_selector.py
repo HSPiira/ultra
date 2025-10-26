@@ -412,9 +412,11 @@ def scheme_assigned_items_get(*, scheme_id: str, content_type: str = None):
             'medicine': ('medical_catalog', 'medicine'),
         }
         
-        if content_type in model_mapping:
-            app_label, model_name = model_mapping[content_type]
-            ct = ContentType.objects.get(app_label=app_label, model=model_name)
-            qs = qs.filter(content_type=ct)
+        if content_type not in model_mapping:
+            raise ValueError(f"Invalid content_type '{content_type}'. Must be one of: {', '.join(model_mapping.keys())}")
+        
+        app_label, model_name = model_mapping[content_type]
+        ct = ContentType.objects.get(app_label=app_label, model=model_name)
+        qs = qs.filter(content_type=ct)
 
     return qs

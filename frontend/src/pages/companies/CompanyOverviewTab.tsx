@@ -67,10 +67,19 @@ export const CompanyOverviewTab: React.FC<CompanyOverviewTabProps> = ({ company 
 
   const formatPhoneNumber = (phone: string) => {
     if (!phone) return 'N/A';
+    
+    // If it's an international number (starts with +), return unchanged
+    if (phone.startsWith('+')) {
+      return phone;
+    }
+    
+    // For non-international numbers, apply US formatting if it's exactly 10 digits
     const cleaned = phone.replace(/\D/g, '');
     if (cleaned.length === 10) {
       return `(${cleaned.slice(0, 3)}) ${cleaned.slice(3, 6)}-${cleaned.slice(6)}`;
     }
+    
+    // For other formats, return the original phone string
     return phone;
   };
 

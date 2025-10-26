@@ -269,23 +269,51 @@ class SchemeItemService:
 
         for i, assignment in enumerate(assignments):
             try:
-                # Get ContentType instance
+                # Get ContentType instance with proper error handling
                 from django.contrib.contenttypes.models import ContentType
-                content_type = ContentType.objects.get(id=assignment.get("content_type"))
+                try:
+                    content_type = ContentType.objects.get(id=assignment.get("content_type"))
+                except (ContentType.DoesNotExist, ValueError) as e:
+                    errors.append(f"Assignment {i+1}: Invalid content_type '{assignment.get('content_type')}': {str(e)}")
+                    continue
+                
+                # Verify the target object exists
+                model_class = content_type.model_class()
+                object_id = assignment.get("object_id")
+                if not model_class.objects.filter(pk=object_id).exists():
+                    errors.append(f"Assignment {i+1}: Object with id '{object_id}' does not exist for content_type '{content_type.app_label}.{content_type.model}'")
+                    continue
                 
                 # Check if item is already assigned but soft-deleted
                 existing_item = SchemeItem.objects.filter(
                     scheme=scheme,
                     content_type=content_type,
-                    object_id=assignment.get("object_id")
+                    object_id=object_id
                 ).first()
                 
                 if existing_item and existing_item.is_deleted:
-                    # Restore the soft-deleted item
+                    # Validate data before restoring
+                    limit_amount = assignment.get("limit_amount")
+                    copayment_percent = assignment.get("copayment_percent")
+                    
+                    # Apply same validation as scheme_item_create
+                    if limit_amount is not None and limit_amount < 0:
+                        errors.append(f"Assignment {i+1}: Limit amount cannot be negative")
+                        continue
+                    
+                    if copayment_percent is not None:
+                        if copayment_percent < 0:
+                            errors.append(f"Assignment {i+1}: Copayment percentage cannot be negative")
+                            continue
+                        if copayment_percent > 100:
+                            errors.append(f"Assignment {i+1}: Copayment percentage cannot exceed 100")
+                            continue
+                    
+                    # Restore the soft-deleted item with validated data
                     existing_item.is_deleted = False
                     existing_item.status = BusinessStatusChoices.ACTIVE
-                    existing_item.limit_amount = assignment.get("limit_amount")
-                    existing_item.copayment_percent = assignment.get("copayment_percent")
+                    existing_item.limit_amount = limit_amount
+                    existing_item.copayment_percent = copayment_percent
                     existing_item.save()
                     created_items.append(existing_item)
                 else:
@@ -293,7 +321,7 @@ class SchemeItemService:
                     scheme_item_data = {
                         "scheme": scheme,
                         "content_type": content_type,
-                        "object_id": assignment.get("object_id"),
+                        "object_id": object_id,
                         "limit_amount": assignment.get("limit_amount"),
                         "copayment_percent": assignment.get("copayment_percent"),
                     }

@@ -1,6 +1,8 @@
 // Color constants for consistent theming across the application
 // NOTE: This file is deprecated. Use the useTheme hook from ThemeContext instead.
 
+import React from 'react';
+
 export const COLORS = {
   // Background colors
   background: {
@@ -41,10 +43,14 @@ export const COLORS = {
   // Action colors
   action: {
     primary: '#3b82f6',      // Primary actions (blue)
+    primaryHover: '#2563eb', // Primary hover state
     secondary: '#6b7280',    // Secondary actions (gray)
     danger: '#ef4444',       // Dangerous actions (red)
+    dangerHover: '#dc2626',  // Danger hover state
     warning: '#f59e0b',      // Warning actions (amber)
+    warningHover: '#d97706', // Warning hover state
     success: '#10b981',      // Success actions (green)
+    successHover: '#059669', // Success hover state
   },
   
   // Relationship colors
@@ -85,7 +91,7 @@ export const getButtonStyles = (variant: 'primary' | 'secondary' | 'danger' | 'w
         backgroundColor: COLORS.action.primary,
         color: COLORS.text.primary,
         onMouseEnter: (e: React.MouseEvent<HTMLElement>) => {
-          e.currentTarget.style.backgroundColor = '#2563eb';
+          e.currentTarget.style.backgroundColor = COLORS.action.primaryHover;
         },
         onMouseLeave: (e: React.MouseEvent<HTMLElement>) => {
           e.currentTarget.style.backgroundColor = COLORS.action.primary;
@@ -109,7 +115,7 @@ export const getButtonStyles = (variant: 'primary' | 'secondary' | 'danger' | 'w
         backgroundColor: COLORS.action.danger,
         color: COLORS.text.primary,
         onMouseEnter: (e: React.MouseEvent<HTMLElement>) => {
-          e.currentTarget.style.backgroundColor = '#dc2626';
+          e.currentTarget.style.backgroundColor = COLORS.action.dangerHover;
         },
         onMouseLeave: (e: React.MouseEvent<HTMLElement>) => {
           e.currentTarget.style.backgroundColor = COLORS.action.danger;
@@ -121,7 +127,7 @@ export const getButtonStyles = (variant: 'primary' | 'secondary' | 'danger' | 'w
         backgroundColor: COLORS.action.warning,
         color: COLORS.text.primary,
         onMouseEnter: (e: React.MouseEvent<HTMLElement>) => {
-          e.currentTarget.style.backgroundColor = '#d97706';
+          e.currentTarget.style.backgroundColor = COLORS.action.warningHover;
         },
         onMouseLeave: (e: React.MouseEvent<HTMLElement>) => {
           e.currentTarget.style.backgroundColor = COLORS.action.warning;
@@ -133,7 +139,7 @@ export const getButtonStyles = (variant: 'primary' | 'secondary' | 'danger' | 'w
         backgroundColor: COLORS.action.success,
         color: COLORS.text.primary,
         onMouseEnter: (e: React.MouseEvent<HTMLElement>) => {
-          e.currentTarget.style.backgroundColor = '#059669';
+          e.currentTarget.style.backgroundColor = COLORS.action.successHover;
         },
         onMouseLeave: (e: React.MouseEvent<HTMLElement>) => {
           e.currentTarget.style.backgroundColor = COLORS.action.success;

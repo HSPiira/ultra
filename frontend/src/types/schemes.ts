@@ -1,3 +1,10 @@
+// Shared type definitions
+export type Status = 'ACTIVE' | 'INACTIVE' | 'SUSPENDED';
+
+// content_type can be a string when reading from API (model name) or number when writing (ContentType ID)
+export type ContentTypeString = 'plan' | 'benefit' | 'hospital' | 'service' | 'labtest' | 'medicine';
+export type ContentTypeId = number;
+
 export interface CompanyDetail {
   id: string;
   company_name: string;
@@ -18,14 +25,14 @@ export interface Scheme {
   limit_amount: number;
   family_applicable: boolean;
   remark: string;
-  status: 'ACTIVE' | 'INACTIVE' | 'SUSPENDED';
+  status: Status;
   created_at: string;
   updated_at: string;
 }
 
 export interface SchemeFilters {
   search?: string;
-  status?: string;
+  status?: Status | string;
   company?: string;
   ordering?: string;
 }
@@ -72,9 +79,9 @@ export interface SchemeItem {
     type: string;
     app_label: string;
   };
-  limit_amount?: number;
-  copayment_percent?: number;
-  status: 'ACTIVE' | 'INACTIVE' | 'SUSPENDED';
+  limit_amount: number | null;
+  copayment_percent: number | null;
+  status: Status;
   created_at: string;
   updated_at: string;
 }
@@ -83,14 +90,14 @@ export interface AvailableItem {
   id: string;
   name: string;
   content_type: string;
-  status: string;
+  status: Status;
 }
 
 export interface SchemeAssignment {
-  content_type: number;
+  content_type: ContentTypeId;
   object_id: string;
-  limit_amount?: number;
-  copayment_percent?: number;
+  limit_amount?: number | null;
+  copayment_percent?: number | null;
 }
 
 export interface BulkAssignmentRequest {
@@ -106,5 +113,5 @@ export interface BulkAssignmentResponse {
 export interface AssignmentFilters {
   content_type?: string;
   search?: string;
-  status?: string;
+  status?: Status | string;
 }

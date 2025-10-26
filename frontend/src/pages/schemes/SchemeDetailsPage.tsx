@@ -226,7 +226,7 @@ export const SchemeDetailsPage: React.FC = () => {
               <SchemeAssignmentsTab 
                 scheme={scheme} 
                 activeGroup={subTab as 'coverage' | 'medical' || 'coverage'}
-                activeType={subSubTab as any || 'plan'}
+                activeType={subSubTab as any || 'plans'}
                 onGroupChange={handleSubTabChange}
                 onTypeChange={handleSubSubTabChange}
               />

@@ -9,8 +9,8 @@ import {
   Plus,
   Upload
 } from 'lucide-react';
-import { useThemeStyles } from '../../hooks';
-import { Tooltip } from '../../components/common';
+import { useThemeStyles, useBulkUpload } from '../../hooks';
+import { Tooltip, BulkUploadModal } from '../../components/common';
 import { ServicesListNew } from './ServicesListNew';
 import { MedicinesListNew } from './MedicinesListNew';
 import { LabTestsListNew } from './LabTestsListNew';
@@ -26,7 +26,7 @@ type TabType = 'services' | 'medicines' | 'labtests' | 'prices';
 const MedicalCatalogPage: React.FC = () => {
   const { tab } = useParams<{ tab?: string }>();
   const navigate = useNavigate();
-  const { colors, getPageStyles, getTabStyles, getIconButtonStyles } = useThemeStyles();
+  const { colors, getPageStyles, getTabProps, getIconButtonProps } = useThemeStyles();
   const [activeTab, setActiveTab] = useState<TabType>('services');
   const [showForm, setShowForm] = useState(false);
   const [formType, setFormType] = useState<'service' | 'medicine' | 'labtest' | 'price'>('service');
@@ -42,6 +42,47 @@ const MedicalCatalogPage: React.FC = () => {
     activeLabTests: 0,
     activeHospitalPrices: 0
   });
+
+  // Bulk upload functionality
+  const bulkUpload = useBulkUpload({
+    onUpload: async (data) => {
+      try {
+        // Process bulk upload - in real implementation, you'd call a bulk API endpoint
+        console.log('Bulk uploading medical catalog data:', data);
+        // Simulate API call
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        setRefreshTrigger(prev => prev + 1);
+        return { success: true };
+      } catch (error) {
+        console.error('Bulk upload failed:', error);
+        return { success: false, errors: [] };
+      }
+    },
+    onSuccess: () => {
+      console.log('Bulk upload completed successfully');
+    },
+    onError: (error) => {
+      console.error('Bulk upload error:', error);
+    }
+  });
+
+  // Bulk upload configuration
+  const MEDICAL_CATALOG_BULK_UPLOAD_CONFIG = {
+    title: 'Upload Medical Catalog Data',
+    description: 'Upload medical catalog items from a CSV file. The file should contain the appropriate columns for the selected tab.',
+    acceptedFileTypes: ['.csv'],
+    sampleFileName: 'medical_catalog_sample.csv',
+    fieldMappings: {
+      'name': 'name',
+      'description': 'description',
+      'code': 'code',
+      'price': 'price',
+      'status': 'status'
+    },
+    sampleData: [
+      { name: 'Sample Item', description: 'Sample description', code: 'SAMPLE001', price: '100.00', status: 'ACTIVE' }
+    ]
+  };
 
   useEffect(() => {
     loadStatistics();
@@ -238,7 +279,7 @@ const MedicalCatalogPage: React.FC = () => {
                     key={tab.id}
                     onClick={() => handleTabChange(tab.id)}
                     className="py-4 px-1 border-b-2 font-medium text-sm transition-colors"
-                    style={getTabStyles(activeTab === tab.id)}
+                    {...getTabProps(activeTab === tab.id)}
                   >
                     <div className="flex items-center gap-2">
                       <Icon className="w-4 h-4" />
@@ -256,7 +297,7 @@ const MedicalCatalogPage: React.FC = () => {
               <Tooltip content="Refresh medical catalog data">
                 <button 
                   className="p-2 rounded-lg transition-colors" 
-                  style={getIconButtonStyles()}
+                  {...getIconButtonProps()}
                   onClick={() => setRefreshTrigger(prev => prev + 1)}
                 >
                   <RefreshCw className="w-5 h-5" />
@@ -266,7 +307,16 @@ const MedicalCatalogPage: React.FC = () => {
               <Tooltip content="Add new medical item">
                 <button 
                   className="p-2 rounded-lg transition-colors" 
-                  style={getIconButtonStyles()}
+                  {...getIconButtonProps()}
+                  onClick={() => {
+                    setEditingItem(null);
+                    setFormType(
+                      activeTab === 'services' ? 'service' :
+                      activeTab === 'medicines' ? 'medicine' :
+                      activeTab === 'labtests' ? 'labtest' : 'price'
+                    );
+                    setShowForm(true);
+                  }}
                 >
                   <Plus className="w-5 h-5" />
                 </button>
@@ -275,7 +325,8 @@ const MedicalCatalogPage: React.FC = () => {
               <Tooltip content="Upload medical catalog data from CSV">
                 <button 
                   className="p-2 rounded-lg transition-colors" 
-                  style={getIconButtonStyles()}
+                  {...getIconButtonProps()}
+                  onClick={bulkUpload.openModal}
                 >
                   <Upload className="w-5 h-5" />
                 </button>
@@ -292,6 +343,14 @@ const MedicalCatalogPage: React.FC = () => {
 
       {/* Forms */}
       {renderForm()}
+
+      {/* Bulk Upload Modal */}
+      <BulkUploadModal
+        isOpen={bulkUpload.isModalOpen}
+        onClose={bulkUpload.closeModal}
+        onUpload={bulkUpload.handleUpload}
+        {...MEDICAL_CATALOG_BULK_UPLOAD_CONFIG}
+      />
     </div>
   );
 };

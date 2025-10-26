@@ -4,14 +4,22 @@ import { useTheme } from '../../contexts/ThemeContext';
 import { useThemeStyles } from '../../hooks';
 import { Tooltip } from './Tooltip';
 
-interface HeaderProps {
-  onMenuToggle?: () => void;
+interface User {
+  id: string;
+  name: string;
+  email: string;
+  avatar?: string;
 }
 
-export function Header({ onMenuToggle }: HeaderProps) {
+interface HeaderProps {
+  onMenuToggle?: () => void;
+  user?: User | null;
+}
+
+export function Header({ onMenuToggle, user }: HeaderProps) {
   const [showUserMenu, setShowUserMenu] = useState(false);
   const { theme, toggleTheme } = useTheme();
-  const { colors, getIconButtonStyles } = useThemeStyles();
+  const { colors, getIconButtonProps } = useThemeStyles();
 
   return (
     <header 
@@ -71,7 +79,7 @@ export function Header({ onMenuToggle }: HeaderProps) {
         <Tooltip content="Search claims, companies, members">
           <button
             className="sm:hidden p-2 rounded-lg transition-colors"
-            style={getIconButtonStyles()}
+            {...getIconButtonProps()}
             aria-label="Search"
           >
             <Search className="w-5 h-5" />
@@ -81,7 +89,7 @@ export function Header({ onMenuToggle }: HeaderProps) {
         <Tooltip content="View notifications and alerts">
           <button
             className="relative p-2 sm:p-2.5 rounded-lg transition-colors"
-            style={getIconButtonStyles()}
+            {...getIconButtonProps()}
             aria-label="Notifications"
           >
             <Bell className="w-5 h-5" />
@@ -94,7 +102,7 @@ export function Header({ onMenuToggle }: HeaderProps) {
           <button
             onClick={toggleTheme}
             className="p-2 sm:p-2.5 rounded-lg transition-colors"
-            style={getIconButtonStyles()}
+            {...getIconButtonProps()}
             aria-label={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}
           >
             {theme === 'light' ? (
@@ -118,8 +126,12 @@ export function Header({ onMenuToggle }: HeaderProps) {
               <User className="w-3 h-3 sm:w-4 sm:h-4" style={{ color: colors.text.primary }} />
             </div>
             <div className="hidden sm:block text-left">
-              <p className="text-sm font-medium" style={{ color: colors.text.primary }}>Piira</p>
-              <p className="text-xs" style={{ color: colors.text.tertiary }}>sekiboh@gmail.com</p>
+              <p className="text-sm font-medium" style={{ color: colors.text.primary }}>
+                {user ? user.name : 'Guest'}
+              </p>
+              <p className="text-xs" style={{ color: colors.text.tertiary }}>
+                {user ? user.email : 'Not signed in'}
+              </p>
             </div>
             <svg className="w-4 h-4" style={{ color: colors.text.tertiary }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
@@ -130,8 +142,12 @@ export function Header({ onMenuToggle }: HeaderProps) {
           {showUserMenu && (
             <div className="absolute right-0 top-full mt-2 w-56 rounded-lg shadow-lg py-2 z-50 border" style={{ backgroundColor: colors.background.primary, borderColor: colors.border.primary }}>
               <div className="px-4 py-3 border-b" style={{ borderColor: colors.border.primary }}>
-                <p className="text-sm font-medium" style={{ color: colors.text.primary }}>Piira</p>
-                <p className="text-xs" style={{ color: colors.text.tertiary }}>sekiboh@gmail.com</p>
+                <p className="text-sm font-medium" style={{ color: colors.text.primary }}>
+                  {user ? user.name : 'Guest'}
+                </p>
+                <p className="text-xs" style={{ color: colors.text.tertiary }}>
+                  {user ? user.email : 'Not signed in'}
+                </p>
               </div>
               <div className="py-1">
                 <Tooltip content="View and edit your profile">

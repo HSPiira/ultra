@@ -1,19 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { 
-  Shield, 
-  Calendar, 
-  DollarSign, 
   Users, 
-  FileText,
   AlertCircle,
   ChevronDown,
   ChevronRight,
-  Heart,
   Package
 } from 'lucide-react';
 import { schemeItemsApi } from '../../services/scheme-items';
 import type { Scheme } from '../../types/schemes';
-import type { SchemeItem } from '../../types/schemes';
 import type { Plan } from '../../types/plans';
 import type { Benefit } from '../../types/benefits';
 
@@ -67,27 +61,76 @@ export const SchemeOverviewTab: React.FC<SchemeOverviewTabProps> = ({ scheme }) 
       });
 
       // Process benefit items and group them by their plans
-      benefitItems.forEach(item => {
-        if (item.item_detail && item.item_detail.type === 'benefit') {
-          const benefit: Benefit = {
-            id: item.item_detail.id,
-            benefit_name: item.item_detail.name,
-            description: '', // We don't have description in item_detail
-            in_or_out_patient: 'BOTH', // Default value
-            limit_amount: item.limit_amount,
-            status: item.status as 'ACTIVE' | 'INACTIVE' | 'SUSPENDED',
-            created_at: item.created_at,
-            updated_at: item.updated_at
-          };
-          
-          // For now, add all benefits to the first plan
-          // TODO: Implement proper plan-benefit grouping based on the plan relationship
-          const firstPlan = Array.from(plansMap.values())[0];
-          if (firstPlan) {
-            firstPlan.benefits.push(benefit);
-          }
+      // Fetch the actual benefit data to get plan information
+      const benefitIds = benefitItems
+        .filter(item => item.item_detail && item.item_detail.type === 'benefit')
+        .map(item => item.item_detail.id);
+      
+      // If we have benefits, fetch their full data to get plan information
+      if (benefitIds.length > 0) {
+        const benefitData = new Map<string, Benefit>();
+        try {
+          // Import benefits API
+          const { benefitsApi } = await import('../../services/benefits');
+          const benefits = await benefitsApi.getBenefits();
+          benefits.forEach(benefit => {
+            if (benefitIds.includes(benefit.id)) {
+              benefitData.set(benefit.id, benefit);
+            }
+          });
+        } catch (error) {
+          console.error('Error fetching benefit details:', error);
         }
-      });
+
+        // Process benefit items and assign to correct plans
+        benefitItems.forEach(item => {
+          if (item.item_detail && item.item_detail.type === 'benefit') {
+            const benefitDetail = benefitData.get(item.item_detail.id);
+            const benefit: Benefit = {
+              id: item.item_detail.id,
+              benefit_name: item.item_detail.name,
+              description: benefitDetail?.description || '', 
+              in_or_out_patient: benefitDetail?.in_or_out_patient || 'BOTH',
+              limit_amount: item.limit_amount ?? undefined,
+              status: item.status as 'ACTIVE' | 'INACTIVE' | 'SUSPENDED',
+              created_at: item.created_at,
+              updated_at: item.updated_at,
+              plan: benefitDetail?.plan,
+              plan_detail: benefitDetail?.plan_detail
+            };
+            
+            // Determine the target plan ID
+            const targetPlanId = benefitDetail?.plan || benefitDetail?.plan_detail?.id;
+            
+            if (targetPlanId && plansMap.has(targetPlanId)) {
+              // Add benefit to the correct plan
+              const targetPlan = plansMap.get(targetPlanId);
+              if (targetPlan) {
+                targetPlan.benefits.push(benefit);
+              }
+            } else {
+              // Create an "unassigned" plan for benefits without a plan or with an unknown plan
+              if (!plansMap.has('unassigned')) {
+                plansMap.set('unassigned', {
+                  plan: {
+                    id: 'unassigned',
+                    plan_name: 'Unassigned Benefits',
+                    description: 'Benefits not assigned to a specific plan',
+                    status: 'ACTIVE',
+                    created_at: '',
+                    updated_at: ''
+                  },
+                  benefits: []
+                });
+              }
+              const unassignedPlan = plansMap.get('unassigned');
+              if (unassignedPlan) {
+                unassignedPlan.benefits.push(benefit);
+              }
+            }
+          }
+        });
+      }
 
       setPlansWithBenefits(Array.from(plansMap.values()));
     } catch (error) {
@@ -123,18 +166,6 @@ export const SchemeOverviewTab: React.FC<SchemeOverviewTabProps> = ({ scheme }) 
     }).format(amount);
   };
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'ACTIVE':
-        return 'text-green-400 bg-green-900';
-      case 'INACTIVE':
-        return 'text-red-400 bg-red-900';
-      case 'SUSPENDED':
-        return 'text-amber-400 bg-amber-900';
-      default:
-        return 'text-gray-400 bg-gray-900';
-    }
-  };
 
   const getDaysTillExpiry = (endDate: string) => {
     const today = new Date();

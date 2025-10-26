@@ -141,8 +141,8 @@ class PlanField(serializers.Field):
             return None
         try:
             return Plan.objects.get(id=data)
-        except Plan.DoesNotExist:
-            raise serializers.ValidationError(f'Plan with id {data} does not exist.')
+        except Plan.DoesNotExist as e:
+            raise serializers.ValidationError(f'Plan with id {data} does not exist.') from e
     
     def to_representation(self, value):
         if value is None:
@@ -305,5 +305,36 @@ class BulkSchemeItemSerializer(serializers.Serializer):
                     raise serializers.ValidationError(
                         f"Assignment {i+1}: Copayment percentage cannot exceed 100"
                     )
+        
+        return value
+
+
+class BulkAssignmentSerializer(serializers.Serializer):
+    """Serializer for bulk assignment operations."""
+    
+    scheme_id = serializers.UUIDField(required=True)
+    assignments = serializers.ListField(
+        child=serializers.DictField(),
+        required=True,
+        allow_empty=False
+    )
+    
+    def validate_assignments(self, value):
+        """Validate assignments list structure."""
+        if not isinstance(value, list):
+            raise serializers.ValidationError("Assignments must be a list")
+        
+        if len(value) == 0:
+            raise serializers.ValidationError("Assignments list cannot be empty")
+        
+        # Validate each assignment has required fields
+        for i, assignment in enumerate(value):
+            if not isinstance(assignment, dict):
+                raise serializers.ValidationError(f"Assignment {i+1} must be a dictionary")
+            
+            required_fields = ['content_type_id', 'object_id']
+            for field in required_fields:
+                if field not in assignment:
+                    raise serializers.ValidationError(f"Assignment {i+1} missing required field: {field}")
         
         return value

@@ -20,7 +20,7 @@ class Migration(migrations.Migration):
                 blank=True,
                 help_text="Plan this benefit belongs to.",
                 null=True,
-                on_delete=django.db.models.deletion.CASCADE,
+                on_delete=django.db.models.deletion.SET_NULL,
                 to="schemes.plan",
             ),
         ),

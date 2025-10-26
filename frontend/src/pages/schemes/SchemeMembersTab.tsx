@@ -52,6 +52,7 @@ export const SchemeMembersTab: React.FC<SchemeMembersTabProps> = ({ scheme }) =>
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
   const [selectedMember, setSelectedMember] = useState<Member | null>(null);
   const [showMemberDetails, setShowMemberDetails] = useState(false);
+  const [showAddMemberModal, setShowAddMemberModal] = useState(false);
 
   useEffect(() => {
     loadMembers();
@@ -189,6 +190,14 @@ export const SchemeMembersTab: React.FC<SchemeMembersTabProps> = ({ scheme }) =>
   const handleMemberDelete = (member: Member) => {
     // TODO: Implement delete functionality
     console.log('Delete member:', member);
+  };
+
+  const handleAddMember = () => {
+    setShowAddMemberModal(true);
+  };
+
+  const handleCloseAddMemberModal = () => {
+    setShowAddMemberModal(false);
   };
 
   // Table columns configuration
@@ -369,6 +378,7 @@ export const SchemeMembersTab: React.FC<SchemeMembersTabProps> = ({ scheme }) =>
         </button>
 
         <button
+          onClick={handleAddMember}
           className="flex items-center gap-2 px-4 py-2 rounded-lg transition-colors"
           style={{ backgroundColor: '#3b82f6', color: '#ffffff' }}
           onMouseEnter={(e) => {
@@ -502,6 +512,42 @@ export const SchemeMembersTab: React.FC<SchemeMembersTabProps> = ({ scheme }) =>
                   </div>
                 )}
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Add Member Modal */}
+      {showAddMemberModal && (
+        <div className="fixed inset-0 flex items-center justify-center z-50 backdrop-blur-sm" style={{ backgroundColor: 'rgba(0, 0, 0, 0.05)' }}>
+          <div className="bg-gray-900 rounded-lg shadow-xl w-full max-w-md flex flex-col" style={{ backgroundColor: '#1a1a1a' }}>
+            {/* Header */}
+            <div className="flex items-center justify-between p-6 border-b flex-shrink-0" style={{ borderColor: '#4a4a4a' }}>
+              <h2 className="text-xl font-semibold" style={{ color: '#ffffff' }}>
+                Add Member to Scheme
+              </h2>
+              <button
+                onClick={handleCloseAddMemberModal}
+                className="p-2 rounded-lg transition-colors"
+                style={{ color: '#9ca3af' }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = '#3b3b3b';
+                  e.currentTarget.style.color = '#ffffff';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = 'transparent';
+                  e.currentTarget.style.color = '#9ca3af';
+                }}
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Content */}
+            <div className="flex-1 overflow-y-auto p-6">
+              <p className="text-sm" style={{ color: '#9ca3af' }}>
+                Add member functionality will be implemented here.
+              </p>
             </div>
           </div>
         </div>

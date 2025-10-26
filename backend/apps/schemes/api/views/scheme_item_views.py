@@ -2,8 +2,10 @@ from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import filters, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
+from rest_framework.exceptions import ValidationError
+import logging
 
-from apps.schemes.api.serializers import SchemeItemSerializer
+from apps.schemes.api.serializers import SchemeItemSerializer, BulkAssignmentSerializer
 from apps.schemes.models import SchemeItem
 from apps.schemes.selectors import (
     scheme_item_list,
@@ -11,6 +13,8 @@ from apps.schemes.selectors import (
     scheme_assigned_items_get,
 )
 from apps.schemes.services.scheme_item_service import SchemeItemService
+
+logger = logging.getLogger(__name__)
 
 
 class SchemeItemViewSet(viewsets.ModelViewSet):
@@ -67,33 +71,31 @@ class SchemeItemViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=["post"], url_path="bulk")
     def bulk_create(self, request):
         """Bulk create scheme items for a specific scheme."""
-        scheme_id = request.data.get("scheme_id")
-        assignments = request.data.get("assignments", [])
+        serializer = BulkAssignmentSerializer(data=request.data)
         
-        if not scheme_id:
-            return Response(
-                {"error": "scheme_id is required"}, 
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        
-        if not assignments:
-            return Response(
-                {"error": "assignments list is required"}, 
-                status=status.HTTP_400_BAD_REQUEST
-            )
-
         try:
+            serializer.is_valid(raise_exception=True)
+            validated_data = serializer.validated_data
+            
             created_items = SchemeItemService.scheme_items_bulk_create(
-                scheme_id=scheme_id,
-                assignments=assignments,
+                scheme_id=validated_data['scheme_id'],
+                assignments=validated_data['assignments'],
                 user=request.user
             )
-            serializer = self.get_serializer(created_items, many=True)
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
-        except Exception as e:
+            
+            response_serializer = self.get_serializer(created_items, many=True)
+            return Response(response_serializer.data, status=status.HTTP_201_CREATED)
+            
+        except ValidationError as e:
             return Response(
-                {"error": str(e)}, 
+                {"errors": e.detail}, 
                 status=status.HTTP_400_BAD_REQUEST
+            )
+        except Exception as e:
+            logger.error(f"Unexpected error in bulk_create: {str(e)}", exc_info=True)
+            return Response(
+                {"error": "An internal server error occurred"}, 
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
     @action(detail=False, methods=["post"], url_path="bulk-remove")

@@ -137,10 +137,10 @@ export const AssignmentTable: React.FC<AssignmentTableProps> = ({
                 </div>
 
                 {/* Actions */}
-                {isAssigned && (
+                {isAssigned && onRemove && (
                   <div className="flex items-center gap-1">
                     <button
-                      onClick={() => onRemove?.(schemeItem)}
+                      onClick={() => onRemove(schemeItem)}
                       className="p-1 rounded transition-colors"
                       style={{ backgroundColor: '#3b3b3b', color: '#9ca3af' }}
                       onMouseEnter={(e) => {

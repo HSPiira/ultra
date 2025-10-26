@@ -31,8 +31,6 @@ export const Tooltip: React.FC<TooltipProps> = ({
     const tooltipRect = tooltipRef.current.getBoundingClientRect();
     const viewportWidth = window.innerWidth;
     const viewportHeight = window.innerHeight;
-    const scrollX = window.scrollX;
-    const scrollY = window.scrollY;
 
     let top = 0;
     let left = 0;
@@ -40,61 +38,61 @@ export const Tooltip: React.FC<TooltipProps> = ({
 
     switch (position) {
       case 'top':
-        top = triggerRect.top + scrollY - tooltipRect.height - 8;
-        left = triggerRect.left + scrollX + (triggerRect.width - tooltipRect.width) / 2;
+        top = triggerRect.top - tooltipRect.height - 8;
+        left = triggerRect.left + (triggerRect.width - tooltipRect.width) / 2;
         
         // If tooltip goes above viewport, switch to bottom
-        if (top < scrollY) {
+        if (top < 0) {
           newPosition = 'bottom';
-          top = triggerRect.bottom + scrollY + 8;
+          top = triggerRect.bottom + 8;
         }
         break;
 
       case 'bottom':
-        top = triggerRect.bottom + scrollY + 8;
-        left = triggerRect.left + scrollX + (triggerRect.width - tooltipRect.width) / 2;
+        top = triggerRect.bottom + 8;
+        left = triggerRect.left + (triggerRect.width - tooltipRect.width) / 2;
         
         // If tooltip goes below viewport, switch to top
-        if (top + tooltipRect.height > scrollY + viewportHeight) {
+        if (top + tooltipRect.height > viewportHeight) {
           newPosition = 'top';
-          top = triggerRect.top + scrollY - tooltipRect.height - 8;
+          top = triggerRect.top - tooltipRect.height - 8;
         }
         break;
 
       case 'left':
-        top = triggerRect.top + scrollY + (triggerRect.height - tooltipRect.height) / 2;
-        left = triggerRect.left + scrollX - tooltipRect.width - 8;
+        top = triggerRect.top + (triggerRect.height - tooltipRect.height) / 2;
+        left = triggerRect.left - tooltipRect.width - 8;
         
         // If tooltip goes left of viewport, switch to right
-        if (left < scrollX) {
+        if (left < 0) {
           newPosition = 'right';
-          left = triggerRect.right + scrollX + 8;
+          left = triggerRect.right + 8;
         }
         break;
 
       case 'right':
-        top = triggerRect.top + scrollY + (triggerRect.height - tooltipRect.height) / 2;
-        left = triggerRect.right + scrollX + 8;
+        top = triggerRect.top + (triggerRect.height - tooltipRect.height) / 2;
+        left = triggerRect.right + 8;
         
         // If tooltip goes right of viewport, switch to left
-        if (left + tooltipRect.width > scrollX + viewportWidth) {
+        if (left + tooltipRect.width > viewportWidth) {
           newPosition = 'left';
-          left = triggerRect.left + scrollX - tooltipRect.width - 8;
+          left = triggerRect.left - tooltipRect.width - 8;
         }
         break;
     }
 
     // Ensure tooltip stays within viewport bounds
-    if (left < scrollX) {
-      left = scrollX + 8;
-    } else if (left + tooltipRect.width > scrollX + viewportWidth) {
-      left = scrollX + viewportWidth - tooltipRect.width - 8;
+    if (left < 0) {
+      left = 8;
+    } else if (left + tooltipRect.width > viewportWidth) {
+      left = viewportWidth - tooltipRect.width - 8;
     }
 
-    if (top < scrollY) {
-      top = scrollY + 8;
-    } else if (top + tooltipRect.height > scrollY + viewportHeight) {
-      top = scrollY + viewportHeight - tooltipRect.height - 8;
+    if (top < 0) {
+      top = 8;
+    } else if (top + tooltipRect.height > viewportHeight) {
+      top = viewportHeight - tooltipRect.height - 8;
     }
 
     setTooltipPosition({ top, left });
@@ -124,6 +122,27 @@ export const Tooltip: React.FC<TooltipProps> = ({
       calculatePosition();
     }
   }, [isVisible, position]);
+
+  // Add scroll and resize listeners to recompute position
+  useEffect(() => {
+    if (!isVisible) return;
+
+    const handleScroll = () => {
+      calculatePosition();
+    };
+
+    const handleResize = () => {
+      calculatePosition();
+    };
+
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    window.addEventListener('resize', handleResize, { passive: true });
+
+    return () => {
+      window.removeEventListener('scroll', handleScroll);
+      window.removeEventListener('resize', handleResize);
+    };
+  }, [isVisible]);
 
   useEffect(() => {
     return () => {

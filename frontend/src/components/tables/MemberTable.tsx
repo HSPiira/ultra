@@ -54,26 +54,26 @@ export const MemberTable: React.FC<MemberTableProps> = ({
       ),
     },
     {
-      key: 'company_detail' as keyof Member,
+      key: 'company_detail.company_name' as any,
       label: 'Company',
       width: 'w-1/6',
       sortable: true,
       align: 'left' as const,
-      render: (value: any) => (
-        <span className="text-sm" title={value?.company_name || 'N/A'}>
-          {value?.company_name || 'N/A'}
+      render: (value: any, member: Member) => (
+        <span className="text-sm" title={member.company_detail?.company_name || 'N/A'}>
+          {member.company_detail?.company_name || 'N/A'}
         </span>
       ),
     },
     {
-      key: 'scheme_detail' as keyof Member,
+      key: 'scheme_detail.scheme_name' as any,
       label: 'Scheme',
       width: 'w-1/6',
       sortable: true,
       align: 'left' as const,
-      render: (value: any) => (
-        <span className="text-sm" title={value?.scheme_name || 'N/A'}>
-          {value?.scheme_name || 'N/A'}
+      render: (value: any, member: Member) => (
+        <span className="text-sm" title={member.scheme_detail?.scheme_name || 'N/A'}>
+          {member.scheme_detail?.scheme_name || 'N/A'}
         </span>
       ),
     },

@@ -36,7 +36,7 @@ export const BulkUploadModal: React.FC<BulkUploadModalProps> = ({
   description,
   sampleFileName,
   sampleFileUrl,
-  acceptedFileTypes = ['.csv', '.xlsx'],
+  acceptedFileTypes = ['.csv'],
   maxFileSize = 10,
   requiredFields = [],
   fieldMappings = {},
@@ -65,14 +65,47 @@ export const BulkUploadModal: React.FC<BulkUploadModalProps> = ({
   };
 
   const parseCSV = (csvText: string): BulkUploadData[] => {
-    const lines = csvText.split('\n').filter(line => line.trim());
+    // Parse CSV with proper handling of quoted values
+    const parseCSVLine = (line: string): string[] => {
+      const result: string[] = [];
+      let current = '';
+      let inQuotes = false;
+      
+      for (let i = 0; i < line.length; i++) {
+        const char = line[i];
+        const nextChar = line[i + 1];
+        
+        if (char === '"') {
+          if (inQuotes && nextChar === '"') {
+            // Escaped quote
+            current += '"';
+            i++; // Skip next quote
+          } else {
+            // Toggle quote state
+            inQuotes = !inQuotes;
+          }
+        } else if (char === ',' && !inQuotes) {
+          // Field separator
+          result.push(current.trim());
+          current = '';
+        } else {
+          current += char;
+        }
+      }
+      
+      // Add last field
+      result.push(current.trim());
+      return result;
+    };
+    
+    const lines = csvText.split(/\r?\n/).filter(line => line.trim());
     if (lines.length < 2) return [];
 
-    const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
+    const headers = parseCSVLine(lines[0]);
     const data: BulkUploadData[] = [];
 
     for (let i = 1; i < lines.length; i++) {
-      const values = lines[i].split(',').map(v => v.trim().replace(/"/g, ''));
+      const values = parseCSVLine(lines[i]);
       const row: BulkUploadData = {};
       
       headers.forEach((header, index) => {
@@ -196,7 +229,7 @@ export const BulkUploadModal: React.FC<BulkUploadModalProps> = ({
 
   return (
     <div 
-      className="fixed inset-0 flex items-center justify-center z-50 backdrop-blur-xs"
+      className="fixed inset-0 flex items-center justify-center z-50 backdrop-blur-sm"
       style={{ backgroundColor: 'rgba(0, 0, 0, 0.05)' }}
     >
       <div 

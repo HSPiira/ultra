@@ -56,16 +56,54 @@ export const MembersList: React.FC<MembersListProps> = ({
     }
   };
 
-  // Sort function
+  // Helper function to get nested value using dot notation with safe handling
+  const getNestedValue = (obj: any, path: string): any => {
+    if (!path) return obj;
+    
+    // For non-dot notation paths, access directly
+    if (!path.includes('.')) {
+      return obj && typeof obj === 'object' && path in obj ? obj[path] : null;
+    }
+    
+    // For dot notation paths, safely traverse
+    return path.split('.').reduce((current: any, key: string) => {
+      if (current === null || current === undefined) return null;
+      if (typeof current !== 'object') return null;
+      return key in current ? current[key] : null;
+    }, obj);
+  };
+
+  // Helper function to normalize values for comparison with type safety
+  const normalizeValue = (value: any): string | number | null => {
+    if (value === null || value === undefined) return null;
+    if (typeof value === 'string') return value.toLowerCase();
+    if (typeof value === 'number') return value;
+    if (typeof value === 'boolean') return value ? 1 : 0;
+    // Convert any other type to lowercase string for comparison
+    return String(value).toLowerCase();
+  };
+
+  // Sort function with proper nested accessor handling
   const sortData = <T,>(data: T[], field: string, direction: 'asc' | 'desc'): T[] => {
     if (!field) return data;
     
     return [...data].sort((a, b) => {
-      const aValue = (a as any)[field];
-      const bValue = (b as any)[field];
+      // Use dot notation parsing to extract nested values
+      const aValue = getNestedValue(a, field);
+      const bValue = getNestedValue(b, field);
       
-      if (aValue < bValue) return direction === 'asc' ? -1 : 1;
-      if (aValue > bValue) return direction === 'asc' ? 1 : -1;
+      // Normalize values for stable comparison
+      const normalizedA = normalizeValue(aValue);
+      const normalizedB = normalizeValue(bValue);
+      
+      // Handle null/undefined values - place them at the end
+      if (normalizedA === null && normalizedB === null) return 0;
+      if (normalizedA === null) return direction === 'asc' ? 1 : -1;
+      if (normalizedB === null) return direction === 'asc' ? -1 : 1;
+      
+      // Compare normalized primitive values
+      if (normalizedA < normalizedB) return direction === 'asc' ? -1 : 1;
+      if (normalizedA > normalizedB) return direction === 'asc' ? 1 : -1;
       return 0;
     });
   };
@@ -81,14 +119,18 @@ export const MembersList: React.FC<MembersListProps> = ({
 
   // Filter and sort data
   const filteredMembers = sortData(
-    allFilteredMembers.filter(member =>
-      member.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      member.card_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      member.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      member.phone_number?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      member.company_detail?.company_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      member.scheme_detail?.scheme_name?.toLowerCase().includes(searchTerm.toLowerCase())
-    ),
+    allFilteredMembers.filter((member) => {
+      const q = searchTerm.toLowerCase();
+      const includes = (v: unknown) => String(v ?? '').toLowerCase().includes(q);
+      return (
+        includes(member.name) ||
+        includes(member.card_number) ||
+        includes(member.email) ||
+        includes(member.phone_number) ||
+        includes(member.company_detail?.company_name) ||
+        includes(member.scheme_detail?.scheme_name)
+      );
+    }),
     sortField,
     sortDirection
   );

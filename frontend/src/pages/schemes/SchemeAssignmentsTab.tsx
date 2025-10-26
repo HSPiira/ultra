@@ -12,6 +12,7 @@ import {
   RefreshCw
 } from 'lucide-react';
 import { schemeItemsApi } from '../../services/scheme-items';
+import { api } from '../../services/api';
 import { AssignmentTable } from '../../components/tables/AssignmentTable';
 import type { Scheme } from '../../types/schemes';
 import type { SchemeItem, AvailableItem, SchemeAssignment } from '../../types/schemes';
@@ -55,6 +56,7 @@ export const SchemeAssignmentsTab: React.FC<SchemeAssignmentsTabProps> = ({
   const [statusFilter, setStatusFilter] = useState('');
   const [assignedPlans, setAssignedPlans] = useState<SchemeItem[]>([]);
   const [contentTypeMapping, setContentTypeMapping] = useState<Record<string, number>>({});
+  const [contentTypeMappingError, setContentTypeMappingError] = useState<string | undefined>(undefined);
 
   useEffect(() => {
     loadContentTypeMapping();
@@ -76,32 +78,27 @@ export const SchemeAssignmentsTab: React.FC<SchemeAssignmentsTabProps> = ({
 
   const loadContentTypeMapping = async () => {
     try {
-      // Fetch ContentType mapping from backend
-      const response = await fetch('http://localhost:8000/content-types/');
-      if (response.ok) {
-        const contentTypes = await response.json();
-        const mapping: Record<string, number> = {};
-        contentTypes.forEach((ct: any) => {
-          if (ct.app_label === 'schemes' && ct.model === 'plan') mapping['plan'] = ct.id;
-          if (ct.app_label === 'schemes' && ct.model === 'benefit') mapping['benefit'] = ct.id;
-          if (ct.app_label === 'providers' && ct.model === 'hospital') mapping['hospital'] = ct.id;
-          if (ct.app_label === 'medical_catalog' && ct.model === 'service') mapping['service'] = ct.id;
-          if (ct.app_label === 'medical_catalog' && ct.model === 'labtest') mapping['labtest'] = ct.id;
-          if (ct.app_label === 'medical_catalog' && ct.model === 'medicine') mapping['medicine'] = ct.id;
-        });
-        setContentTypeMapping(mapping);
-      }
+      setContentTypeMappingError(undefined);
+      
+      // Fetch ContentType mapping from backend using the API client
+      const response = await api.get<any[]>('/content-types/');
+      
+      const contentTypes = response.data;
+      const mapping: Record<string, number> = {};
+      
+      contentTypes.forEach((ct: any) => {
+        if (ct.app_label === 'schemes' && ct.model === 'plan') mapping['plan'] = ct.id;
+        if (ct.app_label === 'schemes' && ct.model === 'benefit') mapping['benefit'] = ct.id;
+        if (ct.app_label === 'providers' && ct.model === 'hospital') mapping['hospital'] = ct.id;
+        if (ct.app_label === 'medical_catalog' && ct.model === 'service') mapping['service'] = ct.id;
+        if (ct.app_label === 'medical_catalog' && ct.model === 'labtest') mapping['labtest'] = ct.id;
+        if (ct.app_label === 'medical_catalog' && ct.model === 'medicine') mapping['medicine'] = ct.id;
+      });
+      
+      setContentTypeMapping(mapping);
     } catch (err) {
       console.error('Error loading ContentType mapping:', err);
-      // Fallback to hardcoded values if API fails
-      setContentTypeMapping({
-        'plan': 10,
-        'benefit': 9,
-        'hospital': 15,
-        'service': 19,
-        'labtest': 18,
-        'medicine': 16,
-      });
+      setContentTypeMappingError('Failed to load content type mapping. Assignment actions are disabled.');
     }
   };
 
@@ -186,6 +183,12 @@ export const SchemeAssignmentsTab: React.FC<SchemeAssignmentsTabProps> = ({
 
   const handleAssignItems = async () => {
     if (selectedAvailable.size === 0) return;
+
+    // Check if content type mapping is loaded
+    if (contentTypeMappingError) {
+      setError('Content type mapping failed to load. Cannot assign items.');
+      return;
+    }
 
     // Check if trying to assign benefits without plans
     if (activeType === 'benefit' && assignedPlans.length === 0) {
@@ -297,6 +300,26 @@ export const SchemeAssignmentsTab: React.FC<SchemeAssignmentsTabProps> = ({
           <RefreshCw className="w-4 h-4" />
         </button>
       </div>
+
+      {/* Content Type Mapping Error */}
+      {contentTypeMappingError && (
+        <div className="bg-red-900 border border-red-700 rounded-lg p-4">
+          <div className="flex items-start gap-2">
+            <div className="flex-1">
+              <h3 className="text-sm font-medium text-red-200">Content Type Mapping Error</h3>
+              <p className="text-xs text-red-300 mt-1">
+                {contentTypeMappingError}
+              </p>
+              <button
+                onClick={loadContentTypeMapping}
+                className="mt-2 text-xs text-red-200 hover:text-red-100 underline"
+              >
+                Retry
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Group Tabs */}
       <div className="border-b" style={{ borderColor: '#4a4a4a' }}>
