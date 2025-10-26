@@ -17,6 +17,7 @@ interface CompanyTableProps {
   onCompanyEdit?: (company: Company) => void;
   onCompanyDelete?: (company: Company) => void;
   onCompanyStatusChange?: (company: Company) => void;
+  onCompanySelect?: (company: Company) => void;
   onPageChange?: (page: number) => void;
   loading?: boolean;
   error?: string;
@@ -72,6 +73,7 @@ export function CompanyTable({
   onCompanyView,
   onCompanyEdit,
   onCompanyDelete,
+  onCompanySelect,
   onPageChange,
   loading = false,
   error,
@@ -195,7 +197,7 @@ export function CompanyTable({
         sortField={sortField}
         sortDirection={sortDirection}
         onSort={onSort}
-        onRowClick={onCompanyView}
+        onRowClick={onCompanySelect}
         getTextColor={getItemTextColor}
         statusField="status"
         loading={loading}

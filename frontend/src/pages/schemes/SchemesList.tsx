@@ -32,7 +32,7 @@ export const SchemesList: React.FC<SchemesListProps> = ({
   const [searchTerm, setSearchTerm] = useState('');
   const [sortField, setSortField] = useState<string>('');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
-  const [rowsPerPage, setRowsPerPage] = useState<number>(5);
+  const [rowsPerPage, setRowsPerPage] = useState<number>(10);
   const [currentPage, setCurrentPage] = useState<number>(1);
 
   useEffect(() => {
@@ -163,6 +163,7 @@ export const SchemesList: React.FC<SchemesListProps> = ({
         onSchemeView={handleSchemeView}
         onSchemeEdit={handleSchemeEdit}
         onSchemeDelete={handleSchemeDelete}
+        onSchemeSelect={onSchemeSelect}
         onPageChange={handlePageChange}
         loading={loading}
         error={error}

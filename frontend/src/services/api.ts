@@ -33,6 +33,7 @@ class ApiClient {
 
     const config: RequestInit = {
       ...options,
+      credentials: 'include',
       headers: {
         ...defaultHeaders,
         ...options.headers,

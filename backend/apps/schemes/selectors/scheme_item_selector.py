@@ -330,3 +330,93 @@ def scheme_item_data_integrity_check():
         "issues": issues,
         "status": "healthy" if len(issues) == 0 else "needs_attention",
     }
+
+
+def scheme_available_items_get(*, scheme_id: str, content_type: str):
+    """
+    Get available items for assignment to a scheme (items not already assigned).
+
+    Args:
+        scheme_id: ID of the scheme
+        content_type: Content type to filter by (hospital, service, labtest, medicine, plan, benefit)
+
+    Returns:
+        QuerySet: Available items for assignment
+    """
+    from django.contrib.contenttypes.models import ContentType
+    from apps.providers.models import Hospital
+    from apps.medical_catalog.models import Service, LabTest, Medicine
+    from apps.schemes.models import Plan, Benefit
+
+    # Get content type
+    if content_type == "hospital":
+        ct = ContentType.objects.get_for_model(Hospital)
+        model_class = Hospital
+    elif content_type == "service":
+        ct = ContentType.objects.get_for_model(Service)
+        model_class = Service
+    elif content_type == "labtest":
+        ct = ContentType.objects.get_for_model(LabTest)
+        model_class = LabTest
+    elif content_type == "medicine":
+        ct = ContentType.objects.get_for_model(Medicine)
+        model_class = Medicine
+    elif content_type == "plan":
+        ct = ContentType.objects.get_for_model(Plan)
+        model_class = Plan
+    elif content_type == "benefit":
+        ct = ContentType.objects.get_for_model(Benefit)
+        model_class = Benefit
+    else:
+        raise ValueError(f"Invalid content type: {content_type}")
+
+    # Get already assigned items for this scheme
+    assigned_object_ids = SchemeItem.objects.filter(
+        scheme_id=scheme_id,
+        content_type=ct,
+        is_deleted=False
+    ).values_list("object_id", flat=True)
+
+    # Get available items (not assigned)
+    available_items = model_class.objects.filter(
+        is_deleted=False
+    ).exclude(id__in=assigned_object_ids)
+
+    return available_items
+
+
+def scheme_assigned_items_get(*, scheme_id: str, content_type: str = None):
+    """
+    Get assigned items for a scheme, optionally filtered by content type.
+
+    Args:
+        scheme_id: ID of the scheme
+        content_type: Optional content type to filter by
+
+    Returns:
+        QuerySet: Assigned scheme items
+    """
+    qs = SchemeItem.objects.select_related("scheme", "content_type").filter(
+        scheme_id=scheme_id, is_deleted=False
+    )
+
+    if content_type:
+        from django.contrib.contenttypes.models import ContentType
+        # Map content type strings to app_label and model_name
+        model_mapping = {
+            'benefit': ('schemes', 'benefit'),
+            'plan': ('schemes', 'plan'),
+            'hospital': ('providers', 'hospital'),
+            'service': ('medical_catalog', 'service'),
+            'labtest': ('medical_catalog', 'labtest'),
+            'medicine': ('medical_catalog', 'medicine'),
+        }
+        
+        if content_type not in model_mapping:
+            raise ValueError(f"Invalid content_type '{content_type}'. Must be one of: {', '.join(model_mapping.keys())}")
+        
+        app_label, model_name = model_mapping[content_type]
+        ct = ContentType.objects.get(app_label=app_label, model=model_name)
+        qs = qs.filter(content_type=ct)
+
+    return qs

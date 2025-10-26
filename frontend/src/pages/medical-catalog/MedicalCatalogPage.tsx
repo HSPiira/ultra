@@ -1,12 +1,16 @@
 import React, { useState, useEffect } from 'react';
-import {
-  Stethoscope,
-  Pill,
+import { useParams, useNavigate } from 'react-router-dom';
+import { 
+  Stethoscope, 
+  Pill, 
   TestTube,
   Building2,
   RefreshCw,
-  Download
+  Plus,
+  Upload
 } from 'lucide-react';
+import { useThemeStyles, useBulkUpload } from '../../hooks';
+import { Tooltip, BulkUploadModal } from '../../components/common';
 import { ServicesListNew } from './ServicesListNew';
 import { MedicinesListNew } from './MedicinesListNew';
 import { LabTestsListNew } from './LabTestsListNew';
@@ -20,6 +24,9 @@ import type { Service, Medicine, LabTest, HospitalItemPrice } from '../../types/
 type TabType = 'services' | 'medicines' | 'labtests' | 'prices';
 
 const MedicalCatalogPage: React.FC = () => {
+  const { tab } = useParams<{ tab?: string }>();
+  const navigate = useNavigate();
+  const { colors, getPageStyles, getTabProps, getIconButtonProps } = useThemeStyles();
   const [activeTab, setActiveTab] = useState<TabType>('services');
   const [showForm, setShowForm] = useState(false);
   const [formType, setFormType] = useState<'service' | 'medicine' | 'labtest' | 'price'>('service');
@@ -36,9 +43,69 @@ const MedicalCatalogPage: React.FC = () => {
     activeHospitalPrices: 0
   });
 
+  // Bulk upload functionality
+  const bulkUpload = useBulkUpload({
+    onUpload: async (data) => {
+      try {
+        // Process bulk upload - in real implementation, you'd call a bulk API endpoint
+        console.log('Bulk uploading medical catalog data:', data);
+        // Simulate API call
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        setRefreshTrigger(prev => prev + 1);
+        return { success: true };
+      } catch (error) {
+        console.error('Bulk upload failed:', error);
+        return { success: false, errors: [] };
+      }
+    },
+    onSuccess: () => {
+      console.log('Bulk upload completed successfully');
+    },
+    onError: (error) => {
+      console.error('Bulk upload error:', error);
+    }
+  });
+
+  // Bulk upload configuration
+  const MEDICAL_CATALOG_BULK_UPLOAD_CONFIG = {
+    title: 'Upload Medical Catalog Data',
+    description: 'Upload medical catalog items from a CSV file. The file should contain the appropriate columns for the selected tab.',
+    acceptedFileTypes: ['.csv'],
+    sampleFileName: 'medical_catalog_sample.csv',
+    fieldMappings: {
+      'name': 'name',
+      'description': 'description',
+      'code': 'code',
+      'price': 'price',
+      'status': 'status'
+    },
+    sampleData: [
+      { name: 'Sample Item', description: 'Sample description', code: 'SAMPLE001', price: '100.00', status: 'ACTIVE' }
+    ]
+  };
+
   useEffect(() => {
     loadStatistics();
   }, []);
+
+  // Handle tab from URL
+  useEffect(() => {
+    if (tab && isValidTab(tab)) {
+      setActiveTab(tab as TabType);
+    } else if (tab && !isValidTab(tab)) {
+      // Invalid tab, redirect to default tab
+      navigate('/medical-catalog', { replace: true });
+    }
+  }, [tab, navigate]);
+
+  const isValidTab = (tabName: string): tabName is TabType => {
+    return ['services', 'medicines', 'labtests', 'prices'].includes(tabName);
+  };
+
+  const handleTabChange = (newTab: TabType) => {
+    setActiveTab(newTab);
+    navigate(`/medical-catalog/${newTab}`, { replace: true });
+  };
 
   const loadStatistics = async () => {
     try {
@@ -189,121 +256,101 @@ const MedicalCatalogPage: React.FC = () => {
 
 
   return (
-    <div className="h-full flex flex-col" style={{ backgroundColor: '#1a1a1a' }}>
-      {/* Header with Statistics */}
-      <div className="px-6 py-1" style={{ backgroundColor: '#2a2a2a' }}>
-        {/* Statistics Row */}
-        <div className="flex items-center justify-between py-4">
-          <div className="flex items-center space-x-8">
-            <div className="flex items-center space-x-2">
-              <Stethoscope className="w-5 h-5" style={{ color: '#9ca3af' }} />
-              <div>
-                <div className="text-2xl font-bold text-white">{statistics.totalServices}</div>
-                <div className="text-sm" style={{ color: '#9ca3af' }}>Services</div>
-              </div>
+    <div className="h-full flex flex-col" style={getPageStyles()}>
+      {/* Tabs with Actions */}
+      <div className="border-b" style={{ backgroundColor: colors.background.secondary, borderColor: colors.border.primary }}>
+        <div className="px-6">
+          <div className="flex items-center justify-between">
+            <div className="flex space-x-8">
+              {tabs.map((tab) => {
+                const Icon = tab.icon;
+                const getCount = () => {
+                  switch (tab.id) {
+                    case 'services': return statistics.totalServices;
+                    case 'medicines': return statistics.totalMedicines;
+                    case 'labtests': return statistics.totalLabTests;
+                    case 'prices': return statistics.totalHospitalPrices;
+                    default: return 0;
+                  }
+                };
+                
+                return (
+                  <button
+                    key={tab.id}
+                    onClick={() => handleTabChange(tab.id)}
+                    className="py-4 px-1 border-b-2 font-medium text-sm transition-colors"
+                    {...getTabProps(activeTab === tab.id)}
+                  >
+                    <div className="flex items-center gap-2">
+                      <Icon className="w-4 h-4" />
+                      <span>{tab.label}</span>
+                      <span className="px-2 py-1 rounded-full text-xs" style={{ backgroundColor: colors.background.quaternary, color: colors.text.tertiary }}>
+                        {getCount()}
+                      </span>
+                    </div>
+                  </button>
+                );
+              })}
             </div>
-            
-            <div className="flex items-center space-x-2">
-              <Pill className="w-5 h-5" style={{ color: '#9ca3af' }} />
-              <div>
-                <div className="text-2xl font-bold text-white">{statistics.totalMedicines}</div>
-                <div className="text-sm" style={{ color: '#9ca3af' }}>Medicines</div>
-              </div>
-            </div>
-            
-            <div className="flex items-center space-x-2">
-              <TestTube className="w-5 h-5" style={{ color: '#9ca3af' }} />
-              <div>
-                <div className="text-2xl font-bold text-white">{statistics.totalLabTests}</div>
-                <div className="text-sm" style={{ color: '#9ca3af' }}>Lab Tests</div>
-              </div>
-            </div>
-            
-            <div className="flex items-center space-x-2">
-              <Building2 className="w-5 h-5" style={{ color: '#9ca3af' }} />
-              <div>
-                <div className="text-2xl font-bold text-white">{statistics.totalHospitalPrices}</div>
-                <div className="text-sm" style={{ color: '#9ca3af' }}>Hospital Prices</div>
-              </div>
-            </div>
-          </div>
-        </div>
 
-        {/* Tabs */}
-        <div className="flex items-center justify-between">
-          <div className="flex space-x-8">
-            {tabs.map((tab) => {
-              const Icon = tab.icon;
-              return (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
-                  className="flex items-center space-x-2 py-2 px-1 border-b-2 font-medium text-sm transition-colors"
-                  style={{
-                    borderBottomColor: activeTab === tab.id ? '#9ca3af' : 'transparent',
-                    color: activeTab === tab.id ? '#d1d5db' : '#9ca3af'
-                  }}
-                  onMouseEnter={(e) => {
-                    if (activeTab !== tab.id) {
-                      e.currentTarget.style.color = '#d1d5db';
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    if (activeTab !== tab.id) {
-                      e.currentTarget.style.color = '#9ca3af';
-                    }
+            <div className="flex items-center gap-3">
+              <Tooltip content="Refresh medical catalog data">
+                <button 
+                  className="p-2 rounded-lg transition-colors" 
+                  {...getIconButtonProps()}
+                  onClick={() => setRefreshTrigger(prev => prev + 1)}
+                >
+                  <RefreshCw className="w-5 h-5" />
+                </button>
+              </Tooltip>
+
+              <Tooltip content="Add new medical item">
+                <button 
+                  className="p-2 rounded-lg transition-colors" 
+                  {...getIconButtonProps()}
+                  onClick={() => {
+                    setEditingItem(null);
+                    setFormType(
+                      activeTab === 'services' ? 'service' :
+                      activeTab === 'medicines' ? 'medicine' :
+                      activeTab === 'labtests' ? 'labtest' : 'price'
+                    );
+                    setShowForm(true);
                   }}
                 >
-                  <Icon className="w-4 h-4" />
-                  <span>{tab.label}</span>
+                  <Plus className="w-5 h-5" />
                 </button>
-              );
-            })}
-          </div>
+              </Tooltip>
 
-          <div className="flex items-center space-x-4">
-            <button 
-              className="p-2 rounded-lg transition-colors" 
-              style={{ color: '#9ca3af' }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.color = '#ffffff';
-                e.currentTarget.style.backgroundColor = '#3b3b3b';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.color = '#9ca3af';
-                e.currentTarget.style.backgroundColor = 'transparent';
-              }}
-              title="Refresh"
-            >
-              <RefreshCw className="w-4 h-4" />
-            </button>
-
-            <button 
-              className="p-2 rounded-lg transition-colors" 
-              style={{ color: '#9ca3af' }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.color = '#ffffff';
-                e.currentTarget.style.backgroundColor = '#3b3b3b';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.color = '#9ca3af';
-                e.currentTarget.style.backgroundColor = 'transparent';
-              }}
-              title="Export"
-            >
-              <Download className="w-4 h-4" />
-            </button>
+              <Tooltip content="Upload medical catalog data from CSV">
+                <button 
+                  className="p-2 rounded-lg transition-colors" 
+                  {...getIconButtonProps()}
+                  onClick={bulkUpload.openModal}
+                >
+                  <Upload className="w-5 h-5" />
+                </button>
+              </Tooltip>
+            </div>
           </div>
         </div>
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 px-6 py-4" style={{ backgroundColor: '#1a1a1a' }}>
+      <div className="flex-1 px-6 py-4" style={getPageStyles()}>
         {renderTabContent()}
       </div>
 
       {/* Forms */}
       {renderForm()}
+
+      {/* Bulk Upload Modal */}
+      <BulkUploadModal
+        isOpen={bulkUpload.isModalOpen}
+        onClose={bulkUpload.closeModal}
+        onUpload={bulkUpload.handleUpload}
+        {...MEDICAL_CATALOG_BULK_UPLOAD_CONFIG}
+      />
     </div>
   );
 };

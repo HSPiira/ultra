@@ -28,7 +28,7 @@ const Layout: React.FC = () => {
 
 
   return (
-    <div className="h-screen overflow-hidden" style={{ backgroundColor: '#141414' }}>
+    <div className="h-screen overflow-hidden" style={{ backgroundColor: 'var(--bg-primary)' }}>
       {/* Sidebar */}
       <Sidebar 
         isOpen={sidebarOpen}
@@ -52,7 +52,7 @@ const Layout: React.FC = () => {
         {/* Main content */}
         <main 
           className="flex-1 overflow-auto" 
-          style={{ backgroundColor: '#141414' }}
+          style={{ backgroundColor: 'var(--bg-primary)' }}
         >
           <Outlet />
         </main>

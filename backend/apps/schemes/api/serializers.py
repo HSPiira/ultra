@@ -133,7 +133,26 @@ class PlanSerializer(BaseSerializer):
         return value
 
 
+class PlanField(serializers.Field):
+    """Custom field to handle plan ID to Plan instance conversion."""
+    
+    def to_internal_value(self, data):
+        if data is None or data == '':
+            return None
+        try:
+            return Plan.objects.get(id=data)
+        except Plan.DoesNotExist as e:
+            raise serializers.ValidationError(f'Plan with id {data} does not exist.') from e
+    
+    def to_representation(self, value):
+        if value is None:
+            return None
+        return value.id
+
 class BenefitSerializer(BaseSerializer):
+    plan_detail = serializers.SerializerMethodField()
+    plan = PlanField(required=False, allow_null=True)
+    
     class Meta(BaseSerializer.Meta):
         model = Benefit
         fields = BaseSerializer.Meta.fields + [
@@ -141,7 +160,17 @@ class BenefitSerializer(BaseSerializer):
             "description",
             "in_or_out_patient",
             "limit_amount",
+            "plan",
+            "plan_detail",
         ]
+    
+    def get_plan_detail(self, obj) -> dict | None:
+        if obj.plan:
+            return {
+                "id": obj.plan.id,
+                "plan_name": obj.plan.plan_name,
+            }
+        return None
 
     def validate_benefit_name(self, value):
         """Validate benefit name."""
@@ -211,6 +240,7 @@ class SchemeItemSerializer(BaseSerializer):
                 "id": obj.item.id,
                 "name": str(obj.item),
                 "type": obj.content_type.model if obj.content_type else None,
+                "app_label": obj.content_type.app_label if obj.content_type else None,
             }
         return None
 
@@ -231,4 +261,80 @@ class SchemeItemSerializer(BaseSerializer):
                 raise serializers.ValidationError(
                     "Copayment percentage cannot exceed 100"
                 )
+        return value
+
+
+class BulkSchemeItemSerializer(serializers.Serializer):
+    """Serializer for bulk scheme item operations."""
+    
+    scheme_id = serializers.CharField(required=True)
+    assignments = serializers.ListField(
+        child=serializers.DictField(),
+        required=True,
+        allow_empty=False
+    )
+
+    def validate_assignments(self, value):
+        """Validate assignment data."""
+        if not value:
+            raise serializers.ValidationError("Assignments list cannot be empty")
+        
+        for i, assignment in enumerate(value):
+            required_fields = ["content_type", "object_id"]
+            for field in required_fields:
+                if not assignment.get(field):
+                    raise serializers.ValidationError(
+                        f"Assignment {i+1}: {field} is required"
+                    )
+            
+            # Validate limit amount
+            limit_amount = assignment.get("limit_amount")
+            if limit_amount is not None and limit_amount < 0:
+                raise serializers.ValidationError(
+                    f"Assignment {i+1}: Limit amount cannot be negative"
+                )
+            
+            # Validate copayment percentage
+            copayment = assignment.get("copayment_percent")
+            if copayment is not None:
+                if copayment < 0:
+                    raise serializers.ValidationError(
+                        f"Assignment {i+1}: Copayment percentage cannot be negative"
+                    )
+                if copayment > 100:
+                    raise serializers.ValidationError(
+                        f"Assignment {i+1}: Copayment percentage cannot exceed 100"
+                    )
+        
+        return value
+
+
+class BulkAssignmentSerializer(serializers.Serializer):
+    """Serializer for bulk assignment operations."""
+    
+    scheme_id = serializers.UUIDField(required=True)
+    assignments = serializers.ListField(
+        child=serializers.DictField(),
+        required=True,
+        allow_empty=False
+    )
+    
+    def validate_assignments(self, value):
+        """Validate assignments list structure."""
+        if not isinstance(value, list):
+            raise serializers.ValidationError("Assignments must be a list")
+        
+        if len(value) == 0:
+            raise serializers.ValidationError("Assignments list cannot be empty")
+        
+        # Validate each assignment has required fields
+        for i, assignment in enumerate(value):
+            if not isinstance(assignment, dict):
+                raise serializers.ValidationError(f"Assignment {i+1} must be a dictionary")
+            
+            required_fields = ['content_type_id', 'object_id']
+            for field in required_fields:
+                if field not in assignment:
+                    raise serializers.ValidationError(f"Assignment {i+1} missing required field: {field}")
+        
         return value

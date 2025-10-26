@@ -240,6 +240,132 @@ class SchemeItemService:
         return updated_count
 
     @staticmethod
+    @transaction.atomic
+    def scheme_items_bulk_create(*, scheme_id: str, assignments: list, user=None):
+        """
+        Bulk create scheme items for a specific scheme.
+
+        Args:
+            scheme_id: ID of the scheme to assign items to
+            assignments: List of assignment dictionaries with content_type, object_id, limit_amount, copayment_percent
+            user: User performing the bulk assignment
+
+        Returns:
+            list: List of created scheme items
+
+        Raises:
+            ValidationError: If data is invalid or duplicates exist
+        """
+        from apps.schemes.models import Scheme
+
+        # Validate scheme exists
+        try:
+            scheme = Scheme.objects.get(id=scheme_id, is_deleted=False)
+        except Scheme.DoesNotExist as e:
+            raise ValidationError("Scheme not found") from e
+
+        created_items = []
+        errors = []
+
+        for i, assignment in enumerate(assignments):
+            try:
+                # Get ContentType instance with proper error handling
+                from django.contrib.contenttypes.models import ContentType
+                try:
+                    content_type = ContentType.objects.get(id=assignment.get("content_type"))
+                except (ContentType.DoesNotExist, ValueError) as e:
+                    errors.append(f"Assignment {i+1}: Invalid content_type '{assignment.get('content_type')}': {str(e)}")
+                    continue
+                
+                # Verify the target object exists
+                model_class = content_type.model_class()
+                object_id = assignment.get("object_id")
+                if not model_class.objects.filter(pk=object_id).exists():
+                    errors.append(f"Assignment {i+1}: Object with id '{object_id}' does not exist for content_type '{content_type.app_label}.{content_type.model}'")
+                    continue
+                
+                # Check if item is already assigned but soft-deleted
+                existing_item = SchemeItem.objects.filter(
+                    scheme=scheme,
+                    content_type=content_type,
+                    object_id=object_id
+                ).first()
+                
+                if existing_item and existing_item.is_deleted:
+                    # Validate data before restoring
+                    limit_amount = assignment.get("limit_amount")
+                    copayment_percent = assignment.get("copayment_percent")
+                    
+                    # Apply same validation as scheme_item_create
+                    if limit_amount is not None and limit_amount < 0:
+                        errors.append(f"Assignment {i+1}: Limit amount cannot be negative")
+                        continue
+                    
+                    if copayment_percent is not None:
+                        if copayment_percent < 0:
+                            errors.append(f"Assignment {i+1}: Copayment percentage cannot be negative")
+                            continue
+                        if copayment_percent > 100:
+                            errors.append(f"Assignment {i+1}: Copayment percentage cannot exceed 100")
+                            continue
+                    
+                    # Restore the soft-deleted item with validated data
+                    existing_item.is_deleted = False
+                    existing_item.status = BusinessStatusChoices.ACTIVE
+                    existing_item.limit_amount = limit_amount
+                    existing_item.copayment_percent = copayment_percent
+                    existing_item.save()
+                    created_items.append(existing_item)
+                else:
+                    # Create new scheme item
+                    scheme_item_data = {
+                        "scheme": scheme,
+                        "content_type": content_type,
+                        "object_id": object_id,
+                        "limit_amount": assignment.get("limit_amount"),
+                        "copayment_percent": assignment.get("copayment_percent"),
+                    }
+
+                    scheme_item = SchemeItemService.scheme_item_create(
+                        scheme_item_data=scheme_item_data, user=user
+                    )
+                    created_items.append(scheme_item)
+
+            except ValidationError as e:
+                errors.append(f"Assignment {i+1}: {str(e)}")
+
+        if errors:
+            raise ValidationError(f"Bulk assignment failed: {'; '.join(errors)}")
+
+        return created_items
+
+    @staticmethod
+    @transaction.atomic
+    def scheme_items_bulk_remove(*, scheme_item_ids: list, user=None):
+        """
+        Bulk remove scheme items by deactivating them.
+
+        Args:
+            scheme_item_ids: List of scheme item IDs to remove
+            user: User performing the removal
+
+        Returns:
+            int: Number of scheme items removed
+        """
+        removed_count = 0
+        for scheme_item_id in scheme_item_ids:
+            try:
+                SchemeItemService.scheme_item_deactivate(
+                    scheme_item_id=scheme_item_id, user=user
+                )
+                removed_count += 1
+            except ValidationError:
+                # Skip invalid IDs
+                continue
+
+        return removed_count
+
+    @staticmethod
     def scheme_items_export_csv(*, filters: dict = None):
         """
         Export filtered scheme items to CSV format.

@@ -1,78 +1,145 @@
-import React from 'react';
-import { Plus, CreditCard, Users, DollarSign, Calendar } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { Plus } from 'lucide-react';
 import type { Company } from '../../types/companies';
+import type { Scheme } from '../../types/schemes';
+import { SchemeTable } from '../../components/tables';
+import { SearchFilterBar } from '../../components/common';
+import { schemesApi } from '../../services/schemes';
 
 interface CompanySchemesTabProps {
   company: Company;
 }
 
 export const CompanySchemesTab: React.FC<CompanySchemesTabProps> = ({ company }) => {
-  // Mock data for schemes - in real app, this would come from API
-  const schemes = [
-    {
-      id: '1',
-      name: 'Employee Health Insurance',
-      type: 'Health',
-      premium: 50000,
-      coverage: 'Full Medical Coverage',
-      members: 150,
-      status: 'ACTIVE',
-      startDate: '2024-01-01',
-      endDate: '2024-12-31'
-    },
-    {
-      id: '2',
-      name: 'Family Medical Plan',
-      type: 'Health',
-      premium: 75000,
-      coverage: 'Family Medical Coverage',
-      members: 75,
-      status: 'ACTIVE',
-      startDate: '2024-01-01',
-      endDate: '2024-12-31'
-    },
-    {
-      id: '3',
-      name: 'Executive Health Plan',
-      type: 'Health',
-      premium: 120000,
-      coverage: 'Premium Medical Coverage',
-      members: 25,
-      status: 'INACTIVE',
-      startDate: '2023-01-01',
-      endDate: '2023-12-31'
+  const navigate = useNavigate();
+  const [schemes, setSchemes] = useState<Scheme[]>([]);
+  const [filteredSchemes, setFilteredSchemes] = useState<Scheme[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | undefined>(undefined);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter] = useState('');
+  const [sortField, setSortField] = useState<string>('scheme_name');
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
+
+  useEffect(() => {
+    loadSchemes();
+  }, [company.id]);
+
+  useEffect(() => {
+    filterSchemes();
+  }, [schemes, searchTerm, statusFilter]);
+
+  const loadSchemes = async () => {
+    try {
+      setLoading(true);
+      setError(undefined);
+      
+      // Fetch schemes for this specific company
+      const schemesData = await schemesApi.getSchemes({ 
+        company: company.id,
+        ordering: 'scheme_name'
+      });
+      
+      setSchemes(schemesData);
+    } catch (err) {
+      console.error('Error loading schemes:', err);
+      setError('Failed to load schemes');
+    } finally {
+      setLoading(false);
     }
-  ];
-
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-UG', {
-      style: 'currency',
-      currency: 'UGX',
-      minimumFractionDigits: 0
-    }).format(amount);
   };
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
+  const filterSchemes = () => {
+    let filtered = [...schemes];
+
+    // Apply search filter
+    if (searchTerm) {
+      filtered = filtered.filter(scheme =>
+        scheme.scheme_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (scheme.description ?? '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+        scheme.card_code.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    }
+
+    // Apply status filter
+    if (statusFilter) {
+      filtered = filtered.filter(scheme => scheme.status === statusFilter);
+    }
+
+    // Apply sorting
+    filtered.sort((a, b) => {
+      const aValue = a[sortField as keyof Scheme];
+      const bValue = b[sortField as keyof Scheme];
+      
+      if (aValue === undefined || bValue === undefined) return 0;
+      if (aValue < bValue) return sortDirection === 'asc' ? -1 : 1;
+      if (aValue > bValue) return sortDirection === 'asc' ? 1 : -1;
+      return 0;
     });
+
+    setFilteredSchemes(filtered);
   };
+
+  const handleSort = (field: string) => {
+    if (sortField === field) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortDirection('asc');
+    }
+  };
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+  };
+
+  const handleSchemeView = (scheme: Scheme) => {
+    navigate(`/schemes/${scheme.id}`);
+  };
+
+  const handleSchemeEdit = (scheme: Scheme) => {
+    console.log('Edit scheme:', scheme);
+    // Open edit modal or navigate to edit page
+  };
+
+  const handleSchemeDelete = (scheme: Scheme) => {
+    console.log('Delete scheme:', scheme);
+    // Show confirmation dialog and delete
+  };
+
+  const handleAddScheme = () => {
+    console.log('Add new scheme');
+    // Open add scheme modal or navigate to add page
+  };
+
+  // Calculate pagination
+  const totalPages = Math.ceil(filteredSchemes.length / rowsPerPage);
+  const startIndex = (currentPage - 1) * rowsPerPage;
+  const endIndex = Math.min(startIndex + rowsPerPage, filteredSchemes.length);
+  const paginatedSchemes = filteredSchemes.slice(startIndex, endIndex);
 
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
+        <div>
         <h2 className="text-xl font-semibold" style={{ color: '#ffffff' }}>Insurance Schemes</h2>
+          <p className="text-sm mt-1" style={{ color: '#9ca3af' }}>
+            Manage insurance schemes for {company.company_name}
+          </p>
+        </div>
         <button
+          onClick={handleAddScheme}
           className="flex items-center gap-2 px-4 py-2 rounded-lg transition-colors"
-          style={{ backgroundColor: '#3b3b3b', color: '#ffffff' }}
+          style={{ backgroundColor: '#3b82f6', color: '#ffffff' }}
           onMouseEnter={(e) => {
-            e.currentTarget.style.backgroundColor = '#4a4a4a';
+            e.currentTarget.style.backgroundColor = '#2563eb';
           }}
           onMouseLeave={(e) => {
-            e.currentTarget.style.backgroundColor = '#3b3b3b';
+            e.currentTarget.style.backgroundColor = '#3b82f6';
           }}
         >
           <Plus className="w-4 h-4" />
@@ -80,102 +147,39 @@ export const CompanySchemesTab: React.FC<CompanySchemesTabProps> = ({ company })
         </button>
       </div>
 
-      {/* Schemes List */}
-      {schemes.length === 0 ? (
-        <div className="rounded-lg border text-center py-12" style={{ backgroundColor: '#2a2a2a', borderColor: '#4a4a4a' }}>
-          <CreditCard className="w-12 h-12 mx-auto mb-4" style={{ color: '#9ca3af' }} />
-          <h3 className="text-lg font-medium mb-2" style={{ color: '#ffffff' }}>No schemes found</h3>
-          <p className="mb-4" style={{ color: '#9ca3af' }}>
-            This company doesn't have any insurance schemes yet.
-          </p>
-          <button
-            className="px-4 py-2 rounded-lg transition-colors"
-            style={{ backgroundColor: '#3b3b3b', color: '#ffffff' }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.backgroundColor = '#4a4a4a';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.backgroundColor = '#3b3b3b';
-            }}
-          >
-            Add First Scheme
-          </button>
+      {/* Search and Filter Bar */}
+      <SearchFilterBar
+        searchTerm={searchTerm}
+        onSearchChange={setSearchTerm}
+        searchPlaceholder="Search schemes..."
+        rowsPerPage={rowsPerPage}
+        onRowsPerPageChange={setRowsPerPage}
+        onExport={() => console.log('Export schemes')}
+        showExport={false}
+      />
+
+      {/* Schemes Table */}
+      <div className="rounded-lg overflow-hidden">
+        <SchemeTable
+          schemes={paginatedSchemes}
+          allFilteredSchemes={filteredSchemes}
+          currentPage={currentPage}
+          totalPages={totalPages}
+          startIndex={startIndex}
+          endIndex={endIndex}
+          sortField={sortField}
+          sortDirection={sortDirection}
+          onSort={handleSort}
+          onSchemeView={handleSchemeView}
+          onSchemeEdit={handleSchemeEdit}
+          onSchemeDelete={handleSchemeDelete}
+          onSchemeSelect={handleSchemeView}
+          onPageChange={handlePageChange}
+          loading={loading}
+          error={error}
+          onRetry={loadSchemes}
+        />
         </div>
-      ) : (
-        <div className="space-y-4">
-          {schemes.map((scheme) => (
-            <div
-              key={scheme.id}
-              className="rounded-lg border p-6 hover:bg-gray-800 transition-colors"
-              style={{ backgroundColor: '#2a2a2a', borderColor: '#4a4a4a' }}
-            >
-              <div className="flex items-start justify-between mb-4">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-lg flex items-center justify-center" style={{ backgroundColor: '#3b3b3b' }}>
-                    <CreditCard className="w-5 h-5" style={{ color: '#d1d5db' }} />
-                  </div>
-                  <div>
-                    <h3 className="text-lg font-semibold" style={{ color: '#ffffff' }}>
-                      {scheme.name}
-                    </h3>
-                    <p className="text-sm" style={{ color: '#9ca3af' }}>{scheme.type} Insurance</p>
-                  </div>
-                </div>
-                <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
-                  scheme.status === 'ACTIVE' 
-                    ? 'bg-green-900 text-green-300' 
-                    : 'bg-red-900 text-red-300'
-                }`}>
-                  {scheme.status}
-                </span>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="space-y-3">
-                  <div className="flex items-center gap-3">
-                    <DollarSign className="w-4 h-4" style={{ color: '#9ca3af' }} />
-                    <div>
-                      <p className="text-sm font-medium" style={{ color: '#d1d5db' }}>Premium</p>
-                      <p className="text-base font-semibold" style={{ color: '#ffffff' }}>
-                        {formatCurrency(scheme.premium)}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-3">
-                    <Users className="w-4 h-4" style={{ color: '#9ca3af' }} />
-                    <div>
-                      <p className="text-sm font-medium" style={{ color: '#d1d5db' }}>Members</p>
-                      <p className="text-base font-semibold" style={{ color: '#ffffff' }}>
-                        {scheme.members}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="space-y-3">
-                  <div>
-                    <p className="text-sm font-medium" style={{ color: '#d1d5db' }}>Coverage</p>
-                    <p className="text-sm" style={{ color: '#ffffff' }}>{scheme.coverage}</p>
-                  </div>
-                </div>
-
-                <div className="space-y-3">
-                  <div className="flex items-center gap-3">
-                    <Calendar className="w-4 h-4" style={{ color: '#9ca3af' }} />
-                    <div>
-                      <p className="text-sm font-medium" style={{ color: '#d1d5db' }}>Period</p>
-                      <p className="text-sm" style={{ color: '#ffffff' }}>
-                        {formatDate(scheme.startDate)} - {formatDate(scheme.endDate)}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
     </div>
   );
 };

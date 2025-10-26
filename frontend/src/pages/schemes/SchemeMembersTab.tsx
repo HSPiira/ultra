@@ -2,21 +2,20 @@ import React, { useState, useEffect } from 'react';
 import { 
   Users, 
   Plus, 
-  Search, 
-  Filter, 
+  Search,
   RefreshCw,
   User,
   Mail,
   Phone,
   Calendar,
-  Shield,
-  MoreVertical,
+  Eye,
   Edit,
   Trash2,
-  Eye,
   X
 } from 'lucide-react';
 import type { Scheme } from '../../types/schemes';
+import { SortableTable } from '../../components/tables/SortableTable';
+import type { TableColumn, ActionButton } from '../../components/tables/SortableTable';
 
 interface SchemeMembersTabProps {
   scheme: Scheme;
@@ -44,11 +43,16 @@ interface FamilyMember {
 
 export const SchemeMembersTab: React.FC<SchemeMembersTabProps> = ({ scheme }) => {
   const [members, setMembers] = useState<Member[]>([]);
+  const [allFilteredMembers, setAllFilteredMembers] = useState<Member[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | undefined>(undefined);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
+  const [sortField, setSortField] = useState<string>('');
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
   const [selectedMember, setSelectedMember] = useState<Member | null>(null);
   const [showMemberDetails, setShowMemberDetails] = useState(false);
+  const [showAddMemberModal, setShowAddMemberModal] = useState(false);
 
   useEffect(() => {
     loadMembers();
@@ -57,6 +61,7 @@ export const SchemeMembersTab: React.FC<SchemeMembersTabProps> = ({ scheme }) =>
   const loadMembers = async () => {
     try {
       setLoading(true);
+      setError(undefined);
       // Mock data - replace with actual API call
       const mockMembers: Member[] = [
         {
@@ -109,22 +114,37 @@ export const SchemeMembersTab: React.FC<SchemeMembersTabProps> = ({ scheme }) =>
         }
       ];
       setMembers(mockMembers);
+      setAllFilteredMembers(mockMembers);
     } catch (error) {
       console.error('Error loading members:', error);
+      setError('Failed to load members');
     } finally {
       setLoading(false);
     }
   };
 
-  const filteredMembers = members.filter(member => {
-    const matchesSearch = 
-      member.first_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      member.last_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      member.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      member.member_id.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus = !statusFilter || member.status === statusFilter;
-    return matchesSearch && matchesStatus;
-  });
+  // Filter members based on search and status
+  useEffect(() => {
+    const filtered = members.filter(member => {
+      const matchesSearch = 
+        member.first_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        member.last_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        member.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        member.member_id.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesStatus = !statusFilter || member.status === statusFilter;
+      return matchesSearch && matchesStatus;
+    });
+    setAllFilteredMembers(filtered);
+  }, [members, searchTerm, statusFilter]);
+
+  const handleSort = (field: string) => {
+    if (sortField === field) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortDirection('asc');
+    }
+  };
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -157,6 +177,133 @@ export const SchemeMembersTab: React.FC<SchemeMembersTabProps> = ({ scheme }) =>
     setSelectedMember(null);
   };
 
+  const handleMemberView = (member: Member) => {
+    setSelectedMember(member);
+    setShowMemberDetails(true);
+  };
+
+  const handleMemberEdit = (member: Member) => {
+    // TODO: Implement edit functionality
+    console.log('Edit member:', member);
+  };
+
+  const handleMemberDelete = (member: Member) => {
+    // TODO: Implement delete functionality
+    console.log('Delete member:', member);
+  };
+
+  const handleAddMember = () => {
+    setShowAddMemberModal(true);
+  };
+
+  const handleCloseAddMemberModal = () => {
+    setShowAddMemberModal(false);
+  };
+
+  // Table columns configuration
+  const columns: TableColumn<Member>[] = [
+    {
+      key: 'first_name' as keyof Member,
+      label: 'Member',
+      width: 'w-1/4',
+      sortable: true,
+      align: 'left',
+      render: (value: string, member: Member) => (
+        <div className="flex items-center">
+          <div className="w-10 h-10 rounded-full flex items-center justify-center mr-3" style={{ backgroundColor: '#3b3b3b' }}>
+            <User className="w-5 h-5" style={{ color: '#d1d5db' }} />
+          </div>
+          <div>
+            <div className="text-sm font-medium" style={{ color: '#ffffff' }}>
+              {member.first_name} {member.last_name}
+            </div>
+            <div className="text-sm font-mono" style={{ color: '#9ca3af' }}>
+              {member.member_id}
+            </div>
+          </div>
+        </div>
+      ),
+    },
+    {
+      key: 'email' as keyof Member,
+      label: 'Contact',
+      width: 'w-1/4',
+      sortable: true,
+      align: 'left',
+      render: (value: string, member: Member) => (
+        <div className="text-sm" style={{ color: '#d1d5db' }}>
+          <div className="flex items-center gap-2 mb-1">
+            <Mail className="w-4 h-4" style={{ color: '#9ca3af' }} />
+            {member.email}
+          </div>
+          <div className="flex items-center gap-2">
+            <Phone className="w-4 h-4" style={{ color: '#9ca3af' }} />
+            {member.phone}
+          </div>
+        </div>
+      ),
+    },
+    {
+      key: 'status' as keyof Member,
+      label: 'Status',
+      width: 'w-20',
+      sortable: true,
+      align: 'left',
+      render: (value: string) => (
+        <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(value)}`}>
+          {value}
+        </span>
+      ),
+    },
+    {
+      key: 'date_joined' as keyof Member,
+      label: 'Date Joined',
+      width: 'w-32',
+      sortable: true,
+      align: 'left',
+      render: (value: string) => (
+        <span className="text-sm" style={{ color: '#d1d5db' }}>
+          {formatDate(value)}
+        </span>
+      ),
+    },
+    {
+      key: 'family_members' as keyof Member,
+      label: 'Family',
+      width: 'w-20',
+      sortable: false,
+      align: 'left',
+      render: (value: FamilyMember[]) => (
+        <div className="flex items-center gap-1 text-sm" style={{ color: '#d1d5db' }}>
+          <Users className="w-4 h-4" style={{ color: '#9ca3af' }} />
+          {value ? value.length : 0}
+        </div>
+      ),
+    },
+  ];
+
+  // Action buttons configuration
+  const actions: ActionButton<Member>[] = [
+    {
+      icon: Eye,
+      label: 'View Details',
+      onClick: handleMemberView,
+      className: 'text-blue-400 hover:text-blue-300',
+    },
+    {
+      icon: Edit,
+      label: 'Edit Member',
+      onClick: handleMemberEdit,
+      className: 'text-yellow-400 hover:text-yellow-300',
+    },
+    {
+      icon: Trash2,
+      label: 'Delete Member',
+      onClick: handleMemberDelete,
+      className: 'text-red-400 hover:text-red-300',
+    },
+  ];
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -177,40 +324,9 @@ export const SchemeMembersTab: React.FC<SchemeMembersTabProps> = ({ scheme }) =>
             Manage members enrolled in this scheme
           </p>
         </div>
-        <div className="flex items-center gap-3">
-          <button
-            onClick={loadMembers}
-            className="p-2 rounded-lg transition-colors"
-            style={{ color: '#9ca3af' }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.backgroundColor = '#3b3b3b';
-              e.currentTarget.style.color = '#ffffff';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.backgroundColor = 'transparent';
-              e.currentTarget.style.color = '#9ca3af';
-            }}
-            title="Refresh Members"
-          >
-            <RefreshCw className="w-4 h-4" />
-          </button>
-          <button
-            className="flex items-center gap-2 px-4 py-2 rounded-lg transition-colors"
-            style={{ backgroundColor: '#3b82f6', color: '#ffffff' }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.backgroundColor = '#2563eb';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.backgroundColor = '#3b82f6';
-            }}
-          >
-            <Plus className="w-4 h-4" />
-            Add Member
-          </button>
-        </div>
       </div>
 
-      {/* Filters */}
+      {/* Search and Filter Bar */}
       <div className="flex items-center gap-4">
         <div className="relative flex-1 max-w-md">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4" style={{ color: '#9ca3af' }} />
@@ -243,110 +359,59 @@ export const SchemeMembersTab: React.FC<SchemeMembersTabProps> = ({ scheme }) =>
           <option value="INACTIVE">Inactive</option>
           <option value="SUSPENDED">Suspended</option>
         </select>
+
+        <button
+          onClick={loadMembers}
+          className="p-2 rounded-lg transition-colors"
+          style={{ color: '#9ca3af' }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.backgroundColor = '#3b3b3b';
+            e.currentTarget.style.color = '#ffffff';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.backgroundColor = 'transparent';
+            e.currentTarget.style.color = '#9ca3af';
+          }}
+          title="Refresh Members"
+        >
+          <RefreshCw className="w-4 h-4" />
+        </button>
+
+        <button
+          onClick={handleAddMember}
+          className="flex items-center gap-2 px-4 py-2 rounded-lg transition-colors"
+          style={{ backgroundColor: '#3b82f6', color: '#ffffff' }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.backgroundColor = '#2563eb';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.backgroundColor = '#3b82f6';
+          }}
+        >
+          <Plus className="w-4 h-4" />
+          Add Member
+        </button>
       </div>
 
-      {/* Members List */}
-      <div className="bg-gray-800 rounded-lg overflow-hidden" style={{ backgroundColor: '#2a2a2a' }}>
-        {filteredMembers.length === 0 ? (
-          <div className="text-center py-12">
-            <Users className="w-12 h-12 mx-auto mb-4" style={{ color: '#9ca3af' }} />
-            <h3 className="text-lg font-medium mb-2" style={{ color: '#ffffff' }}>No Members Found</h3>
-            <p className="text-sm" style={{ color: '#9ca3af' }}>
-              {searchTerm ? 'No members match your search criteria.' : 'No members are enrolled in this scheme.'}
-            </p>
-          </div>
-        ) : (
-          <div className="divide-y" style={{ borderColor: '#4a4a4a' }}>
-            {filteredMembers.map((member) => (
-              <div key={member.id} className="p-6 hover:bg-gray-700 transition-colors">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-4 flex-1">
-                    <div className="w-12 h-12 rounded-full flex items-center justify-center" style={{ backgroundColor: '#3b3b3b' }}>
-                      <User className="w-6 h-6" style={{ color: '#d1d5db' }} />
-                    </div>
-                    
-                    <div className="flex-1">
-                      <div className="flex items-center gap-3 mb-2">
-                        <h3 className="text-lg font-medium" style={{ color: '#ffffff' }}>
-                          {member.first_name} {member.last_name}
-                        </h3>
-                        <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(member.status)}`}>
-                          {member.status}
-                        </span>
-                        <span className="text-sm font-mono" style={{ color: '#9ca3af' }}>
-                          {member.member_id}
-                        </span>
-                      </div>
-                      
-                      <div className="flex items-center gap-6 text-sm mb-2">
-                        <div className="flex items-center gap-2">
-                          <Mail className="w-4 h-4" style={{ color: '#9ca3af' }} />
-                          <span style={{ color: '#d1d5db' }}>{member.email}</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Phone className="w-4 h-4" style={{ color: '#9ca3af' }} />
-                          <span style={{ color: '#d1d5db' }}>{member.phone}</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Calendar className="w-4 h-4" style={{ color: '#9ca3af' }} />
-                          <span style={{ color: '#d1d5db' }}>Joined {formatDate(member.date_joined)}</span>
-                        </div>
-                      </div>
-
-                      {member.family_members && member.family_members.length > 0 && (
-                        <div className="flex items-center gap-2 text-sm">
-                          <Users className="w-4 h-4" style={{ color: '#9ca3af' }} />
-                          <span style={{ color: '#d1d5db' }}>
-                            {member.family_members.length} family member{member.family_members.length !== 1 ? 's' : ''}
-                          </span>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => handleViewMember(member)}
-                      className="p-2 rounded-lg transition-colors"
-                      style={{ color: '#9ca3af' }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.backgroundColor = '#3b3b3b';
-                        e.currentTarget.style.color = '#ffffff';
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.backgroundColor = 'transparent';
-                        e.currentTarget.style.color = '#9ca3af';
-                      }}
-                      title="View Details"
-                    >
-                      <Eye className="w-4 h-4" />
-                    </button>
-                    <button
-                      className="p-2 rounded-lg transition-colors"
-                      style={{ color: '#9ca3af' }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.backgroundColor = '#3b3b3b';
-                        e.currentTarget.style.color = '#ffffff';
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.backgroundColor = 'transparent';
-                        e.currentTarget.style.color = '#9ca3af';
-                      }}
-                      title="More Options"
-                    >
-                      <MoreVertical className="w-4 h-4" />
-                    </button>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
+      {/* Members Table */}
+      <div className="rounded-lg overflow-hidden">
+        <SortableTable
+          data={allFilteredMembers}
+          columns={columns}
+          actions={actions}
+          sortField={sortField}
+          sortDirection={sortDirection}
+          onSort={handleSort}
+          loading={loading}
+          error={error}
+          onRetry={loadMembers}
+          emptyMessage={searchTerm ? 'No members match your search criteria.' : 'No members are enrolled in this scheme.'}
+        />
       </div>
 
       {/* Member Details Modal */}
       {showMemberDetails && selectedMember && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="fixed inset-0 flex items-center justify-center z-50 backdrop-blur-sm" style={{ backgroundColor: 'rgba(0, 0, 0, 0.05)' }}>
           <div className="bg-gray-900 rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col" style={{ backgroundColor: '#1a1a1a' }}>
             {/* Header */}
             <div className="flex items-center justify-between p-6 border-b flex-shrink-0" style={{ borderColor: '#4a4a4a' }}>
@@ -447,6 +512,42 @@ export const SchemeMembersTab: React.FC<SchemeMembersTabProps> = ({ scheme }) =>
                   </div>
                 )}
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Add Member Modal */}
+      {showAddMemberModal && (
+        <div className="fixed inset-0 flex items-center justify-center z-50 backdrop-blur-sm" style={{ backgroundColor: 'rgba(0, 0, 0, 0.05)' }}>
+          <div className="bg-gray-900 rounded-lg shadow-xl w-full max-w-md flex flex-col" style={{ backgroundColor: '#1a1a1a' }}>
+            {/* Header */}
+            <div className="flex items-center justify-between p-6 border-b flex-shrink-0" style={{ borderColor: '#4a4a4a' }}>
+              <h2 className="text-xl font-semibold" style={{ color: '#ffffff' }}>
+                Add Member to Scheme
+              </h2>
+              <button
+                onClick={handleCloseAddMemberModal}
+                className="p-2 rounded-lg transition-colors"
+                style={{ color: '#9ca3af' }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = '#3b3b3b';
+                  e.currentTarget.style.color = '#ffffff';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = 'transparent';
+                  e.currentTarget.style.color = '#9ca3af';
+                }}
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Content */}
+            <div className="flex-1 overflow-y-auto p-6">
+              <p className="text-sm" style={{ color: '#9ca3af' }}>
+                Add member functionality will be implemented here.
+              </p>
             </div>
           </div>
         </div>

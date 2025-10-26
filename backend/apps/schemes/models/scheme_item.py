@@ -26,22 +26,60 @@ class SchemeItemManager(models.Manager):
 
         ct = ContentType.objects.get_for_model(Benefit)
         return self.filter(content_type=ct, object_id=benefit_id)
+
+    def for_hospital(self, hospital_id: str):
+        from django.contrib.contenttypes.models import ContentType
+
+        from apps.providers.models import Hospital
+
+        ct = ContentType.objects.get_for_model(Hospital)
+        return self.filter(content_type=ct, object_id=hospital_id)
+
+    def for_service(self, service_id: str):
+        from django.contrib.contenttypes.models import ContentType
+
+        from apps.medical_catalog.models import Service
+
+        ct = ContentType.objects.get_for_model(Service)
+        return self.filter(content_type=ct, object_id=service_id)
+
+    def for_labtest(self, labtest_id: str):
+        from django.contrib.contenttypes.models import ContentType
+
+        from apps.medical_catalog.models import LabTest
+
+        ct = ContentType.objects.get_for_model(LabTest)
+        return self.filter(content_type=ct, object_id=labtest_id)
+
+    def for_medicine(self, medicine_id: str):
+        from django.contrib.contenttypes.models import ContentType
+
+        from apps.medical_catalog.models import Medicine
+
+        ct = ContentType.objects.get_for_model(Medicine)
+        return self.filter(content_type=ct, object_id=medicine_id)
         
         
 # ---------------------------------------------------------------------
 # SchemeItem
 # ---------------------------------------------------------------------
 class SchemeItem(BaseModel):
-    """Links schemes to either plans or benefits."""
+    """Links schemes to plans, benefits, hospitals, services, lab tests, or medicines."""
 
     scheme = models.ForeignKey(Scheme, on_delete=models.CASCADE, related_name="items")
 
-    # contenttype + object id pair: point to Plan or Benefit (or future types)
+    # contenttype + object id pair: point to Plan, Benefit, Hospital, Service, LabTest, or Medicine
     content_type = models.ForeignKey(
         ContentType,
         on_delete=models.CASCADE,
-        limit_choices_to=models.Q(app_label="schemes", model__in=["plan", "benefit"]),
-        help_text="Associated plan or benefit.",
+        limit_choices_to=models.Q(
+            app_label="schemes", model__in=["plan", "benefit"]
+        ) | models.Q(
+            app_label="providers", model__in=["hospital"]
+        ) | models.Q(
+            app_label="medical_catalog", model__in=["service", "labtest", "medicine"]
+        ),
+        help_text="Associated plan, benefit, hospital, service, lab test, or medicine.",
     )
     object_id = models.CharField(max_length=30)
     item = GenericForeignKey("content_type", "object_id")

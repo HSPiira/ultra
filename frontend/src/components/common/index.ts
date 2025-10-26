@@ -3,3 +3,6 @@ export { default as SideBar } from './SideBar';
 export { StatusChangeDialog } from './StatusChangeDialog';
 export { SchemeStatusChangeDialog } from './SchemeStatusChangeDialog';
 export { SearchFilterBar } from './SearchFilterBar';
+export { BulkUploadModal } from './BulkUploadModal';
+export { Tooltip } from './Tooltip';
+export { ThemeToggle } from './ThemeToggle';

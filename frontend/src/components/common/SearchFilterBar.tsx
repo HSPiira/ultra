@@ -1,5 +1,6 @@
 import React from 'react';
 import { Search, Download } from 'lucide-react';
+import { Tooltip } from './Tooltip';
 
 interface SearchFilterBarProps {
   searchTerm: string;
@@ -19,7 +20,7 @@ export const SearchFilterBar: React.FC<SearchFilterBarProps> = ({
   searchPlaceholder = "Search...",
   rowsPerPage,
   onRowsPerPageChange,
-  rowsPerPageOptions = [5, 10, 25, 50, 100],
+  rowsPerPageOptions = [10, 25, 50, 100],
   onExport,
   showExport = true,
   className = ""
@@ -56,42 +57,44 @@ export const SearchFilterBar: React.FC<SearchFilterBarProps> = ({
           <span className="text-sm" style={{ color: '#9ca3af' }}>Rows</span>
           <div className="flex items-center gap-1">
             {rowsPerPageOptions.map((rows) => (
-              <button
-                key={rows}
-                onClick={() => onRowsPerPageChange(rows)}
-                className={`px-3 py-1 text-sm rounded transition-colors ${
-                  rowsPerPage === rows
-                    ? 'text-white border-2'
-                    : 'text-gray-400 hover:text-gray-300'
-                }`}
-                style={{
-                  backgroundColor: rowsPerPage === rows ? '#2E3333' : 'transparent',
-                  borderColor: rowsPerPage === rows ? '#66D9EF' : 'transparent',
-                }}
-              >
-                {rows}
-              </button>
+              <Tooltip key={rows} content={`Show ${rows} rows per page`}>
+                <button
+                  onClick={() => onRowsPerPageChange(rows)}
+                  className={`px-3 py-1 text-sm rounded transition-colors ${
+                    rowsPerPage === rows
+                      ? 'text-white border-2'
+                      : 'text-gray-400 hover:text-gray-300'
+                  }`}
+                  style={{
+                    backgroundColor: rowsPerPage === rows ? '#2E3333' : 'transparent',
+                    borderColor: rowsPerPage === rows ? '#66D9EF' : 'transparent',
+                  }}
+                >
+                  {rows}
+                </button>
+              </Tooltip>
             ))}
           </div>
         </div>
 
         {showExport && (
-          <button 
-            className="p-2 rounded-lg transition-colors" 
-            style={{ color: '#9ca3af' }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.color = '#ffffff';
-              e.currentTarget.style.backgroundColor = '#3b3b3b';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.color = '#9ca3af';
-              e.currentTarget.style.backgroundColor = 'transparent';
-            }}
-            onClick={onExport}
-            title="Export"
-          >
-            <Download className="w-4 h-4" />
-          </button>
+          <Tooltip content="Export data to CSV">
+            <button 
+              className="p-2 rounded-lg transition-colors" 
+              style={{ color: '#9ca3af' }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.color = '#ffffff';
+                e.currentTarget.style.backgroundColor = '#3b3b3b';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.color = '#9ca3af';
+                e.currentTarget.style.backgroundColor = 'transparent';
+              }}
+              onClick={onExport}
+            >
+              <Download className="w-4 h-4" />
+            </button>
+          </Tooltip>
         )}
       </div>
     </div>

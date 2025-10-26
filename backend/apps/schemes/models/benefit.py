@@ -32,6 +32,14 @@ class Benefit(BaseModel):
         validators=[MinValueValidator(Decimal('0.01'))],
         help_text="Coverage or limit amount.",
     )
+    plan = models.ForeignKey(
+        'Plan',
+        on_delete=models.CASCADE,
+        related_name='benefits',
+        null=True,
+        blank=True,
+        help_text="Plan this benefit belongs to."
+    )
 
     class Meta:
         verbose_name = "Benefit"

@@ -1,11 +1,20 @@
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import filters, status, viewsets
+from rest_framework.decorators import action
 from rest_framework.response import Response
+from rest_framework.exceptions import ValidationError
+import logging
 
-from apps.schemes.api.serializers import SchemeItemSerializer
+from apps.schemes.api.serializers import SchemeItemSerializer, BulkAssignmentSerializer
 from apps.schemes.models import SchemeItem
-from apps.schemes.selectors import scheme_item_list
+from apps.schemes.selectors import (
+    scheme_item_list,
+    scheme_available_items_get,
+    scheme_assigned_items_get,
+)
 from apps.schemes.services.scheme_item_service import SchemeItemService
+
+logger = logging.getLogger(__name__)
 
 
 class SchemeItemViewSet(viewsets.ModelViewSet):
@@ -58,3 +67,111 @@ class SchemeItemViewSet(viewsets.ModelViewSet):
             scheme_item_id=kwargs["pk"], user=request.user
         )
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+    @action(detail=False, methods=["post"], url_path="bulk")
+    def bulk_create(self, request):
+        """Bulk create scheme items for a specific scheme."""
+        serializer = BulkAssignmentSerializer(data=request.data)
+        
+        try:
+            serializer.is_valid(raise_exception=True)
+            validated_data = serializer.validated_data
+            
+            created_items = SchemeItemService.scheme_items_bulk_create(
+                scheme_id=validated_data['scheme_id'],
+                assignments=validated_data['assignments'],
+                user=request.user
+            )
+            
+            response_serializer = self.get_serializer(created_items, many=True)
+            return Response(response_serializer.data, status=status.HTTP_201_CREATED)
+            
+        except ValidationError as e:
+            return Response(
+                {"errors": e.detail}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        except Exception as e:
+            logger.error(f"Unexpected error in bulk_create: {str(e)}", exc_info=True)
+            return Response(
+                {"error": "An internal server error occurred"}, 
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+    @action(detail=False, methods=["post"], url_path="bulk-remove")
+    def bulk_remove(self, request):
+        """Bulk remove scheme items."""
+        scheme_item_ids = request.data.get("scheme_item_ids", [])
+        
+        if not scheme_item_ids:
+            return Response(
+                {"error": "scheme_item_ids list is required"}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+            removed_count = SchemeItemService.scheme_items_bulk_remove(
+                scheme_item_ids=scheme_item_ids,
+                user=request.user
+            )
+            return Response(
+                {"removed_count": removed_count}, 
+                status=status.HTTP_200_OK
+            )
+        except Exception as e:
+            return Response(
+                {"error": str(e)}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+    @action(detail=False, methods=["get"], url_path="scheme/(?P<scheme_id>[^/.]+)/items")
+    def get_scheme_items(self, request, scheme_id=None):
+        """Get all items assigned to a specific scheme."""
+        content_type = request.query_params.get("content_type")
+        
+        try:
+            assigned_items = scheme_assigned_items_get(
+                scheme_id=scheme_id,
+                content_type=content_type
+            )
+            serializer = self.get_serializer(assigned_items, many=True)
+            return Response(serializer.data)
+        except Exception as e:
+            return Response(
+                {"error": str(e)}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+    @action(detail=False, methods=["get"], url_path="scheme/(?P<scheme_id>[^/.]+)/available")
+    def get_available_items(self, request, scheme_id=None):
+        """Get available items for assignment to a scheme."""
+        content_type = request.query_params.get("type")
+        
+        if not content_type:
+            return Response(
+                {"error": "type parameter is required"}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+            available_items = scheme_available_items_get(
+                scheme_id=scheme_id,
+                content_type=content_type
+            )
+            
+            # Convert to list of dictionaries for JSON response
+            items_data = []
+            for item in available_items:
+                items_data.append({
+                    "id": item.id,
+                    "name": str(item),
+                    "content_type": content_type,
+                    "status": getattr(item, "status", "ACTIVE"),
+                })
+            
+            return Response(items_data)
+        except Exception as e:
+            return Response(
+                {"error": str(e)}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )

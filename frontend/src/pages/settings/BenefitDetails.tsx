@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, Heart, Activity, Calendar, Edit, DollarSign } from 'lucide-react';
+import { X, Heart, Activity, Calendar, Edit, DollarSign, FileText } from 'lucide-react';
 import type { Benefit } from '../../types/benefits';
 
 interface BenefitDetailsProps {
@@ -75,7 +75,10 @@ export const BenefitDetails: React.FC<BenefitDetailsProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div 
+      className="fixed inset-0 flex items-center justify-center z-50 backdrop-blur-xs"
+      style={{ backgroundColor: 'rgba(0, 0, 0, 0.05)' }}
+    >
       <div className="bg-gray-900 rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col" style={{ backgroundColor: '#1a1a1a' }}>
         {/* Fixed Header */}
         <div className="flex items-center justify-between p-6 border-b flex-shrink-0" style={{ borderColor: '#4a4a4a' }}>
@@ -177,6 +180,18 @@ export const BenefitDetails: React.FC<BenefitDetailsProps> = ({
                       {benefit.limit_amount ? formatCurrency(benefit.limit_amount) : 'No limit set'}
                     </p>
                   </div>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-2" style={{ color: '#d1d5db' }}>
+                  Plan
+                </label>
+                <div className="flex items-center gap-2 px-3 py-2 rounded-lg" style={{ backgroundColor: '#2a2a2a' }}>
+                  <FileText className="w-4 h-4" style={{ color: '#9ca3af' }} />
+                  <p className="text-sm" style={{ color: '#ffffff' }}>
+                    {benefit.plan_detail?.plan_name || 'No plan assigned'}
+                  </p>
                 </div>
               </div>
 

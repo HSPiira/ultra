@@ -149,7 +149,8 @@ const Sidebar: React.FC<SidebarProps> = ({
       {/* Mobile overlay - only on mobile/tablet */}
       {isOpen && (
         <div 
-          className="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden"
+          className="fixed inset-0 z-40 lg:hidden backdrop-blur-xs"
+          style={{ backgroundColor: 'rgba(0, 0, 0, 0.15)' }}
           onClick={onToggle}
         />
       )}

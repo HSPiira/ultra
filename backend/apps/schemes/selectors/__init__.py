@@ -22,6 +22,8 @@ from .plan_selector import (
     plan_statistics_get,
 )
 from .scheme_item_selector import (
+    scheme_assigned_items_get,
+    scheme_available_items_get,
     scheme_item_data_integrity_check,
     scheme_item_get,
     scheme_item_health_score_get,
@@ -79,4 +81,6 @@ __all__ = [
     "scheme_item_health_scores_list",
     "scheme_item_list_needing_attention",
     "scheme_item_data_integrity_check",
+    "scheme_available_items_get",
+    "scheme_assigned_items_get",
 ]

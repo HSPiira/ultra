@@ -4,6 +4,11 @@ export interface Benefit {
   description: string;
   in_or_out_patient: 'INPATIENT' | 'OUTPATIENT' | 'BOTH';
   limit_amount?: number;
+  plan?: string;
+  plan_detail?: {
+    id: string;
+    plan_name: string;
+  };
   status: 'ACTIVE' | 'INACTIVE' | 'SUSPENDED';
   created_at: string;
   updated_at: string;
@@ -14,6 +19,7 @@ export interface BenefitCreateData {
   description: string;
   in_or_out_patient: 'INPATIENT' | 'OUTPATIENT' | 'BOTH';
   limit_amount?: number;
+  plan?: string;
 }
 
 export interface BenefitUpdateData extends BenefitCreateData {
