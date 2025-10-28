@@ -1,0 +1,13 @@
+export { TablePagination, type TablePaginationProps } from './TablePagination';
+export { SortableTable } from './SortableTable';
+export type { TableColumn as SortableTableColumn, ActionButton } from './SortableTable';
+export { DoctorTable } from './DoctorTable';
+export { HospitalTable } from './HospitalTable';
+export { CompanyTable } from './CompanyTable';
+export { SchemeTable } from './SchemeTable';
+export { MedicineTable } from './MedicineTable';
+export { LabTestTable } from './LabTestTable';
+export { ServiceTable } from './ServiceTable';
+export { HospitalPriceTable } from './HospitalPriceTable';
+export { MemberTable } from './MemberTable';
+export { AssignmentTable } from './AssignmentTable';
