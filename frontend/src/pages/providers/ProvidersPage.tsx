@@ -12,6 +12,7 @@ import HospitalForm from '../../components/features/hospitals/HospitalForm';
 import HospitalDetail from '../../components/features/hospitals/HospitalDetail';
 import { DoctorsList } from './DoctorsList';
 import { HospitalsList } from './HospitalsList';
+import { providersApi } from '../../services/providers';
 
 type TabType = 'doctors' | 'hospitals';
 
@@ -43,14 +44,26 @@ const ProvidersPage: React.FC = () => {
   const loadStatistics = async () => {
     try {
       setLoading(true);
-      // Mock statistics - in real app, you'd fetch from API
+      // Get actual data from API - fetch all records to get accurate statistics
+      const [doctorsResponse, hospitalsResponse] = await Promise.all([
+        providersApi.doctors.getDoctors({ page_size: 10000 }),
+        providersApi.hospitals.getHospitals({ page_size: 10000 })
+      ]);
+      
+      const totalDoctors = doctorsResponse.count || 0;
+      const totalHospitals = hospitalsResponse.count || 0;
+      const activeDoctors = doctorsResponse.results?.filter(d => d.status === 'ACTIVE').length || 0;
+      const activeHospitals = hospitalsResponse.results?.filter(h => h.status === 'ACTIVE').length || 0;
+      const inactiveDoctors = doctorsResponse.results?.filter(d => d.status === 'INACTIVE').length || 0;
+      const inactiveHospitals = hospitalsResponse.results?.filter(h => h.status === 'INACTIVE').length || 0;
+      
       setStatistics({
-        totalDoctors: 45,
-        totalHospitals: 23,
-        activeDoctors: 42,
-        activeHospitals: 20,
-        inactiveDoctors: 3,
-        inactiveHospitals: 3
+        totalDoctors,
+        totalHospitals,
+        activeDoctors,
+        activeHospitals,
+        inactiveDoctors,
+        inactiveHospitals
       });
     } catch (err) {
       console.error('Error loading statistics:', err);
@@ -130,7 +143,7 @@ const ProvidersPage: React.FC = () => {
     <div className="h-full flex flex-col" style={{ backgroundColor: '#1a1a1a' }}>
 
       {/* Tabs with Actions */}
-      <div className="border-b" style={{ backgroundColor: '#2a2a2a', borderColor: '#4a4a4a' }}>
+      <div className="border-b" style={{ backgroundColor: '#1a1a1a', borderColor: '#4a4a4a' }}>
         <div className="px-6">
           <div className="flex items-center justify-between">
             <div className="flex space-x-8">

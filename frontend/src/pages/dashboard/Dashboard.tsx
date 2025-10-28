@@ -1,60 +1,116 @@
 import React from 'react';
 import { useThemeStyles } from '../../hooks';
+import { Skeleton } from '../../components/common';
+import { TrendingUp, Users, FileText, Activity } from 'lucide-react';
 
 const Dashboard: React.FC = () => {
-  const { colors, getCardStyles } = useThemeStyles();
+  const { colors, getCardStyles, getPageStyles } = useThemeStyles();
   
   return (
-    <>
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold" style={{ color: colors.text.primary }}>Dashboard</h1>
-        <p className="mt-2" style={{ color: colors.text.tertiary }}>
-          Welcome to your insurance management dashboard
-        </p>
-      </div>
-      
-      {/* Responsive Content Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
-        <div className="rounded-lg p-4 sm:p-6 shadow-sm border" style={getCardStyles()}>
-          <h3 className="text-base sm:text-lg font-semibold mb-2" style={{ color: colors.text.primary }}>Quick Stats</h3>
-          <p className="text-sm sm:text-base" style={{ color: colors.text.tertiary }}>Your dashboard content goes here</p>
-        </div>
-        <div className="rounded-lg p-4 sm:p-6 shadow-sm border" style={getCardStyles()}>
-          <h3 className="text-base sm:text-lg font-semibold mb-2" style={{ color: colors.text.primary }}>Recent Activity</h3>
-          <p className="text-sm sm:text-base" style={{ color: colors.text.tertiary }}>Recent activity will be displayed here</p>
-        </div>
-        <div className="rounded-lg p-4 sm:p-6 shadow-sm border" style={getCardStyles()}>
-          <h3 className="text-base sm:text-lg font-semibold mb-2" style={{ color: colors.text.primary }}>Notifications</h3>
-          <p className="text-sm sm:text-base" style={{ color: colors.text.tertiary }}>Important notifications appear here</p>
-        </div>
-        <div className="rounded-lg p-4 sm:p-6 shadow-sm border sm:col-span-2 lg:col-span-1" style={getCardStyles()}>
-          <h3 className="text-base sm:text-lg font-semibold mb-2" style={{ color: colors.text.primary }}>Responsive Demo</h3>
-          <p className="text-sm sm:text-base" style={{ color: colors.text.tertiary }}>This layout adapts to different screen sizes</p>
-        </div>
-      </div>
-      
-      {/* Responsive Text Demo */}
-      <div className="mt-8 p-4 sm:p-6 rounded-lg border" style={getCardStyles()}>
-        <h2 className="text-xl sm:text-2xl font-bold mb-4" style={{ color: colors.text.primary }}>Responsive Design Demo</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          <div className="text-center">
-            <div className="text-2xl sm:text-3xl font-bold mb-2" style={{ color: colors.text.primary }}>📱</div>
-            <h3 className="text-sm sm:text-base font-semibold mb-1" style={{ color: colors.text.primary }}>Mobile</h3>
-            <p className="text-xs sm:text-sm" style={{ color: colors.text.tertiary }}>Single column layout</p>
+    <div className="h-full flex flex-col" style={getPageStyles()}>
+      <div className="flex-1 p-6 overflow-auto">
+        <div className="space-y-6">
+      {/* Stats Grid */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* Total Claims Card */}
+        <div className="rounded-lg p-6 border" style={getCardStyles()}>
+          <div className="flex items-center justify-between mb-4">
+            <Skeleton variant="circular" width={40} height={40} />
+            <FileText className="w-5 h-5" style={{ color: colors.text.tertiary }} />
           </div>
-          <div className="text-center">
-            <div className="text-2xl sm:text-3xl font-bold mb-2" style={{ color: colors.text.primary }}>📱</div>
-            <h3 className="text-sm sm:text-base font-semibold mb-1" style={{ color: colors.text.primary }}>Tablet</h3>
-            <p className="text-xs sm:text-sm" style={{ color: colors.text.tertiary }}>Two column layout</p>
-          </div>
-          <div className="text-center sm:col-span-2 lg:col-span-1">
-            <div className="text-2xl sm:text-3xl font-bold mb-2" style={{ color: colors.text.primary }}>💻</div>
-            <h3 className="text-sm sm:text-base font-semibold mb-1" style={{ color: colors.text.primary }}>Desktop</h3>
-            <p className="text-xs sm:text-sm" style={{ color: colors.text.tertiary }}>Multi-column layout</p>
+          <div className="space-y-2">
+            <p className="text-sm font-medium" style={{ color: colors.text.tertiary }}>Total Claims</p>
+            <div className="flex items-baseline gap-2">
+              <Skeleton height={32} width={80} rounded />
+              <Skeleton height={16} width={60} className="mt-2" />
+            </div>
           </div>
         </div>
+
+        {/* Active Members Card */}
+        <div className="rounded-lg p-6 border" style={getCardStyles()}>
+          <div className="flex items-center justify-between mb-4">
+            <Skeleton variant="circular" width={40} height={40} />
+            <Users className="w-5 h-5" style={{ color: colors.text.tertiary }} />
+          </div>
+          <div className="space-y-2">
+            <p className="text-sm font-medium" style={{ color: colors.text.tertiary }}>Active Members</p>
+            <div className="flex items-baseline gap-2">
+              <Skeleton height={32} width={80} rounded />
+              <Skeleton height={16} width={60} className="mt-2" />
+            </div>
+          </div>
+        </div>
+
+        {/* Revenue Card */}
+        <div className="rounded-lg p-6 border" style={getCardStyles()}>
+          <div className="flex items-center justify-between mb-4">
+            <Skeleton variant="circular" width={40} height={40} />
+            <TrendingUp className="w-5 h-5" style={{ color: colors.text.tertiary }} />
+          </div>
+          <div className="space-y-2">
+            <p className="text-sm font-medium" style={{ color: colors.text.tertiary }}>Revenue</p>
+            <div className="flex items-baseline gap-2">
+              <Skeleton height={32} width={100} rounded />
+              <Skeleton height={16} width={60} className="mt-2" />
+            </div>
+          </div>
+        </div>
+
+        {/* Activity Card */}
+        <div className="rounded-lg p-6 border" style={getCardStyles()}>
+          <div className="flex items-center justify-between mb-4">
+            <Skeleton variant="circular" width={40} height={40} />
+            <Activity className="w-5 h-5" style={{ color: colors.text.tertiary }} />
+          </div>
+          <div className="space-y-2">
+            <p className="text-sm font-medium" style={{ color: colors.text.tertiary }}>Recent Activity</p>
+            <div className="flex items-baseline gap-2">
+              <Skeleton height={32} width={80} rounded />
+              <Skeleton height={16} width={60} className="mt-2" />
+            </div>
+          </div>
+        </div>
       </div>
-    </>
+
+      {/* Content Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Recent Activity */}
+        <div className="lg:col-span-2 rounded-lg p-6 border" style={getCardStyles()}>
+          <h3 className="text-lg font-semibold mb-4" style={{ color: colors.text.primary }}>Recent Claims</h3>
+          <div className="space-y-4">
+            {[...Array(5)].map((_, i) => (
+              <div key={i} className="flex items-center gap-4">
+                <Skeleton variant="circular" width={48} height={48} />
+                <div className="flex-1 space-y-2">
+                  <Skeleton height={16} width="60%" rounded />
+                  <Skeleton height={12} width="40%" rounded />
+                </div>
+                <Skeleton height={24} width={80} rounded />
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Quick Actions */}
+        <div className="rounded-lg p-6 border" style={getCardStyles()}>
+          <h3 className="text-lg font-semibold mb-4" style={{ color: colors.text.primary }}>Quick Actions</h3>
+          <div className="space-y-3">
+            {[...Array(4)].map((_, i) => (
+              <div key={i} className="flex items-center gap-3">
+                <Skeleton width={40} height={40} rounded />
+                <div className="flex-1 space-y-1">
+                  <Skeleton height={14} width="80%" rounded />
+                  <Skeleton height={12} width="60%" rounded />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+      </div>
+      </div>
+    </div>
   );
 };
 

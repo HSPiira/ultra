@@ -101,16 +101,9 @@ const MembersPage: React.FC = () => {
   const loadStatistics = async () => {
     try {
       setLoading(true);
-      // Mock statistics - in real app, you'd fetch from API
-      setStatistics({
-        totalMembers: 1250,
-        activeMembers: 1180,
-        inactiveMembers: 45,
-        suspendedMembers: 25,
-        selfMembers: 420,
-        spouseMembers: 380,
-        childMembers: 450
-      });
+      // Get actual data from API
+      const stats = await membersApi.getMemberStatistics();
+      setStatistics(stats);
     } catch (err) {
       console.error('Error loading statistics:', err);
     } finally {
@@ -164,7 +157,7 @@ const MembersPage: React.FC = () => {
   return (
     <div className="h-full flex flex-col" style={getPageStyles()}>
       {/* Tabs with Actions */}
-      <div className="border-b" style={{ backgroundColor: colors.background.secondary, borderColor: colors.border.primary }}>
+      <div className="border-b" style={{ backgroundColor: colors.background.primary, borderColor: colors.border.primary }}>
         <div className="px-6">
           <div className="flex items-center justify-between">
             <div className="flex space-x-8">
