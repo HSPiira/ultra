@@ -218,8 +218,8 @@ const Sidebar: React.FC<SidebarProps> = ({
                   return (
                     <hr 
                       key={item.id} 
-                      className="my-3 border-gray-700" 
-                      style={{ borderColor: '#374151' }}
+                      className="my-3" 
+                      style={{ borderColor: '#2a2a2a' }}
                     />
                   );
                 }

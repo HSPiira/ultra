@@ -1,7 +1,9 @@
 from typing import Any
 
+from django.core.exceptions import ValidationError
 from django.db import transaction
 
+from apps.core.enums.choices import BusinessStatusChoices
 from apps.providers.models import Doctor, DoctorHospitalAffiliation, Hospital
 
 
@@ -83,6 +85,14 @@ class DoctorService:
             if not hospital:
                 continue
 
+            # Validate hospital is active
+            if hospital.status != BusinessStatusChoices.ACTIVE or hospital.is_deleted:
+                raise ValidationError(f"Hospital '{hospital.name}' must be active to create an affiliation")
+
+            # Validate doctor is active
+            if doctor.status != BusinessStatusChoices.ACTIVE or doctor.is_deleted:
+                raise ValidationError(f"Doctor '{doctor.name}' must be active to create an affiliation")
+
             is_primary = bool(payload.get("is_primary", False))
             # Ensure at most one primary - keep first encountered as primary
             if is_primary and primary_set:
@@ -90,7 +100,7 @@ class DoctorService:
             if is_primary:
                 primary_set = True
 
-            DoctorHospitalAffiliation.objects.create(
+            affiliation = DoctorHospitalAffiliation(
                 doctor=doctor,
                 hospital=hospital,
                 role=payload.get("role", ""),
@@ -98,6 +108,8 @@ class DoctorService:
                 end_date=payload.get("end_date"),
                 is_primary=is_primary,
             )
+            affiliation.full_clean()  # Run model validation including clean() method
+            affiliation.save()
 
         # Keep M2M in sync with affiliations' hospitals
         hospitals = Hospital.objects.filter(

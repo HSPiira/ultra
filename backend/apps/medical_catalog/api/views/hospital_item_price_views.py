@@ -12,7 +12,7 @@ from apps.medical_catalog.services import HospitalItemPriceService
 class HospitalItemPriceViewSet(viewsets.ModelViewSet):
     serializer_class = HospitalItemPriceSerializer
     queryset = HospitalItemPrice.objects.all()
-    permission_classes = []
+    permission_classes = [IsAuthenticated]
     filter_backends = [
         DjangoFilterBackend,
         filters.SearchFilter,

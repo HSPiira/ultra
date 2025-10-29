@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import type { Member } from '../../types/members';
 import { MembersList } from './MembersList';
+import { MemberForm } from './MemberForm';
 import { BulkUploadModal, Tooltip } from '../../components/common';
 import { useBulkUpload, useThemeStyles } from '../../hooks';
 import { MEMBER_BULK_UPLOAD_CONFIG } from '../../components/common/BulkUploadConfigs';
@@ -101,16 +102,9 @@ const MembersPage: React.FC = () => {
   const loadStatistics = async () => {
     try {
       setLoading(true);
-      // Mock statistics - in real app, you'd fetch from API
-      setStatistics({
-        totalMembers: 1250,
-        activeMembers: 1180,
-        inactiveMembers: 45,
-        suspendedMembers: 25,
-        selfMembers: 420,
-        spouseMembers: 380,
-        childMembers: 450
-      });
+      // Get actual data from API
+      const stats = await membersApi.getMemberStatistics();
+      setStatistics(stats);
     } catch (err) {
       console.error('Error loading statistics:', err);
     } finally {
@@ -144,7 +138,7 @@ const MembersPage: React.FC = () => {
     setEditingMember(null);
   };
 
-  const handleFormSave = () => {
+  const handleFormSave = (member: Member) => {
     setIsFormOpen(false);
     setEditingMember(null);
     loadStatistics();
@@ -164,7 +158,7 @@ const MembersPage: React.FC = () => {
   return (
     <div className="h-full flex flex-col" style={getPageStyles()}>
       {/* Tabs with Actions */}
-      <div className="border-b" style={{ backgroundColor: colors.background.secondary, borderColor: colors.border.primary }}>
+      <div className="border-b" style={{ backgroundColor: colors.background.primary, borderColor: colors.border.primary }}>
         <div className="px-6">
           <div className="flex items-center justify-between">
             <div className="flex space-x-8">
@@ -256,72 +250,16 @@ const MembersPage: React.FC = () => {
         )}
       </div>
 
-            {/* Modals - Placeholder for future forms and details */}
-            {isFormOpen && (
-              <div 
-                className="fixed inset-0 flex items-center justify-center z-50 backdrop-blur-xs"
-                style={{ backgroundColor: 'rgba(0, 0, 0, 0.05)' }}
-                onClick={handleFormClose}
-              >
-                <div 
-                  className="p-6 rounded-lg max-w-md w-full mx-4 shadow-2xl border"
-                  style={{ 
-                    backgroundColor: colors.background.tertiary,
-                    borderColor: colors.border.secondary
-                  }}
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <h3 
-                    className="text-lg font-semibold mb-4"
-                    style={{ color: colors.text.primary }}
-                  >
-                    {editingMember ? 'Edit Member' : 'Add Member'}
-                  </h3>
-                  <p 
-                    className="mb-4"
-                    style={{ color: colors.text.tertiary }}
-                  >
-                    Member form will be implemented here
-                  </p>
-                  <div className="flex gap-2">
-                    <button
-                      onClick={handleFormClose}
-                      className="px-4 py-2 rounded transition-colors"
-                      style={{ 
-                        backgroundColor: colors.background.quaternary, 
-                        color: colors.text.primary 
-                      }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.backgroundColor = colors.background.hover;
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.backgroundColor = colors.background.quaternary;
-                      }}
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      onClick={handleFormSave}
-                      className="px-4 py-2 rounded transition-colors"
-                      style={{ 
-                        backgroundColor: colors.action.primary, 
-                        color: colors.text.primary 
-                      }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.backgroundColor = '#2563eb';
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.backgroundColor = colors.action.primary;
-                      }}
-                    >
-                      Save
-                    </button>
-                  </div>
-                </div>
-              </div>
-            )}
+      {/* Member Form Modal */}
+      <MemberForm
+        member={editingMember}
+        isOpen={isFormOpen}
+        onClose={handleFormClose}
+        onSave={handleFormSave}
+      />
 
-            {isDetailsOpen && selectedMember && (
+      {/* Member Details Modal */}
+      {isDetailsOpen && selectedMember && (
               <div 
                 className="fixed inset-0 flex items-center justify-center z-50 backdrop-blur-xs"
                 style={{ backgroundColor: 'rgba(0, 0, 0, 0.05)' }}

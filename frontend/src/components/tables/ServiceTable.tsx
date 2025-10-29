@@ -1,4 +1,4 @@
-import { Eye, Edit, Trash2 } from 'lucide-react';
+import { ExternalLink, Eye, Edit, Trash2 } from 'lucide-react';
 import { SortableTable, TablePagination } from './index';
 import type { TableColumn, ActionButton } from './SortableTable';
 import type { Service } from '../../types/medical-catalog';
@@ -83,9 +83,20 @@ export function ServiceTable({
       width: 'w-1/4',
       sortable: true,
       align: 'left',
-      render: (value) => (
-        <div className="font-bold text-sm" title={String(value)}>
-          {String(value)}
+      render: (value, service) => (
+        <div className="flex items-center gap-2">
+          <span className="font-bold text-sm">
+            {String(value)}
+          </span>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onServiceView?.(service);
+            }}
+            className="p-1 rounded border border-gray-600 transition-colors text-white hover:text-gray-200 hover:bg-gray-700 hover:border-gray-500 flex-shrink-0"
+          >
+            <ExternalLink className="w-3.5 h-3.5" />
+          </button>
         </div>
       ),
     },
@@ -96,7 +107,7 @@ export function ServiceTable({
       sortable: true,
       align: 'left',
       render: (value) => (
-        <span className="text-sm block truncate" title={String(value)}>
+        <span className="text-sm block truncate">
           {String(value)}
         </span>
       ),
@@ -108,7 +119,7 @@ export function ServiceTable({
       sortable: true,
       align: 'left',
       render: (value) => (
-        <span className="text-sm" title={String(value)}>
+        <span className="text-sm">
           {String(value)}
         </span>
       ),
@@ -120,7 +131,7 @@ export function ServiceTable({
       sortable: true,
       align: 'left',
       render: (value) => (
-        <span className="text-sm" title={formatCurrency(Number(value))}>
+        <span className="text-sm">
           {formatCurrency(Number(value))}
         </span>
       ),

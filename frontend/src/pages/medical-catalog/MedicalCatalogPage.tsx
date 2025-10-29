@@ -109,16 +109,17 @@ const MedicalCatalogPage: React.FC = () => {
 
   const loadStatistics = async () => {
     try {
-      // Mock statistics - in real app, you'd fetch from API
+      // Get actual data from API
+      const stats = await medicalCatalogApi.getMedicalCatalogStatistics();
       setStatistics({
-        totalServices: 45,
-        totalMedicines: 128,
-        totalLabTests: 67,
-        totalHospitalPrices: 234,
-        activeServices: 42,
-        activeMedicines: 115,
-        activeLabTests: 61,
-        activeHospitalPrices: 201
+        totalServices: stats.total_services,
+        totalMedicines: stats.total_medicines,
+        totalLabTests: stats.total_lab_tests,
+        totalHospitalPrices: stats.total_hospital_prices,
+        activeServices: stats.active_services,
+        activeMedicines: stats.active_medicines,
+        activeLabTests: stats.active_lab_tests,
+        activeHospitalPrices: stats.active_hospital_prices
       });
     } catch (err) {
       console.error('Error loading statistics:', err);
@@ -258,7 +259,7 @@ const MedicalCatalogPage: React.FC = () => {
   return (
     <div className="h-full flex flex-col" style={getPageStyles()}>
       {/* Tabs with Actions */}
-      <div className="border-b" style={{ backgroundColor: colors.background.secondary, borderColor: colors.border.primary }}>
+      <div className="border-b" style={{ backgroundColor: colors.background.primary, borderColor: colors.border.primary }}>
         <div className="px-6">
           <div className="flex items-center justify-between">
             <div className="flex space-x-8">

@@ -1,4 +1,5 @@
-import { Eye, Edit, Trash2 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { ExternalLink, Eye, Edit, Trash2 } from 'lucide-react';
 import { SortableTable, TablePagination } from './index';
 import type { TableColumn, ActionButton } from './SortableTable';
 import type { Scheme } from '../../types/schemes';
@@ -102,6 +103,8 @@ export function SchemeTable({
   error,
   onRetry,
 }: SchemeTableProps) {
+  const navigate = useNavigate();
+  
   const columns: TableColumn<Scheme>[] = [
     {
       key: 'scheme_name',
@@ -111,11 +114,22 @@ export function SchemeTable({
       align: 'left',
       render: (value, scheme) => (
         <div>
-          <div className="font-bold text-sm" title={String(value)}>
-            {String(value)}
+          <div className="flex items-center gap-2">
+            <span className="font-bold text-sm">
+              {String(value)}
+            </span>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onSchemeView?.(scheme);
+              }}
+              className="p-1 rounded border border-gray-600 transition-colors text-white hover:text-gray-200 hover:bg-gray-700 hover:border-gray-500 flex-shrink-0"
+            >
+              <ExternalLink className="w-3.5 h-3.5" />
+            </button>
           </div>
           {scheme.description && (
-            <div className="text-sm text-gray-400 truncate" title={scheme.description}>
+            <div className="text-sm text-gray-400 truncate mt-1">
               {scheme.description}
             </div>
           )}
@@ -128,11 +142,28 @@ export function SchemeTable({
       width: 'w-1/6',
       sortable: true,
       align: 'left',
-      render: (value) => (
-        <span className="text-sm" title={value?.company_name || ''}>
-          {value?.company_name || ''}
-        </span>
-      ),
+      render: (value, scheme) => {
+        const companyName = value?.company_name || '';
+        const companyId = value?.id || scheme.company;
+        return (
+          <div className="flex items-center gap-2">
+            <span className="text-sm block truncate">
+              {companyName || ''}
+            </span>
+            {companyId && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  navigate(`/companies/${companyId}`);
+                }}
+                className="p-1 rounded border border-gray-600 transition-colors text-white hover:text-gray-200 hover:bg-gray-700 hover:border-gray-500 flex-shrink-0"
+              >
+                <ExternalLink className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
+        );
+      },
     },
     {
       key: 'card_code',
@@ -141,7 +172,7 @@ export function SchemeTable({
       sortable: true,
       align: 'left',
       render: (value) => (
-        <span className="text-sm" title={String(value)}>
+        <span className="text-sm">
           {String(value)}
         </span>
       ),
@@ -153,7 +184,7 @@ export function SchemeTable({
       sortable: true,
       align: 'left',
       render: (value) => (
-        <span className="text-sm" title={formatCurrency(Number(value))}>
+        <span className="text-sm">
           {formatCurrency(Number(value))}
         </span>
       ),
@@ -165,7 +196,7 @@ export function SchemeTable({
       sortable: true,
       align: 'left',
       render: (value) => (
-        <span className="text-sm" title={formatDate(String(value))}>
+        <span className="text-sm">
           {formatDate(String(value))}
         </span>
       ),
@@ -177,7 +208,7 @@ export function SchemeTable({
       sortable: true,
       align: 'left',
       render: (value) => (
-        <span className="text-sm" title={formatDate(String(value))}>
+        <span className="text-sm">
           {formatDate(String(value))}
         </span>
       ),

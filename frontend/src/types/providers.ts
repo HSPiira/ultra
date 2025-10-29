@@ -101,6 +101,8 @@ export interface DoctorFilters {
   hospitals?: string;
   specialization?: string;
   ordering?: string;
+  page_size?: number;
+  page?: number;
 }
 
 export interface HospitalFilters {
@@ -108,6 +110,8 @@ export interface HospitalFilters {
   status?: 'active' | 'inactive';
   branch_of?: string;
   ordering?: string;
+  page_size?: number;
+  page?: number;
 }
 
 // Form validation types

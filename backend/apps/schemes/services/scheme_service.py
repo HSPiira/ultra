@@ -60,6 +60,10 @@ class SchemeService:
         elif not isinstance(company, Company):
             raise ValidationError("Company must be a valid Company instance or ID")
 
+        # Validate company is active
+        if company.status != BusinessStatusChoices.ACTIVE or company.is_deleted:
+            raise ValidationError("Company must be active to create a scheme")
+
         # Date validation
         if (
             scheme_data.get("start_date")
@@ -126,6 +130,10 @@ class SchemeService:
                     raise ValidationError("Invalid company ID")
             elif not isinstance(company, Company):
                 raise ValidationError("Company must be a valid Company instance or ID")
+
+            # Validate company is active
+            if company.status != BusinessStatusChoices.ACTIVE or company.is_deleted:
+                raise ValidationError("Company must be active to update a scheme")
 
         # Date validation
         start_date = update_data.get("start_date", scheme.start_date)
