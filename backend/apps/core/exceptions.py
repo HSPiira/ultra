@@ -1,5 +1,6 @@
 import logging
 
+from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError
 from rest_framework import status
@@ -7,6 +8,9 @@ from rest_framework.response import Response
 from rest_framework.views import exception_handler
 
 logger = logging.getLogger(__name__)
+
+# Import centralized test detection from settings
+IS_TESTING = settings.IS_TESTING
 
 
 def custom_exception_handler(exc, context):
@@ -32,7 +36,9 @@ def custom_exception_handler(exc, context):
 
     # Handle Django ValidationError
     if isinstance(exc, ValidationError):
-        logger.error(f"ValidationError: {exc}")
+        # Only log validation errors when not testing (they're expected during tests)
+        if not IS_TESTING:
+            logger.error(f"ValidationError: {exc}")
         return Response(
             {
                 "success": False,
@@ -49,7 +55,9 @@ def custom_exception_handler(exc, context):
 
     # Handle IntegrityError
     if isinstance(exc, IntegrityError):
-        logger.error(f"IntegrityError: {exc}")
+        # Only log integrity errors when not testing (they're expected during tests)
+        if not IS_TESTING:
+            logger.error(f"IntegrityError: {exc}")
         return Response(
             {
                 "success": False,
