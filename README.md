@@ -46,7 +46,7 @@ The system follows domain-driven design principles with a clean separation betwe
 
 Ultra follows a modern full-stack architecture pattern:
 
-```
+```text
 ┌─────────────────────────────────────────────────────────────┐
 │                      Frontend (React)                        │
 │  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐   │
@@ -224,7 +224,7 @@ EMAIL_HOST_PASSWORD=your-email-password
 
 ### Running the Development Servers
 
-**Option 1: Run both servers concurrently (recommended)**
+#### Option 1: Run both servers concurrently (recommended)
 
 From the project root:
 
@@ -234,9 +234,10 @@ npm run dev
 
 This starts both the Django backend (port 8000) and Vite frontend (port 5173) simultaneously.
 
-**Option 2: Run servers separately**
+#### Option 2: Run servers separately
 
 Backend:
+
 ```bash
 cd backend
 source venv/bin/activate
@@ -244,6 +245,7 @@ python manage.py runserver
 ```
 
 Frontend:
+
 ```bash
 cd frontend
 npm run dev
@@ -251,11 +253,11 @@ npm run dev
 
 **Access the application:**
 
-- **Frontend**: http://localhost:5173
-- **Backend API**: http://localhost:8000
-- **Django Admin**: http://localhost:8000/admin
-- **API Documentation (Swagger)**: http://localhost:8000/api/docs
-- **API Documentation (ReDoc)**: http://localhost:8000/api/redoc
+- **Frontend**: <http://localhost:5173>
+- **Backend API**: <http://localhost:8000>
+- **Django Admin**: <http://localhost:8000/admin>
+- **API Documentation (Swagger)**: <http://localhost:8000/api/docs>
+- **API Documentation (ReDoc)**: <http://localhost:8000/api/redoc>
 
 ### Running Tests
 
@@ -308,9 +310,9 @@ npm run lint
 
 Ultra provides comprehensive API documentation using OpenAPI 3.0:
 
-- **Swagger UI**: http://localhost:8000/api/docs
-- **ReDoc**: http://localhost:8000/api/redoc
-- **OpenAPI Schema (JSON)**: http://localhost:8000/api/schema/
+- **Swagger UI**: <http://localhost:8000/api/docs>
+- **ReDoc**: <http://localhost:8000/api/redoc>
+- **OpenAPI Schema (JSON)**: <http://localhost:8000/api/schema/>
 
 The API follows RESTful conventions and includes:
 
@@ -335,7 +337,7 @@ The API follows RESTful conventions and includes:
 
 ## Project Structure
 
-```
+```text
 ultra/
 ├── backend/
 │   ├── apps/
@@ -371,7 +373,7 @@ ultra/
 
 Each Django app follows a consistent structure:
 
-```
+```text
 app_name/
 ├── models/           # Domain models (split by entity)
 ├── selectors/        # Read-only query composition
@@ -455,7 +457,7 @@ We welcome contributions! Please follow these guidelines:
 
 Use clear, descriptive commit messages:
 
-```
+```text
 feat: Add claim payment tracking
 fix: Resolve soft delete validation issue
 docs: Update API documentation
