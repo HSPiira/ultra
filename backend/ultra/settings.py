@@ -192,6 +192,50 @@ CORS_ALLOW_METHODS = [
 
 TEST_RUNNER = 'django.test.runner.DiscoverRunner'
 
+# Logging configuration
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'verbose': {
+            'format': '{levelname} {name} {message}',
+            'style': '{',
+        },
+    },
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+            'formatter': 'verbose',
+        },
+    },
+    'root': {
+        'handlers': ['console'],
+        'level': 'INFO',
+    },
+    'loggers': {
+        'apps.core.exceptions': {
+            'handlers': ['console'],
+            'level': 'WARNING',  # Suppress ERROR logs for expected validation errors during tests
+            'propagate': False,
+        },
+        'django': {
+            'handlers': ['console'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+    },
+}
+
+# During tests, suppress validation/integrity error logging and request warnings
+import sys
+if 'test' in sys.argv or 'pytest' in sys.modules:
+    LOGGING['loggers']['apps.core.exceptions']['level'] = 'CRITICAL'
+    LOGGING['loggers']['django.request'] = {
+        'handlers': ['console'],
+        'level': 'ERROR',  # Suppress WARNING level logs like "Bad Request" during tests
+        'propagate': False,
+    }
+
 REST_FRAMEWORK = {
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
     "PAGE_SIZE": 20,

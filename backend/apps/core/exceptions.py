@@ -1,4 +1,5 @@
 import logging
+import sys
 
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError
@@ -7,6 +8,9 @@ from rest_framework.response import Response
 from rest_framework.views import exception_handler
 
 logger = logging.getLogger(__name__)
+
+# Check if we're running tests
+IS_TESTING = 'test' in sys.argv or 'pytest' in sys.modules
 
 
 def custom_exception_handler(exc, context):
@@ -49,7 +53,9 @@ def custom_exception_handler(exc, context):
 
     # Handle IntegrityError
     if isinstance(exc, IntegrityError):
-        logger.error(f"IntegrityError: {exc}")
+        # Only log integrity errors when not testing (they're expected during tests)
+        if not IS_TESTING:
+            logger.error(f"IntegrityError: {exc}")
         return Response(
             {
                 "success": False,
