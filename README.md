@@ -119,7 +119,7 @@ Ultra follows a modern full-stack architecture pattern:
 | Tailwind CSS | ^4.1.14 | Styling |
 | React Router | ^6.28.0 | Client-side routing |
 | Axios | ^1.12.2 | HTTP client |
-| Lucide React husky | ^0.546.0 | Icon library |
+| Lucide React | ^0.546.0 | Icon library |
 
 ### Development Tools
 
@@ -269,6 +269,7 @@ python manage.py test
 ```
 
 To run tests for a specific app:
+
 ```bash
 python manage.py test apps.companies
 ```
@@ -282,16 +283,19 @@ python manage.py test apps.companies
 **Backend:**
 
 Format code:
+
 ```bash
 black backend/
 ```
 
 Lint code:
+
 ```bash
 ruff check backend/
 ```
 
 Auto-fix issues:
+
 ```bash
 ruff check --fix backend/
 ```
@@ -299,6 +303,7 @@ ruff check --fix backend/
 **Frontend:**
 
 Lint code:
+
 ```bash
 cd frontend
 npm run lint
