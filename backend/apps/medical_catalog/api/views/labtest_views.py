@@ -12,7 +12,7 @@ from apps.medical_catalog.services import LabTestService
 class LabTestViewSet(viewsets.ModelViewSet):
     serializer_class = LabTestSerializer
     queryset = LabTest.objects.all()
-    permission_classes = []
+    permission_classes = [IsAuthenticated]
     filter_backends = [
         DjangoFilterBackend,
         filters.SearchFilter,

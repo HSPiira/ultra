@@ -21,13 +21,21 @@ def scheme_list(*, filters: dict = None):
     Returns:
         QuerySet: Filtered scheme queryset
     """
-    qs = Scheme.objects.select_related("company").filter(is_deleted=False)
+    # If filtering by status, include soft-deleted records so we can see inactive schemes
+    # Otherwise, exclude soft-deleted records (default behavior)
+    if filters and filters.get("status"):
+        qs = Scheme.all_objects.select_related("company").all()
+    else:
+        qs = Scheme.objects.select_related("company").filter(is_deleted=False)
 
     if not filters:
         return qs
 
     if filters.get("status"):
-        qs = qs.filter(status=filters["status"])
+        # Normalize status: convert to uppercase to match enum values
+        status_value = filters["status"].upper() if filters["status"] else None
+        if status_value:
+            qs = qs.filter(status=status_value)
 
     if filters.get("company"):
         qs = qs.filter(company_id=filters["company"])

@@ -14,7 +14,7 @@ class HospitalViewSet(viewsets.ModelViewSet):
         filters.SearchFilter,
         filters.OrderingFilter,
     ]
-    filterset_fields = ["status", "branch_of"]
+    filterset_fields = ["branch_of"]  # status is handled in get_queryset() via selector
     search_fields = ["name", "contact_person", "email", "phone_number"]
     ordering_fields = ["created_at", "updated_at", "name"]
 

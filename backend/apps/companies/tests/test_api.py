@@ -171,25 +171,40 @@ class CompaniesAPITests(TestCase):
         # Search by company name
         res = self.client.get(reverse("company-list"), {"search": "Alpha"})
         self.assertEqual(res.status_code, 200)
-        self.assertGreaterEqual(len(res.data), 1)
+        # Handle paginated response
+        companies = res.data.get("results", res.data) if isinstance(res.data, dict) else res.data
+        self.assertGreaterEqual(len(companies), 1)
         # Find our specific company in the results
-        alpha_found = any(c.get("company_name") == "Alpha Corp" for c in res.data)
+        alpha_found = any(
+            (c.get("company_name") == "Alpha Corp" if isinstance(c, dict) else c["company_name"] == "Alpha Corp")
+            for c in companies
+        )
         self.assertTrue(alpha_found)
 
         # Filter by industry
         res = self.client.get(reverse("company-list"), {"industry": self.industry.id})
         self.assertEqual(res.status_code, 200)
-        self.assertGreaterEqual(len(res.data), 1)
+        # Handle paginated response
+        companies = res.data.get("results", res.data) if isinstance(res.data, dict) else res.data
+        self.assertGreaterEqual(len(companies), 1)
         # Find our specific company in the results
-        alpha_found = any(c.get("company_name") == "Alpha Corp" for c in res.data)
+        alpha_found = any(
+            (c.get("company_name") == "Alpha Corp" if isinstance(c, dict) else c["company_name"] == "Alpha Corp")
+            for c in companies
+        )
         self.assertTrue(alpha_found)
 
         # Search by email
         res = self.client.get(reverse("company-list"), {"search": "beta.com"})
         self.assertEqual(res.status_code, 200)
-        self.assertGreaterEqual(len(res.data), 1)
+        # Handle paginated response
+        companies = res.data.get("results", res.data) if isinstance(res.data, dict) else res.data
+        self.assertGreaterEqual(len(companies), 1)
         # Find our specific company in the results
-        beta_found = any(c.get("company_name") == "Beta Corp" for c in res.data)
+        beta_found = any(
+            (c.get("company_name") == "Beta Corp" if isinstance(c, dict) else c["company_name"] == "Beta Corp")
+            for c in companies
+        )
         self.assertTrue(beta_found)
 
     def test_company_ordering(self):
@@ -215,9 +230,11 @@ class CompaniesAPITests(TestCase):
         # Order by name ascending
         res = self.client.get(reverse("company-list"), {"ordering": "company_name"})
         self.assertEqual(res.status_code, 200)
-        self.assertGreaterEqual(len(res.data), 2)
+        # Handle paginated response
+        companies = res.data.get("results", res.data) if isinstance(res.data, dict) else res.data
+        self.assertGreaterEqual(len(companies), 2)
         # Find our companies in the results
-        company_names = [c.get("company_name") for c in res.data]
+        company_names = [c.get("company_name") if isinstance(c, dict) else c["company_name"] for c in companies]
         self.assertIn("Alpha Corp", company_names)
         self.assertIn("Zebra Corp", company_names)
         
@@ -229,9 +246,11 @@ class CompaniesAPITests(TestCase):
         # Order by name descending
         res = self.client.get(reverse("company-list"), {"ordering": "-company_name"})
         self.assertEqual(res.status_code, 200)
-        self.assertGreaterEqual(len(res.data), 2)
+        # Handle paginated response
+        companies = res.data.get("results", res.data) if isinstance(res.data, dict) else res.data
+        self.assertGreaterEqual(len(companies), 2)
         # Find our companies in the results
-        company_names = [c.get("company_name") for c in res.data]
+        company_names = [c.get("company_name") if isinstance(c, dict) else c["company_name"] for c in companies]
         self.assertIn("Alpha Corp", company_names)
         self.assertIn("Zebra Corp", company_names)
         

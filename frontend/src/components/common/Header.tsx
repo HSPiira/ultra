@@ -25,7 +25,7 @@ export function Header({ onMenuToggle, user }: HeaderProps) {
     <header 
       className="border-b flex items-center justify-between px-2 sm:px-4 lg:px-6 sticky top-0 z-30 shadow-sm" 
       style={{ 
-        backgroundColor: colors.background.secondary, 
+        backgroundColor: colors.background.primary, 
         borderColor: colors.border.primary, 
         height: '60px' 
       }}

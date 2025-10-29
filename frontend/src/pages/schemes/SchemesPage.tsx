@@ -104,7 +104,7 @@ const SchemesPage: React.FC = () => {
   return (
     <div className="h-full flex flex-col" style={getPageStyles()}>
       {/* Header with Statistics */}
-      <div className="px-6 py-1" style={{ backgroundColor: colors.background.secondary }}>
+      <div className="px-6 py-1" style={{ backgroundColor: colors.background.primary }}>
 
         {/* Statistics Row */}
         {statistics && !loading && (
@@ -137,7 +137,7 @@ const SchemesPage: React.FC = () => {
       </div>
 
       {/* Tabs with Actions */}
-      <div className="border-b" style={{ backgroundColor: colors.background.secondary, borderColor: colors.border.primary }}>
+      <div className="border-b" style={{ backgroundColor: colors.background.primary, borderColor: colors.border.primary }}>
         <div className="px-6">
           <div className="flex items-center justify-between">
             <div className="flex space-x-8">

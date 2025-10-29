@@ -78,6 +78,12 @@ class SchemeSerializer(BaseSerializer):
                 company = Company.objects.get(id=value)
             else:
                 company = value
+            
+            # Validate company is active
+            from apps.core.enums.choices import BusinessStatusChoices
+            if company.status != BusinessStatusChoices.ACTIVE or company.is_deleted:
+                raise serializers.ValidationError("Company must be active to create or update a scheme")
+            
             return company
         except Company.DoesNotExist:
             raise serializers.ValidationError("Invalid company ID")

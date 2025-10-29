@@ -143,7 +143,7 @@ export const SchemeDetailsPage: React.FC = () => {
   return (
     <div className="h-full flex flex-col" style={{ backgroundColor: '#1a1a1a' }}>
       {/* Header */}
-      <div className="px-6 py-4 border-b" style={{ backgroundColor: '#2a2a2a', borderColor: '#4a4a4a' }}>
+      <div className="px-6 py-4 border-b" style={{ backgroundColor: '#1a1a1a', borderColor: '#4a4a4a' }}>
         <div className="flex items-center gap-4">
           <button
             onClick={handleBack}
@@ -176,7 +176,7 @@ export const SchemeDetailsPage: React.FC = () => {
       </div>
 
       {/* Tabs */}
-      <div className="border-b" style={{ backgroundColor: '#2a2a2a', borderColor: '#4a4a4a' }}>
+      <div className="border-b" style={{ backgroundColor: '#1a1a1a', borderColor: '#4a4a4a' }}>
         <div className="px-6">
           <div className="flex space-x-4">
             {[

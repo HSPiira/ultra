@@ -1,3 +1,4 @@
+from django.core.exceptions import ValidationError
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import filters, status, viewsets
 from rest_framework.decorators import action
@@ -51,6 +52,35 @@ class PersonViewSet(viewsets.ModelViewSet):
     def destroy(self, request, *args, **kwargs):
         PersonService.person_deactivate(person_id=kwargs["pk"], user=request.user)
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+    @action(detail=False, methods=["get"])
+    def next_card_number(self, request):
+        """
+        Get the next card number that would be assigned for given scheme, relationship, and optional parent.
+        Query params: scheme, relationship, parent (optional)
+        """
+        scheme_id = request.query_params.get("scheme")
+        relationship = request.query_params.get("relationship")
+        parent_id = request.query_params.get("parent")
+        
+        if not scheme_id or not relationship:
+            return Response(
+                {"error": "scheme and relationship are required"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        try:
+            next_card = PersonService.get_next_card_number(
+                scheme_id=scheme_id,
+                relationship=relationship,
+                parent_id=parent_id
+            )
+            return Response({"card_number": next_card}, status=status.HTTP_200_OK)
+        except ValidationError as e:
+            return Response(
+                {"error": str(e)},
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
     @action(detail=False, methods=["post"])
     def bulk_import(self, request):

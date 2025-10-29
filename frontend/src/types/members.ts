@@ -45,7 +45,7 @@ export interface MemberFormData {
   relationship: 'SELF' | 'SPOUSE' | 'CHILD';
   parent?: string;
   date_of_birth?: string;
-  card_number: string;
+  card_number?: string;
   address?: string;
   phone_number?: string;
   email?: string;

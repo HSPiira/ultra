@@ -20,6 +20,8 @@ export const hospitalApi = {
     if (filters?.status) params.append('status', filters.status);
     if (filters?.branch_of) params.append('branch_of', filters.branch_of);
     if (filters?.ordering) params.append('ordering', filters.ordering);
+    if (filters?.page_size) params.append('page_size', filters.page_size.toString());
+    if (filters?.page) params.append('page', filters.page.toString());
 
     const queryString = params.toString();
     const url = queryString ? `/hospitals/?${queryString}` : '/hospitals/';
@@ -70,6 +72,8 @@ export const doctorApi = {
     if (filters?.hospitals) params.append('hospitals', filters.hospitals);
     if (filters?.specialization) params.append('specialization', filters.specialization);
     if (filters?.ordering) params.append('ordering', filters.ordering);
+    if (filters?.page_size) params.append('page_size', filters.page_size.toString());
+    if (filters?.page) params.append('page', filters.page.toString());
 
     const queryString = params.toString();
     const url = queryString ? `/doctors/?${queryString}` : '/doctors/';

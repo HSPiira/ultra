@@ -166,10 +166,8 @@ export interface MedicalCatalogStatistics {
   active_services: number;
   active_medicines: number;
   active_lab_tests: number;
+  active_hospital_prices: number;
   total_value: number;
-  average_service_price: number;
-  average_medicine_price: number;
-  average_lab_test_price: number;
 }
 
 // Union types for generic handling

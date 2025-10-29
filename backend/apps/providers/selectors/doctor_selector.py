@@ -15,7 +15,10 @@ def doctor_list(*, filters: dict | None = None):
         return qs
 
     if filters.get("status"):
-        qs = qs.filter(status=filters["status"])
+        # Normalize status: convert lowercase to uppercase to match enum values
+        status_value = filters["status"].upper() if filters["status"] else None
+        if status_value:
+            qs = qs.filter(status=status_value)
 
     # Allow filtering by a single hospital id via either key
     hospital_id = filters.get("hospitals") or filters.get("hospital")
