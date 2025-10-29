@@ -1,4 +1,6 @@
+from django.core.exceptions import ValidationError
 
+from apps.core.enums.choices import BusinessStatusChoices
 from apps.providers.models import Hospital
 
 
@@ -10,6 +12,9 @@ class HospitalService:
         if branch_of_id:
             try:
                 branch_of = Hospital.objects.get(pk=branch_of_id)
+                # Validate parent hospital is active
+                if branch_of.status != BusinessStatusChoices.ACTIVE or branch_of.is_deleted:
+                    raise ValidationError("Parent hospital must be active to create a branch")
                 hospital_data['branch_of'] = branch_of
             except Hospital.DoesNotExist:
                 # If branch hospital doesn't exist, ignore the field
@@ -27,6 +32,9 @@ class HospitalService:
             if branch_of_id:
                 try:
                     branch_of = Hospital.objects.get(pk=branch_of_id)
+                    # Validate parent hospital is active
+                    if branch_of.status != BusinessStatusChoices.ACTIVE or branch_of.is_deleted:
+                        raise ValidationError("Parent hospital must be active to update a branch")
                     hospital.branch_of = branch_of
                 except Hospital.DoesNotExist:
                     # If branch hospital doesn't exist, ignore the field

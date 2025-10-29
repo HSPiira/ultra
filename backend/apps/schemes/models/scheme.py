@@ -85,7 +85,13 @@ class Scheme(BaseModel):
 
     def save(self, *args, **kwargs):
         if self.end_date and not self.termination_date:
-            self.termination_date = self.end_date + timedelta(days=1)
+            # Handle both date and string types
+            if isinstance(self.end_date, str):
+                from datetime import datetime
+                end_date = datetime.strptime(self.end_date, '%Y-%m-%d').date()
+            else:
+                end_date = self.end_date
+            self.termination_date = end_date + timedelta(days=1)
         self.full_clean()
         super().save(*args, **kwargs)
 
@@ -104,7 +110,13 @@ class Scheme(BaseModel):
         """Terminate scheme and mark as inactive."""
         self.status = BusinessStatusChoices.INACTIVE
         if not self.termination_date and self.end_date:
-            self.termination_date = self.end_date + timedelta(days=1)
+            # Handle both date and string types
+            if isinstance(self.end_date, str):
+                from datetime import datetime
+                end_date = datetime.strptime(self.end_date, '%Y-%m-%d').date()
+            else:
+                end_date = self.end_date
+            self.termination_date = end_date + timedelta(days=1)
         self.save(update_fields=["status", "termination_date", "updated_at"])
 
 

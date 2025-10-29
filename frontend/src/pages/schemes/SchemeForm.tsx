@@ -70,7 +70,8 @@ export const SchemeForm: React.FC<SchemeFormProps> = ({
 
   const loadCompanies = async () => {
     try {
-      const data = await companiesApi.getCompanies();
+      // Only load active companies for form dropdowns
+      const data = await companiesApi.getCompanies({ status: 'ACTIVE' });
       setCompanies(data);
     } catch (err) {
       console.error('Error loading companies:', err);

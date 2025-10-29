@@ -86,4 +86,17 @@ export const membersApi = {
     const response = await api.get<MemberListResponse>(url);
     return response.data;
   },
+
+  // Get next card number that would be assigned
+  getNextCardNumber: async (schemeId: string, relationship: 'SELF' | 'SPOUSE' | 'CHILD', parentId?: string): Promise<string> => {
+    const params = new URLSearchParams();
+    params.append('scheme', schemeId);
+    params.append('relationship', relationship);
+    if (parentId) {
+      params.append('parent', parentId);
+    }
+    const url = `${BASE_URL}/next_card_number/?${params.toString()}`;
+    const response = await api.get<{ card_number: string }>(url);
+    return response.data.card_number;
+  },
 };

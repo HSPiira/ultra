@@ -88,9 +88,21 @@ export const MembersList: React.FC<MembersListProps> = ({
     if (!field) return data;
     
     return [...data].sort((a, b) => {
-      // Use dot notation parsing to extract nested values
-      const aValue = getNestedValue(a, field);
-      const bValue = getNestedValue(b, field);
+      let aValue: any;
+      let bValue: any;
+      
+      // Handle nested object fields for company_detail and scheme_detail
+      if (field === 'company_detail') {
+        aValue = (a as any)?.company_detail?.company_name;
+        bValue = (b as any)?.company_detail?.company_name;
+      } else if (field === 'scheme_detail') {
+        aValue = (a as any)?.scheme_detail?.scheme_name;
+        bValue = (b as any)?.scheme_detail?.scheme_name;
+      } else {
+        // Use dot notation parsing to extract nested values
+        aValue = getNestedValue(a, field);
+        bValue = getNestedValue(b, field);
+      }
       
       // Normalize values for stable comparison
       const normalizedA = normalizeValue(aValue);

@@ -41,6 +41,35 @@ class SchemeItemService:
             if not scheme_item_data.get(field):
                 raise ValidationError(f"{field} is required")
 
+        # Validate scheme is active
+        scheme = scheme_item_data.get("scheme")
+        if isinstance(scheme, str):
+            from apps.schemes.models import Scheme
+            try:
+                scheme = Scheme.objects.get(id=scheme)
+                scheme_item_data["scheme"] = scheme
+            except Scheme.DoesNotExist:
+                raise ValidationError("Invalid scheme ID")
+        
+        if scheme:
+            if scheme.status != BusinessStatusChoices.ACTIVE or scheme.is_deleted:
+                raise ValidationError("Scheme must be active to create a scheme item")
+
+        # Validate content object is active
+        content_type = scheme_item_data.get("content_type")
+        object_id = scheme_item_data.get("object_id")
+        if content_type and object_id:
+            model_class = content_type.model_class()
+            if model_class:
+                try:
+                    content_obj = model_class.objects.get(pk=object_id)
+                    if hasattr(content_obj, 'status') and hasattr(content_obj, 'is_deleted'):
+                        if content_obj.status != BusinessStatusChoices.ACTIVE or content_obj.is_deleted:
+                            model_name = model_class.__name__
+                            raise ValidationError(f"{model_name} must be active to create a scheme item")
+                except model_class.DoesNotExist:
+                    raise ValidationError(f"Content object with id '{object_id}' does not exist")
+
         # Limit amount validation
         if (
             scheme_item_data.get("limit_amount") is not None
@@ -108,6 +137,35 @@ class SchemeItemService:
                 raise ValidationError("Copayment percentage cannot be negative")
             if copayment > 100:
                 raise ValidationError("Copayment percentage cannot exceed 100")
+
+        # Validate scheme is active if being updated
+        if "scheme" in update_data:
+            scheme = update_data["scheme"]
+            if isinstance(scheme, str):
+                from apps.schemes.models import Scheme
+                try:
+                    scheme = Scheme.objects.get(id=scheme)
+                    update_data["scheme"] = scheme
+                except Scheme.DoesNotExist:
+                    raise ValidationError("Invalid scheme ID")
+            
+            if scheme and (scheme.status != BusinessStatusChoices.ACTIVE or scheme.is_deleted):
+                raise ValidationError("Scheme must be active to update a scheme item")
+
+        # Validate content object is active if being updated
+        content_type = update_data.get("content_type", scheme_item.content_type)
+        object_id = update_data.get("object_id", scheme_item.object_id)
+        if content_type and object_id:
+            model_class = content_type.model_class()
+            if model_class:
+                try:
+                    content_obj = model_class.objects.get(pk=object_id)
+                    if hasattr(content_obj, 'status') and hasattr(content_obj, 'is_deleted'):
+                        if content_obj.status != BusinessStatusChoices.ACTIVE or content_obj.is_deleted:
+                            model_name = model_class.__name__
+                            raise ValidationError(f"{model_name} must be active to update a scheme item")
+                except model_class.DoesNotExist:
+                    raise ValidationError(f"Content object with id '{object_id}' does not exist")
 
         # Check for duplicates (excluding current scheme item)
         if (

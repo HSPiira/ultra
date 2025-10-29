@@ -1,6 +1,8 @@
-import { SortableTable } from './SortableTable';
+import React from 'react';
+import { ExternalLink } from 'lucide-react';
+import { SortableTable, TablePagination } from './index';
+import type { TableColumn } from './SortableTable';
 import type { Member } from '../../types/members';
-import { Eye, Edit, Trash2 } from 'lucide-react';
 
 interface MemberTableProps {
   members: Member[];
@@ -21,6 +23,15 @@ interface MemberTableProps {
   onRetry?: () => void;
 }
 
+const formatPhoneNumber = (phone: string) => {
+  if (!phone) return '';
+  const cleaned = phone.replace(/\D/g, '');
+  if (cleaned.length === 10) {
+    return `(${cleaned.slice(0, 3)}) ${cleaned.slice(3, 6)}-${cleaned.slice(6)}`;
+  }
+  return phone;
+};
+
 export const MemberTable: React.FC<MemberTableProps> = ({
   members,
   allFilteredMembers,
@@ -32,59 +43,91 @@ export const MemberTable: React.FC<MemberTableProps> = ({
   sortDirection,
   onSort,
   onMemberView,
-  onMemberEdit,
-  onMemberDelete,
+  onMemberEdit: _onMemberEdit,
+  onMemberDelete: _onMemberDelete,
   onPageChange,
   loading = false,
   error,
   onRetry
 }) => {
-  const columns = [
+  const columns: TableColumn<Member>[] = [
     {
-      key: 'name' as keyof Member,
+      key: 'name',
       label: 'Name',
-      width: 'w-1/4',
+      width: 'w-1/6',
       sortable: true,
-      align: 'left' as const,
-      render: (value: string, member: Member) => (
-        <div className="flex flex-col">
-          <span className="font-medium text-white">{value}</span>
-          <span className="text-sm text-gray-400">{member.card_number}</span>
+      align: 'left',
+      render: (value, member) => (
+        <div className="flex items-center gap-2">
+          <span className="font-bold text-sm" title={String(value)}>
+            {String(value)}
+          </span>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onMemberView?.(member);
+            }}
+            className="p-1 rounded transition-colors text-gray-400 hover:text-white hover:bg-gray-700"
+            title="View member details"
+          >
+            <ExternalLink className="w-3.5 h-3.5" />
+          </button>
         </div>
       ),
     },
     {
-      key: 'company_detail.company_name' as any,
+      key: 'card_number',
+      label: 'Card#',
+      width: 'w-28',
+      sortable: true,
+      align: 'left',
+      render: (value) => {
+        const cardNum = String(value || '');
+        return (
+          <span className="text-xs block truncate font-mono" title={cardNum || 'N/A'}>
+            {cardNum || 'N/A'}
+          </span>
+        );
+      },
+    },
+    {
+      key: 'company_detail',
       label: 'Company',
       width: 'w-1/6',
       sortable: true,
-      align: 'left' as const,
-      render: (value: any, member: Member) => (
-        <span className="text-sm" title={member.company_detail?.company_name || 'N/A'}>
-          {member.company_detail?.company_name || 'N/A'}
-        </span>
-      ),
+      align: 'left',
+      render: (value, member) => {
+        const companyName = value?.company_name || member.company || '';
+        return (
+          <span className="text-sm block truncate" title={companyName || 'N/A'}>
+            {companyName || 'N/A'}
+          </span>
+        );
+      },
     },
     {
-      key: 'scheme_detail.scheme_name' as any,
+      key: 'scheme_detail',
       label: 'Scheme',
       width: 'w-1/6',
       sortable: true,
-      align: 'left' as const,
-      render: (value: any, member: Member) => (
-        <span className="text-sm" title={member.scheme_detail?.scheme_name || 'N/A'}>
-          {member.scheme_detail?.scheme_name || 'N/A'}
-        </span>
-      ),
+      align: 'left',
+      render: (value, member) => {
+        const schemeName = value?.scheme_name || member.scheme || '';
+        return (
+          <span className="text-sm block truncate" title={schemeName || 'N/A'}>
+            {schemeName || 'N/A'}
+          </span>
+        );
+      },
     },
     {
-      key: 'relationship' as keyof Member,
-      label: 'Relationship',
+      key: 'relationship',
+      label: 'Type',
       width: 'w-20',
       sortable: true,
-      align: 'left' as const,
-      render: (value: string) => {
-        const relationshipText = value.charAt(0).toUpperCase() + value.slice(1).toLowerCase();
+      align: 'left',
+      render: (value) => {
+        const relationshipText = String(value).charAt(0).toUpperCase() + String(value).slice(1).toLowerCase();
         const relationshipColor = value === 'SELF' 
           ? 'text-blue-400' 
           : value === 'SPOUSE'
@@ -92,59 +135,59 @@ export const MemberTable: React.FC<MemberTableProps> = ({
           : 'text-green-400';
         
         return (
-          <span className={`text-sm font-medium ${relationshipColor}`}>
+          <span className={`text-sm font-medium ${relationshipColor}`} title={relationshipText}>
             {relationshipText}
           </span>
         );
       },
     },
     {
-      key: 'gender' as keyof Member,
+      key: 'gender',
       label: 'Gender',
       width: 'w-20',
       sortable: true,
-      align: 'left' as const,
-      render: (value: string) => (
-        <span className="text-sm text-gray-300">
-          {value.charAt(0).toUpperCase() + value.slice(1).toLowerCase()}
+      align: 'left',
+      render: (value) => (
+        <span className="text-sm" title={String(value)}>
+          {String(value).charAt(0).toUpperCase() + String(value).slice(1).toLowerCase()}
         </span>
       ),
     },
     {
-      key: 'phone_number' as keyof Member,
+      key: 'phone_number',
       label: 'Phone',
-      width: 'w-32',
+      width: 'w-24',
       sortable: true,
-      align: 'left' as const,
-      render: (value: string) => (
-        <span className="text-sm text-gray-300" title={value || 'N/A'}>
-          {value || 'N/A'}
+      align: 'left',
+      render: (value) => (
+        <span className="text-sm" title={String(value || 'N/A')}>
+          {formatPhoneNumber(String(value || '')) || 'N/A'}
         </span>
       ),
     },
     {
-      key: 'email' as keyof Member,
+      key: 'email',
       label: 'Email',
-      width: 'w-1/4',
+      width: 'w-1/5',
       sortable: true,
-      align: 'left' as const,
-      render: (value: string) => (
-        <span className="text-sm text-gray-300 truncate" title={value || 'N/A'}>
-          {value || 'N/A'}
+      align: 'left',
+      render: (value) => (
+        <span className="text-sm block truncate" title={String(value || 'N/A')}>
+          {String(value || 'N/A')}
         </span>
       ),
     },
     {
-      key: 'status' as keyof Member,
+      key: 'status',
       label: 'Status',
       width: 'w-20',
       sortable: true,
-      align: 'left' as const,
-      render: (value: string) => {
-        const statusText = value.charAt(0).toUpperCase() + value.slice(1).toLowerCase();
-        const statusColor = value === 'ACTIVE' 
+      align: 'left',
+      render: (_, member) => {
+        const statusText = member.status.charAt(0).toUpperCase() + member.status.slice(1).toLowerCase();
+        const statusColor = member.status === 'ACTIVE' 
           ? 'text-green-500' 
-          : value === 'INACTIVE'
+          : member.status === 'INACTIVE'
           ? 'text-red-500'
           : 'text-amber-500';
         
@@ -157,44 +200,31 @@ export const MemberTable: React.FC<MemberTableProps> = ({
     },
   ];
 
-  const actions = [
-    {
-      icon: Eye,
-      label: 'View',
-      onClick: onMemberView || (() => {}),
-      className: 'text-blue-400 hover:text-blue-300',
-    },
-    {
-      icon: Edit,
-      label: 'Edit',
-      onClick: onMemberEdit || (() => {}),
-      className: 'text-yellow-400 hover:text-yellow-300',
-    },
-    {
-      icon: Trash2,
-      label: 'Delete',
-      onClick: onMemberDelete || (() => {}),
-      className: 'text-red-400 hover:text-red-300',
-    },
-  ];
-
   return (
     <div>
       <SortableTable
         data={members}
         columns={columns}
-        actions={actions}
+        actions={[]}
         sortField={sortField}
         sortDirection={sortDirection}
         onSort={onSort}
         loading={loading}
         error={error}
         onRetry={onRetry}
+        emptyMessage="No members found."
       />
+      
       {onPageChange && (
-        <div className="mt-4">
-          {/* Pagination will be handled by the parent component */}
-        </div>
+        <TablePagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          onPageChange={onPageChange}
+          startIndex={startIndex}
+          endIndex={endIndex}
+          totalCount={allFilteredMembers.length}
+          filteredCount={allFilteredMembers.length}
+        />
       )}
     </div>
   );

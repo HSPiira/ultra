@@ -4,6 +4,7 @@ from django.core.exceptions import ValidationError
 from django.db import transaction
 
 from apps.claims.models import Claim, ClaimDetail, ClaimPayment
+from apps.core.enums.choices import BusinessStatusChoices
 
 
 class ClaimService:
@@ -12,6 +13,54 @@ class ClaimService:
     def create_claim(*, data: dict[str, Any], user=None) -> Claim:
         details: list[dict[str, Any]] = data.pop("details", [])
         payments: list[dict[str, Any]] = data.pop("payments", [])
+
+        # Validate member is active
+        member_id = data.get("member")
+        if member_id:
+            from apps.members.models import Person
+            if isinstance(member_id, str):
+                try:
+                    member = Person.objects.get(id=member_id)
+                    data["member"] = member
+                except Person.DoesNotExist:
+                    raise ValidationError("Invalid member ID")
+            else:
+                member = member_id
+            
+            if member.status != BusinessStatusChoices.ACTIVE or member.is_deleted:
+                raise ValidationError("Member must be active to create a claim")
+
+        # Validate hospital is active
+        hospital_id = data.get("hospital")
+        if hospital_id:
+            from apps.providers.models import Hospital
+            if isinstance(hospital_id, str):
+                try:
+                    hospital = Hospital.objects.get(id=hospital_id)
+                    data["hospital"] = hospital
+                except Hospital.DoesNotExist:
+                    raise ValidationError("Invalid hospital ID")
+            else:
+                hospital = hospital_id
+            
+            if hospital.status != BusinessStatusChoices.ACTIVE or hospital.is_deleted:
+                raise ValidationError("Hospital must be active to create a claim")
+
+        # Validate doctor is active (if provided)
+        doctor_id = data.get("doctor")
+        if doctor_id:
+            from apps.providers.models import Doctor
+            if isinstance(doctor_id, str):
+                try:
+                    doctor = Doctor.objects.get(id=doctor_id)
+                    data["doctor"] = doctor
+                except Doctor.DoesNotExist:
+                    raise ValidationError("Invalid doctor ID")
+            else:
+                doctor = doctor_id
+            
+            if doctor.status != BusinessStatusChoices.ACTIVE or doctor.is_deleted:
+                raise ValidationError("Doctor must be active to create a claim")
 
         claim = Claim.objects.create(**data)
 

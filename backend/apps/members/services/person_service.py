@@ -1,3 +1,4 @@
+import re
 from typing import Any
 
 from django.core.exceptions import ValidationError
@@ -11,6 +12,106 @@ class PersonService:
     """Business logic for Person write operations."""
 
     @staticmethod
+    def _generate_card_number(*, scheme, relationship: str, parent=None, company=None):
+        """
+        Generate card number in format: {card_code}-{member_count:03d}-{member_number:02d}
+        
+        For principals (SELF): member_number is always 00
+        For dependants: member_number increments (01, 02, etc.) based on parent's dependants
+        """
+        card_code = scheme.card_code.upper()
+        
+        if relationship == RelationshipChoices.SELF:
+            # Principal member: find max member_count for this scheme and increment
+            # Pattern: {card_code}-{3 digits}-00
+            pattern = re.compile(rf"^{re.escape(card_code)}-(\d{{3}})-00$")
+            
+            # Get all principals for this scheme
+            principals = Person.objects.filter(
+                scheme=scheme,
+                relationship=RelationshipChoices.SELF,
+                is_deleted=False
+            ).exclude(
+                card_number__isnull=True
+            ).values_list('card_number', flat=True)
+            
+            max_member_count = 0
+            for card in principals:
+                match = pattern.match(card.upper())
+                if match:
+                    member_count = int(match.group(1))
+                    max_member_count = max(max_member_count, member_count)
+            
+            # Next member count
+            next_member_count = max_member_count + 1
+            card_number = f"{card_code}-{next_member_count:03d}-00"
+        
+        else:
+            # Dependant: use parent's member_count, increment member_number
+            if not parent:
+                raise ValidationError("Parent is required for dependants")
+            
+            # Parse parent's card number to get member_count
+            parent_pattern = re.compile(rf"^{re.escape(card_code)}-(\d{{3}})-00$")
+            parent_match = parent_pattern.match(parent.card_number.upper())
+            
+            if not parent_match:
+                raise ValidationError("Parent card number format is invalid")
+            
+            member_count = int(parent_match.group(1))
+            
+            # Find max member_number for dependants of this parent
+            # Pattern: {card_code}-{same 3 digits}-{2 digits}
+            dependant_pattern = re.compile(rf"^{re.escape(card_code)}-{member_count:03d}-(\d{{2}})$")
+            
+            dependants = Person.objects.filter(
+                parent=parent,
+                is_deleted=False
+            ).exclude(
+                card_number__isnull=True
+            ).values_list('card_number', flat=True)
+            
+            max_member_number = 0
+            for card in dependants:
+                match = dependant_pattern.match(card.upper())
+                if match:
+                    member_number = int(match.group(1))
+                    max_member_number = max(max_member_number, member_number)
+            
+            # Next member number (skip 00 as that's for the principal)
+            next_member_number = max_member_number + 1
+            card_number = f"{card_code}-{member_count:03d}-{next_member_number:02d}"
+        
+        return card_number
+
+    @staticmethod
+    def get_next_card_number(*, scheme_id: str, relationship: str, parent_id: str = None):
+        """
+        Get the next card number that would be assigned without creating the person.
+        This is used for preview purposes in the frontend.
+        """
+        from apps.schemes.models import Scheme
+        
+        try:
+            scheme = Scheme.objects.get(id=scheme_id)
+        except Scheme.DoesNotExist:
+            raise ValidationError("Invalid scheme ID")
+        
+        parent = None
+        if parent_id:
+            try:
+                parent = Person.objects.get(id=parent_id)
+            except Person.DoesNotExist:
+                raise ValidationError("Invalid parent member ID")
+        
+        return PersonService._generate_card_number(
+            scheme=scheme,
+            relationship=relationship,
+            parent=parent,
+            company=None
+        )
+
+    @staticmethod
     @transaction.atomic
     def person_create(*, person_data: dict, user=None) -> Person:
         required_fields = [
@@ -19,7 +120,6 @@ class PersonService:
             "name",
             "gender",
             "relationship",
-            "card_number",
         ]
         for field in required_fields:
             if not person_data.get(field):
@@ -31,6 +131,71 @@ class PersonService:
         ) == RelationshipChoices.SELF and person_data.get("parent"):
             raise ValidationError("Principal (SELF) cannot have a parent")
 
+        # Validate company is active
+        company = person_data.get("company")
+        if isinstance(company, str):
+            from apps.companies.models import Company
+            try:
+                company = Company.objects.get(id=company)
+                person_data["company"] = company
+            except Company.DoesNotExist:
+                raise ValidationError("Invalid company ID")
+        
+        if company:
+            if company.status != BusinessStatusChoices.ACTIVE or company.is_deleted:
+                raise ValidationError("Company must be active to create a member")
+
+        # Validate scheme is active
+        scheme = person_data.get("scheme")
+        if isinstance(scheme, str):
+            from apps.schemes.models import Scheme
+            try:
+                scheme = Scheme.objects.get(id=scheme)
+                person_data["scheme"] = scheme
+            except Scheme.DoesNotExist:
+                raise ValidationError("Invalid scheme ID")
+        
+        if scheme:
+            if scheme.status != BusinessStatusChoices.ACTIVE or scheme.is_deleted:
+                raise ValidationError("Scheme must be active to create a member")
+
+        # Validate parent is active (for dependants)
+        parent = None
+        if person_data.get("parent") and person_data.get("relationship") != RelationshipChoices.SELF:
+            parent_id = person_data.get("parent")
+            if isinstance(parent_id, str):
+                parent = Person.objects.filter(id=parent_id).first()
+                if not parent:
+                    raise ValidationError("Invalid parent member ID")
+                if parent.status != BusinessStatusChoices.ACTIVE or parent.is_deleted:
+                    raise ValidationError("Parent member must be active to create a dependant")
+                person_data["parent"] = parent
+            else:
+                parent = parent_id
+            
+            # Ensure parent belongs to same company and scheme
+            if parent.company_id != company.id:
+                raise ValidationError("Parent must belong to the same company")
+            if parent.scheme_id != scheme.id:
+                raise ValidationError("Parent must belong to the same scheme")
+            if parent.relationship != RelationshipChoices.SELF:
+                raise ValidationError("Parent must have relationship SELF")
+
+        # Auto-generate card number if not provided
+        if not person_data.get("card_number"):
+            try:
+                generated_card = PersonService._generate_card_number(
+                    scheme=scheme,
+                    relationship=person_data.get("relationship"),
+                    parent=parent,
+                    company=company
+                )
+                person_data["card_number"] = generated_card
+            except ValidationError:
+                raise
+            except Exception as e:
+                raise ValidationError(f"Failed to generate card number: {str(e)}")
+        
         # Per-company card uniqueness is enforced by DB; pre-check to return nicer error
         if Person.objects.filter(
             company_id=person_data.get("company"),
@@ -56,6 +221,46 @@ class PersonService:
             and update_data.get("parent")
         ):
             raise ValidationError("Principal (SELF) cannot have a parent")
+
+        # Validate company is active if being updated
+        if "company" in update_data:
+            company = update_data["company"]
+            if isinstance(company, str):
+                from apps.companies.models import Company
+                try:
+                    company = Company.objects.get(id=company)
+                    update_data["company"] = company
+                except Company.DoesNotExist:
+                    raise ValidationError("Invalid company ID")
+            
+            if company and (company.status != BusinessStatusChoices.ACTIVE or company.is_deleted):
+                raise ValidationError("Company must be active to update a member")
+
+        # Validate scheme is active if being updated
+        if "scheme" in update_data:
+            scheme = update_data["scheme"]
+            if isinstance(scheme, str):
+                from apps.schemes.models import Scheme
+                try:
+                    scheme = Scheme.objects.get(id=scheme)
+                    update_data["scheme"] = scheme
+                except Scheme.DoesNotExist:
+                    raise ValidationError("Invalid scheme ID")
+            
+            if scheme and (scheme.status != BusinessStatusChoices.ACTIVE or scheme.is_deleted):
+                raise ValidationError("Scheme must be active to update a member")
+
+        # Validate parent is active if being updated (for dependants)
+        relationship = update_data.get("relationship", person.relationship)
+        if "parent" in update_data and relationship != RelationshipChoices.SELF:
+            parent_id = update_data["parent"]
+            if parent_id:
+                if isinstance(parent_id, str):
+                    parent = Person.objects.filter(id=parent_id).first()
+                    if not parent:
+                        raise ValidationError("Invalid parent member ID")
+                    if parent.status != BusinessStatusChoices.ACTIVE or parent.is_deleted:
+                        raise ValidationError("Parent member must be active to create a dependant")
 
         # Card uniqueness check if card_number/company change
         new_company = update_data.get("company", person.company_id)
@@ -120,30 +325,54 @@ class PersonService:
             else:
                 dependants.append((idx, row))
 
+        # Load scheme and company once for bulk import
+        from apps.schemes.models import Scheme
+        from apps.companies.models import Company
+        try:
+            scheme_obj = Scheme.objects.get(id=scheme_id)
+            company_obj = Company.objects.get(id=company_id)
+        except (Scheme.DoesNotExist, Company.DoesNotExist) as e:
+            raise ValidationError(f"Invalid company or scheme ID: {str(e)}")
+
         key_to_person_id: dict[str, str] = {}
 
-        def normalize_payload(row: dict[str, Any]) -> dict[str, Any]:
-            return {
-                "company": company_id,
-                "scheme": scheme_id,
+        def normalize_payload(row: dict[str, Any], parent_obj=None) -> dict[str, Any]:
+            payload = {
+                "company": company_obj,
+                "scheme": scheme_obj,
                 "name": (row.get("name") or "").strip(),
                 "national_id": (row.get("national_id") or "").strip() or None,
                 "gender": row.get("gender"),
                 "relationship": row.get("relationship"),
-                "parent": row.get("parent"),  # will be replaced for dependants
+                "parent": parent_obj,
                 "date_of_birth": row.get("date_of_birth") or None,
-                "card_number": (row.get("card_number") or "").strip(),
                 "address": row.get("address") or "",
                 "phone_number": (row.get("phone_number") or "").strip(),
                 "email": (
                     (row.get("email") or "").lower().strip() if row.get("email") else ""
                 ),
             }
+            
+            # Auto-generate card number if not provided in bulk import
+            card_number = (row.get("card_number") or "").strip()
+            if not card_number:
+                try:
+                    card_number = PersonService._generate_card_number(
+                        scheme=scheme_obj,
+                        relationship=row.get("relationship"),
+                        parent=parent_obj,
+                        company=company_obj
+                    )
+                except Exception as e:
+                    raise ValidationError(f"Failed to generate card number: {str(e)}")
+            
+            payload["card_number"] = card_number
+            return payload
 
         # Pass 1: principals
         for idx, row in principals:
             try:
-                payload = normalize_payload(row)
+                payload = normalize_payload(row, parent_obj=None)
                 payload["parent"] = None
 
                 existing = Person.objects.filter(
@@ -187,14 +416,16 @@ class PersonService:
         # Pass 2: dependants
         for idx, row in dependants:
             try:
-                payload = normalize_payload(row)
                 parent_key = row.get("parent_key")
                 if not parent_key or parent_key not in key_to_person_id:
                     raise ValidationError(
                         "parent_key missing or does not match any principal member_key"
                     )
                 parent_id = key_to_person_id[parent_key]
-                payload["parent"] = parent_id
+                parent_obj = Person.objects.get(id=parent_id)
+                
+                payload = normalize_payload(row, parent_obj=parent_obj)
+                payload["parent"] = parent_obj
 
                 existing = Person.objects.filter(
                     company_id=company_id,
