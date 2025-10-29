@@ -7,10 +7,10 @@ from django.forms import ValidationError
 
 from apps.companies.models import Company
 from apps.core.enums.choices import BusinessStatusChoices
-from apps.core.models.base import BaseModel
+from apps.core.models.base import BaseModel, ActiveManager
 
 
-class SchemeManager(models.Manager):
+class SchemeManager(ActiveManager):
     def active(self):
         return self.filter(status=BusinessStatusChoices.ACTIVE)
 

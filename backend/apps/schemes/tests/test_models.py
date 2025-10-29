@@ -262,6 +262,8 @@ class SchemesModelTests(TestCase):
 
     def test_plan_model(self):
         """Test Plan model functionality."""
+        # Clear any existing plans for test isolation
+        Plan.all_objects.all().delete()
         plan = Plan.objects.create(
             plan_name="Test Plan",
             description="Test plan description"

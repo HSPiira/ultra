@@ -100,7 +100,7 @@ class DoctorService:
             if is_primary:
                 primary_set = True
 
-            DoctorHospitalAffiliation.objects.create(
+            affiliation = DoctorHospitalAffiliation(
                 doctor=doctor,
                 hospital=hospital,
                 role=payload.get("role", ""),
@@ -108,6 +108,8 @@ class DoctorService:
                 end_date=payload.get("end_date"),
                 is_primary=is_primary,
             )
+            affiliation.full_clean()  # Run model validation including clean() method
+            affiliation.save()
 
         # Keep M2M in sync with affiliations' hospitals
         hospitals = Hospital.objects.filter(
