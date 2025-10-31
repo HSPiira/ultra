@@ -68,14 +68,14 @@ class HospitalItemPriceService:
         hospital_id = filtered_data.pop("hospital")
         try:
             hospital_instance = Hospital.objects.get(pk=hospital_id, is_deleted=False)
-        except Hospital.DoesNotExist:
-            raise NotFoundError("Hospital", hospital_id)
+        except Hospital.DoesNotExist as err:
+            raise NotFoundError("Hospital", hospital_id) from err
 
         content_type_id = filtered_data.pop("content_type")
         try:
             content_type_instance = ContentType.objects.get(pk=content_type_id)
-        except ContentType.DoesNotExist:
-            raise NotFoundError("ContentType", content_type_id)
+        except ContentType.DoesNotExist as err:
+            raise NotFoundError("ContentType", content_type_id) from err
 
         try:
             return HospitalItemPrice.objects.create(
@@ -88,7 +88,7 @@ class HospitalItemPriceService:
             if hasattr(e, 'message_dict'):
                 for field, messages in e.message_dict.items():
                     if any('already exists' in str(msg).lower() for msg in messages):
-                        raise DuplicateError("HospitalItemPrice", [field], f"HospitalItemPrice with this {field} already exists")
+                        raise DuplicateError("HospitalItemPrice", [field], f"HospitalItemPrice with this {field} already exists") from e
             # Not a uniqueness error - re-raise original ValidationError
             raise
         except IntegrityError as e:
@@ -98,7 +98,7 @@ class HospitalItemPriceService:
             else:
                 # Other integrity errors (NOT NULL, FK, etc.) - raise InvalidValueError
                 raise InvalidValueError(
-                    field=None,
+                    field="database",
                     message="Database constraint violation",
                     details={"error": str(e)}
                 ) from e
@@ -120,15 +120,15 @@ class HospitalItemPriceService:
             hospital_id = filtered_data.pop("hospital")
             try:
                 instance.hospital = Hospital.objects.get(pk=hospital_id, is_deleted=False)
-            except Hospital.DoesNotExist:
-                raise NotFoundError("Hospital", hospital_id)
+            except Hospital.DoesNotExist as err:
+                raise NotFoundError("Hospital", hospital_id) from err
 
         if "content_type" in filtered_data:
             content_type_id = filtered_data.pop("content_type")
             try:
                 instance.content_type = ContentType.objects.get(pk=content_type_id)
-            except ContentType.DoesNotExist:
-                raise NotFoundError("ContentType", content_type_id)
+            except ContentType.DoesNotExist as err:
+                raise NotFoundError("ContentType", content_type_id) from err
 
         for field, value in filtered_data.items():
             setattr(instance, field, value)
@@ -141,7 +141,7 @@ class HospitalItemPriceService:
             if hasattr(e, 'message_dict'):
                 for field, messages in e.message_dict.items():
                     if any('already exists' in str(msg).lower() for msg in messages):
-                        raise DuplicateError("HospitalItemPrice", [field], f"Another hospitalitemprice with this {field} already exists")
+                        raise DuplicateError("HospitalItemPrice", [field], f"Another hospitalitemprice with this {field} already exists") from e
             # Not a uniqueness error - re-raise original ValidationError
             raise
         except IntegrityError as e:
@@ -151,7 +151,7 @@ class HospitalItemPriceService:
             else:
                 # Other integrity errors (NOT NULL, FK, etc.) - raise InvalidValueError
                 raise InvalidValueError(
-                    field=None,
+                    field=[],
                     message="Database constraint violation",
                     details={"error": str(e)}
                 ) from e
@@ -161,7 +161,7 @@ class HospitalItemPriceService:
         try:
             instance = HospitalItemPrice.objects.get(pk=price_id, is_deleted=False)
         except HospitalItemPrice.DoesNotExist:
-            raise NotFoundError("HospitalItemPrice", price_id)
+            raise NotFoundError("HospitalItemPrice", price_id) from None
 
         instance.soft_delete(user=user)
         instance.save(update_fields=["is_deleted", "deleted_at", "deleted_by"])

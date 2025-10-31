@@ -25,17 +25,17 @@ class ServiceService:
             if hasattr(e, 'message_dict'):
                 for field, messages in e.message_dict.items():
                     if any('already exists' in str(msg).lower() for msg in messages):
-                        raise DuplicateError("Service", [field], f"Service with this {field} already exists")
+                        raise DuplicateError("Service", [field], f"Service with this {field} already exists") from e
             # Not a uniqueness error - re-raise original ValidationError
             raise
         except IntegrityError as e:
             # Database constraint violation
             error_msg = str(e).lower()
             if 'name' in error_msg or 'unique' in error_msg:
-                raise DuplicateError("Service", ["name"], "Service with this name already exists")
+                raise DuplicateError("Service", ["name"], "Service with this name already exists") from e
             else:
                 # Unknown unique constraint violation - use generic field to ensure message_dict is created
-                raise DuplicateError("Service", ["duplicate"], "Service with duplicate unique field already exists")
+                raise DuplicateError("Service", ["duplicate"], "Service with duplicate unique field already exists") from e
 
     @staticmethod
     def update(*, service_id: str, data: dict, user=None) -> Service:
@@ -61,17 +61,17 @@ class ServiceService:
             if hasattr(e, 'message_dict'):
                 for field, messages in e.message_dict.items():
                     if any('already exists' in str(msg).lower() for msg in messages):
-                        raise DuplicateError("Service", [field], f"Another service with this {field} already exists")
+                        raise DuplicateError("Service", [field], f"Another service with this {field} already exists") from e
             # Not a uniqueness error - re-raise original ValidationError
             raise
         except IntegrityError as e:
             # Database constraint violation
             error_msg = str(e).lower()
             if 'name' in error_msg or 'unique' in error_msg:
-                raise DuplicateError("Service", ["name"], "Another service with this name already exists")
+                raise DuplicateError("Service", ["name"], "Another service with this name already exists") from e
             else:
                 # Unknown unique constraint violation - use generic field to ensure message_dict is created
-                raise DuplicateError("Service", ["duplicate"], "Service with duplicate unique field already exists")
+                raise DuplicateError("Service", ["duplicate"], "Service with duplicate unique field already exists") from e
 
     @staticmethod
     def deactivate(*, service_id: str, user=None) -> None:

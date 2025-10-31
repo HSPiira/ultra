@@ -76,8 +76,8 @@ class BenefitService:
             try:
                 plan = Plan.objects.get(id=benefit_data['plan'], is_deleted=False)
                 benefit_data['plan'] = plan
-            except Plan.DoesNotExist:
-                raise NotFoundError("Plan", benefit_data['plan'])
+            except Plan.DoesNotExist as exc:
+                raise NotFoundError("Plan", benefit_data['plan']) from exc
         elif 'plan' in benefit_data and benefit_data['plan'] is None:
             benefit_data['plan'] = None
 
@@ -120,8 +120,8 @@ class BenefitService:
         """
         try:
             benefit = Benefit.objects.get(id=benefit_id, is_deleted=False)
-        except Benefit.DoesNotExist:
-            raise NotFoundError("Benefit", benefit_id)
+        except Benefit.DoesNotExist as exc:
+            raise NotFoundError("Benefit", benefit_id) from exc
 
         # Validate data
         if "benefit_name" in update_data:
@@ -157,8 +157,8 @@ class BenefitService:
                 try:
                     plan = Plan.objects.get(id=update_data['plan'], is_deleted=False)
                     update_data['plan'] = plan
-                except Plan.DoesNotExist:
-                    raise NotFoundError("Plan", update_data['plan'])
+                except Plan.DoesNotExist as exc:
+                    raise NotFoundError("Plan", update_data['plan']) from exc
             else:
                 update_data['plan'] = None
 
@@ -205,8 +205,8 @@ class BenefitService:
         """
         try:
             benefit = Benefit.objects.get(id=benefit_id, is_deleted=False)
-        except Benefit.DoesNotExist:
-            raise NotFoundError("Benefit", benefit_id)
+        except Benefit.DoesNotExist as exc:
+            raise NotFoundError("Benefit", benefit_id) from exc
 
         benefit.status = BusinessStatusChoices.ACTIVE
         benefit.is_deleted = False
@@ -230,8 +230,8 @@ class BenefitService:
         """
         try:
             benefit = Benefit.objects.get(id=benefit_id, is_deleted=False)
-        except Benefit.DoesNotExist:
-            raise NotFoundError("Benefit", benefit_id)
+        except Benefit.DoesNotExist as exc:
+            raise NotFoundError("Benefit", benefit_id) from exc
 
         benefit.status = BusinessStatusChoices.INACTIVE
         benefit.is_deleted = True
@@ -254,8 +254,8 @@ class BenefitService:
         """
         try:
             benefit = Benefit.objects.get(id=benefit_id, is_deleted=False)
-        except Benefit.DoesNotExist:
-            raise NotFoundError("Benefit", benefit_id)
+        except Benefit.DoesNotExist as exc:
+            raise NotFoundError("Benefit", benefit_id) from exc
 
         benefit.status = BusinessStatusChoices.SUSPENDED
         benefit.save(update_fields=["status"])

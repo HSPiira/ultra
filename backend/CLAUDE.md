@@ -84,7 +84,7 @@ python manage.py dbshell
 
 ### Project Structure
 
-```
+```text
 backend/
 ├── ultra/                    # Django project settings
 │   ├── settings.py          # Main configuration
@@ -105,7 +105,7 @@ backend/
 
 Each app follows the HackSoft Django Style Guide pattern with clear separation:
 
-```
+```text
 app_name/
 ├── models/                  # Domain models
 │   ├── __init__.py         # Exports all models

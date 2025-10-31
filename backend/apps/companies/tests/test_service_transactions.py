@@ -6,7 +6,7 @@ when errors occur within service methods.
 """
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
-from django.test import TestCase, TransactionTestCase
+from django.test import TransactionTestCase
 from unittest.mock import patch
 
 from apps.companies.models import Company, Industry
@@ -281,13 +281,13 @@ class CompanyServiceTransactionTests(TransactionTestCase):
         self.assertFalse(company.is_deleted)
         self.assertEqual(company.status, "ACTIVE")
 
-    def test_concurrent_create_with_same_unique_field(self):
+    def test_duplicate_constraint_enforcement(self):
         """
-        Test that database constraints prevent race condition.
+        Test that database uniqueness constraints are enforced sequentially.
 
-        This test verifies that two concurrent creates with the same
-        unique field will result in exactly one success and one failure,
-        with no race condition.
+        This test verifies that when creating a company with the same unique
+        field (company_name) as an existing company, the second create fails
+        with a DuplicateError and exactly one company with that name exists.
         """
         company_data = {
             "company_name": "Concurrent Company",
@@ -306,7 +306,6 @@ class CompanyServiceTransactionTests(TransactionTestCase):
         self.assertIsNotNone(company1.id)
 
         # Second create with same name should fail with DuplicateError
-        # (not a race condition - atomically detected by database)
         with self.assertRaises(DuplicateError):
             CompanyService.company_create(
                 company_data=company_data,
