@@ -63,7 +63,7 @@ Ultra follows a modern full-stack architecture pattern:
 └─────────────────────────────┬───────────────────────────────┘
                               │
 ┌─────────────────────────────┴───────────────────────────────┐
-│                        Industrialized                         │
+│                   Database & Infrastructure                    │
 │  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐   │
 │  │SQLite/   │  │  Redis   │  │IPFS      │  │Blockchain│   │
 │  │PostgreSQL│  │  Cache   │  │Storage   │  │Audit Logs│   │
