@@ -2,9 +2,15 @@ import csv
 from io import StringIO
 
 from django.core.exceptions import ValidationError
-from django.db import transaction
+from django.db import transaction, IntegrityError
 
 from apps.core.enums.choices import BusinessStatusChoices
+from apps.core.exceptions.service_errors import (
+    RequiredFieldError,
+    NotFoundError,
+    DuplicateError,
+    InvalidValueError,
+)
 from apps.schemes.models import Benefit
 
 
@@ -35,59 +41,65 @@ class BenefitService:
         Raises:
             ValidationError: If data is invalid or duplicates exist
         """
-        # Validate data
+        # Validate required fields
         required_fields = ["benefit_name", "in_or_out_patient"]
         for field in required_fields:
             if not benefit_data.get(field):
-                raise ValidationError(f"{field} is required")
+                raise RequiredFieldError(field)
 
         # Benefit name validation
         benefit_name = benefit_data.get("benefit_name", "").strip()
         if len(benefit_name) < 2:
-            raise ValidationError("Benefit name must be at least 2 characters long")
+            raise InvalidValueError("benefit_name", "Benefit name must be at least 2 characters long")
         if len(benefit_name) > 255:
-            raise ValidationError("Benefit name cannot exceed 255 characters")
+            raise InvalidValueError("benefit_name", "Benefit name cannot exceed 255 characters")
 
         # Description validation
         if benefit_data.get("description") and len(benefit_data["description"]) > 500:
-            raise ValidationError("Description cannot exceed 500 characters")
+            raise InvalidValueError("description", "Description cannot exceed 500 characters")
 
         # Patient type validation
         valid_patient_types = ["INPATIENT", "OUTPATIENT", "BOTH"]
         if benefit_data.get("in_or_out_patient") not in valid_patient_types:
-            raise ValidationError("Invalid patient type")
+            raise InvalidValueError("in_or_out_patient", "Invalid patient type")
 
         # Limit amount validation
         if (
             benefit_data.get("limit_amount") is not None
             and benefit_data["limit_amount"] < 0
         ):
-            raise ValidationError("Limit amount cannot be negative")
-
-        # Check for duplicates (unique together: benefit_name, in_or_out_patient)
-        qs = Benefit.objects.filter(is_deleted=False)
-        if qs.filter(
-            benefit_name__iexact=benefit_name,
-            in_or_out_patient=benefit_data.get("in_or_out_patient"),
-        ).exists():
-            raise ValidationError(
-                "Benefit with this name and patient type already exists"
-            )
+            raise InvalidValueError("limit_amount", "Limit amount cannot be negative")
 
         # Handle plan field conversion
         if 'plan' in benefit_data and benefit_data['plan']:
             from apps.schemes.models import Plan
             try:
-                plan = Plan.objects.get(id=benefit_data['plan'])
+                plan = Plan.objects.get(id=benefit_data['plan'], is_deleted=False)
                 benefit_data['plan'] = plan
-            except Plan.DoesNotExist as e:
-                raise ValidationError(f"Plan with id {benefit_data['plan']} does not exist.") from e
+            except Plan.DoesNotExist:
+                raise NotFoundError("Plan", benefit_data['plan'])
         elif 'plan' in benefit_data and benefit_data['plan'] is None:
             benefit_data['plan'] = None
 
-        # Create benefit
-        benefit = Benefit.objects.create(**benefit_data)
-        return benefit
+        # Create benefit - database unique constraints prevent duplicates atomically
+        try:
+            benefit = Benefit.objects.create(**benefit_data)
+            return benefit
+        except ValidationError as e:
+            # Check if this is a uniqueness validation error, otherwise re-raise
+            if hasattr(e, 'message_dict'):
+                for field, messages in e.message_dict.items():
+                    if any('already exists' in str(msg).lower() for msg in messages):
+                        raise DuplicateError("Benefit", [field], f"Benefit with this {field} already exists")
+            # Not a uniqueness error - re-raise original ValidationError
+            raise
+        except IntegrityError as e:
+            # Database constraint violation
+            error_msg = str(e).lower()
+            if 'benefit_name' in error_msg or 'unique' in error_msg:
+                raise DuplicateError("Benefit", ["benefit_name", "in_or_out_patient"], "Benefit with this name and patient type already exists")
+            else:
+                raise DuplicateError("Benefit", message="Benefit with duplicate unique field already exists")
 
     @staticmethod
     @transaction.atomic
@@ -108,59 +120,45 @@ class BenefitService:
         """
         try:
             benefit = Benefit.objects.get(id=benefit_id, is_deleted=False)
-        except Benefit.DoesNotExist as e:
-            raise ValidationError("Benefit not found") from e
+        except Benefit.DoesNotExist:
+            raise NotFoundError("Benefit", benefit_id)
 
         # Validate data
         if "benefit_name" in update_data:
             benefit_name = update_data["benefit_name"].strip()
             if len(benefit_name) < 2:
-                raise ValidationError("Benefit name must be at least 2 characters long")
+                raise InvalidValueError("benefit_name", "Benefit name must be at least 2 characters long")
             if len(benefit_name) > 255:
-                raise ValidationError("Benefit name cannot exceed 255 characters")
+                raise InvalidValueError("benefit_name", "Benefit name cannot exceed 255 characters")
 
         if (
             "description" in update_data
             and update_data["description"]
             and len(update_data["description"]) > 500
         ):
-            raise ValidationError("Description cannot exceed 500 characters")
+            raise InvalidValueError("description", "Description cannot exceed 500 characters")
 
         if "in_or_out_patient" in update_data:
             valid_patient_types = ["INPATIENT", "OUTPATIENT", "BOTH"]
             if update_data["in_or_out_patient"] not in valid_patient_types:
-                raise ValidationError("Invalid patient type")
+                raise InvalidValueError("in_or_out_patient", "Invalid patient type")
 
         if (
             "limit_amount" in update_data
             and update_data["limit_amount"] is not None
             and update_data["limit_amount"] < 0
         ):
-            raise ValidationError("Limit amount cannot be negative")
-
-        # Check for duplicates (excluding current benefit)
-        if "benefit_name" in update_data or "in_or_out_patient" in update_data:
-            qs = Benefit.objects.filter(is_deleted=False).exclude(id=benefit_id)
-            benefit_name = update_data.get("benefit_name", benefit.benefit_name)
-            patient_type = update_data.get(
-                "in_or_out_patient", benefit.in_or_out_patient
-            )
-            if qs.filter(
-                benefit_name__iexact=benefit_name, in_or_out_patient=patient_type
-            ).exists():
-                raise ValidationError(
-                    "Another benefit with this name and patient type already exists"
-                )
+            raise InvalidValueError("limit_amount", "Limit amount cannot be negative")
 
         # Handle plan field conversion
         if 'plan' in update_data:
             if update_data['plan']:
                 from apps.schemes.models import Plan
                 try:
-                    plan = Plan.objects.get(id=update_data['plan'])
+                    plan = Plan.objects.get(id=update_data['plan'], is_deleted=False)
                     update_data['plan'] = plan
-                except Plan.DoesNotExist as e:
-                    raise ValidationError(f"Plan with id {update_data['plan']} does not exist.") from e
+                except Plan.DoesNotExist:
+                    raise NotFoundError("Plan", update_data['plan'])
             else:
                 update_data['plan'] = None
 
@@ -168,8 +166,25 @@ class BenefitService:
         for field, value in update_data.items():
             setattr(benefit, field, value)
 
-        benefit.save()
-        return benefit
+        # Save - database constraints will prevent duplicates atomically
+        try:
+            benefit.save()
+            return benefit
+        except ValidationError as e:
+            # Check if this is a uniqueness validation error, otherwise re-raise
+            if hasattr(e, 'message_dict'):
+                for field, messages in e.message_dict.items():
+                    if any('already exists' in str(msg).lower() for msg in messages):
+                        raise DuplicateError("Benefit", [field], f"Another benefit with this {field} already exists")
+            # Not a uniqueness error - re-raise original ValidationError
+            raise
+        except IntegrityError as e:
+            # Database constraint violation
+            error_msg = str(e).lower()
+            if 'benefit_name' in error_msg or 'unique' in error_msg:
+                raise DuplicateError("Benefit", ["benefit_name", "in_or_out_patient"], "Another benefit with this name and patient type already exists")
+            else:
+                raise DuplicateError("Benefit", message="Benefit with duplicate unique field already exists")
 
     # ---------------------------------------------------------------------
     # Status Management
@@ -190,8 +205,8 @@ class BenefitService:
         """
         try:
             benefit = Benefit.objects.get(id=benefit_id, is_deleted=False)
-        except Benefit.DoesNotExist as e:
-            raise ValidationError("Benefit not found") from e
+        except Benefit.DoesNotExist:
+            raise NotFoundError("Benefit", benefit_id)
 
         benefit.status = BusinessStatusChoices.ACTIVE
         benefit.is_deleted = False
@@ -215,8 +230,8 @@ class BenefitService:
         """
         try:
             benefit = Benefit.objects.get(id=benefit_id, is_deleted=False)
-        except Benefit.DoesNotExist as e:
-            raise ValidationError("Benefit not found") from e
+        except Benefit.DoesNotExist:
+            raise NotFoundError("Benefit", benefit_id)
 
         benefit.status = BusinessStatusChoices.INACTIVE
         benefit.is_deleted = True
@@ -239,8 +254,8 @@ class BenefitService:
         """
         try:
             benefit = Benefit.objects.get(id=benefit_id, is_deleted=False)
-        except Benefit.DoesNotExist as e:
-            raise ValidationError("Benefit not found") from e
+        except Benefit.DoesNotExist:
+            raise NotFoundError("Benefit", benefit_id)
 
         benefit.status = BusinessStatusChoices.SUSPENDED
         benefit.save(update_fields=["status"])
@@ -265,7 +280,7 @@ class BenefitService:
             int: Number of benefits updated
         """
         if new_status not in [choice[0] for choice in BusinessStatusChoices.choices]:
-            raise ValidationError("Invalid status")
+            raise InvalidValueError("status", "Invalid status value")
 
         updated_count = Benefit.objects.filter(
             id__in=benefit_ids, is_deleted=False

@@ -197,7 +197,8 @@ class CompaniesModelTests(TestCase):
 
         with self.assertRaises(ValidationError) as context:
             CompanyService.company_create(company_data=company_data, user=self.user)
-        self.assertIn("Invalid phone number format", str(context.exception))
+        # Phone validation error from model clean() method
+        self.assertIn("Phone number", str(context.exception))
 
     def test_company_selectors(self):
         """Test company selector functions."""

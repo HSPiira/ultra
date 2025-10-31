@@ -5,6 +5,7 @@ from django.db import transaction
 
 from apps.claims.models import Claim, ClaimDetail, ClaimPayment
 from apps.core.enums.choices import BusinessStatusChoices
+from apps.core.exceptions.service_errors import NotFoundError, InactiveEntityError, InvalidValueError
 
 
 class ClaimService:
@@ -20,15 +21,15 @@ class ClaimService:
             from apps.members.models import Person
             if isinstance(member_id, str):
                 try:
-                    member = Person.objects.get(id=member_id)
+                    member = Person.objects.get(id=member_id, is_deleted=False)
                     data["member"] = member
                 except Person.DoesNotExist:
-                    raise ValidationError("Invalid member ID")
+                    raise NotFoundError("Person", member_id)
             else:
                 member = member_id
-            
+
             if member.status != BusinessStatusChoices.ACTIVE or member.is_deleted:
-                raise ValidationError("Member must be active to create a claim")
+                raise InactiveEntityError("Person", "Member must be active to create a claim")
 
         # Validate hospital is active
         hospital_id = data.get("hospital")
@@ -36,15 +37,15 @@ class ClaimService:
             from apps.providers.models import Hospital
             if isinstance(hospital_id, str):
                 try:
-                    hospital = Hospital.objects.get(id=hospital_id)
+                    hospital = Hospital.objects.get(id=hospital_id, is_deleted=False)
                     data["hospital"] = hospital
                 except Hospital.DoesNotExist:
-                    raise ValidationError("Invalid hospital ID")
+                    raise NotFoundError("Hospital", hospital_id)
             else:
                 hospital = hospital_id
-            
+
             if hospital.status != BusinessStatusChoices.ACTIVE or hospital.is_deleted:
-                raise ValidationError("Hospital must be active to create a claim")
+                raise InactiveEntityError("Hospital", "Hospital must be active to create a claim")
 
         # Validate doctor is active (if provided)
         doctor_id = data.get("doctor")
@@ -52,15 +53,15 @@ class ClaimService:
             from apps.providers.models import Doctor
             if isinstance(doctor_id, str):
                 try:
-                    doctor = Doctor.objects.get(id=doctor_id)
+                    doctor = Doctor.objects.get(id=doctor_id, is_deleted=False)
                     data["doctor"] = doctor
                 except Doctor.DoesNotExist:
-                    raise ValidationError("Invalid doctor ID")
+                    raise NotFoundError("Doctor", doctor_id)
             else:
                 doctor = doctor_id
-            
+
             if doctor.status != BusinessStatusChoices.ACTIVE or doctor.is_deleted:
-                raise ValidationError("Doctor must be active to create a claim")
+                raise InactiveEntityError("Doctor", "Doctor must be active to create a claim")
 
         claim = Claim.objects.create(**data)
 
@@ -68,9 +69,7 @@ class ClaimService:
             claim.doctor
             and not claim.doctor.hospitals.filter(pk=claim.hospital_id).exists()
         ):
-            raise ValidationError(
-                {"doctor": "Doctor must be affiliated with the selected hospital."}
-            )
+            raise InvalidValueError("doctor", "Doctor must be affiliated with the selected hospital.")
 
         for d in details:
             ClaimDetail.objects.create(claim=claim, **d)
@@ -97,9 +96,7 @@ class ClaimService:
             claim.doctor
             and not claim.doctor.hospitals.filter(pk=claim.hospital_id).exists()
         ):
-            raise ValidationError(
-                {"doctor": "Doctor must be affiliated with the selected hospital."}
-            )
+            raise InvalidValueError("doctor", "Doctor must be affiliated with the selected hospital.")
 
         if details is not None:
             claim.details.all().delete()

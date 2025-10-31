@@ -1,6 +1,7 @@
 from django.core.exceptions import ValidationError
 
 from apps.core.enums.choices import BusinessStatusChoices
+from apps.core.exceptions.service_errors import NotFoundError, InactiveEntityError
 from apps.providers.models import Hospital
 
 
@@ -11,14 +12,15 @@ class HospitalService:
         branch_of_id = hospital_data.pop('branch_of', None)
         if branch_of_id:
             try:
-                branch_of = Hospital.objects.get(pk=branch_of_id)
-                # Validate parent hospital is active
-                if branch_of.status != BusinessStatusChoices.ACTIVE or branch_of.is_deleted:
-                    raise ValidationError("Parent hospital must be active to create a branch")
-                hospital_data['branch_of'] = branch_of
+                branch_of = Hospital.objects.get(pk=branch_of_id, is_deleted=False)
             except Hospital.DoesNotExist:
-                # If branch hospital doesn't exist, ignore the field
-                pass
+                raise NotFoundError("Hospital", branch_of_id)
+
+            # Validate parent hospital is active
+            if branch_of.status != BusinessStatusChoices.ACTIVE or branch_of.is_deleted:
+                raise InactiveEntityError("Hospital", "Parent hospital must be active to create a branch")
+
+            hospital_data['branch_of'] = branch_of
         
         return Hospital.objects.create(**hospital_data)
 
@@ -31,14 +33,15 @@ class HospitalService:
         if branch_of_id is not None:
             if branch_of_id:
                 try:
-                    branch_of = Hospital.objects.get(pk=branch_of_id)
-                    # Validate parent hospital is active
-                    if branch_of.status != BusinessStatusChoices.ACTIVE or branch_of.is_deleted:
-                        raise ValidationError("Parent hospital must be active to update a branch")
-                    hospital.branch_of = branch_of
+                    branch_of = Hospital.objects.get(pk=branch_of_id, is_deleted=False)
                 except Hospital.DoesNotExist:
-                    # If branch hospital doesn't exist, ignore the field
-                    pass
+                    raise NotFoundError("Hospital", branch_of_id)
+
+                # Validate parent hospital is active
+                if branch_of.status != BusinessStatusChoices.ACTIVE or branch_of.is_deleted:
+                    raise InactiveEntityError("Hospital", "Parent hospital must be active to update a branch")
+
+                hospital.branch_of = branch_of
             else:
                 hospital.branch_of = None
         

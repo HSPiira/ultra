@@ -206,7 +206,7 @@ class SchemesModelTests(TestCase):
 
         with self.assertRaises(ValidationError) as context:
             SchemeService.scheme_create(scheme_data=scheme_data, user=self.user)
-        self.assertIn("Invalid company", str(context.exception))
+        self.assertIn("Company not found", str(context.exception))
 
     def test_scheme_selectors(self):
         """Test scheme selector functions."""

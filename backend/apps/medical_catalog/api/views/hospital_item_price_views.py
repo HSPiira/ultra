@@ -28,7 +28,8 @@ class HospitalItemPriceViewSet(viewsets.ModelViewSet):
             serializer = self.get_serializer(instance)
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         except ValidationError as e:
-            return Response({'error': 'Validation failed', 'details': e.message_dict}, status=status.HTTP_400_BAD_REQUEST)
+            details = e.message_dict if hasattr(e, 'message_dict') else {'error': str(e)}
+            return Response({'error': 'Validation failed', 'details': details}, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
             return Response({'error': 'Invalid data', 'details': str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -40,7 +41,8 @@ class HospitalItemPriceViewSet(viewsets.ModelViewSet):
             serializer = self.get_serializer(instance)
             return Response(serializer.data)
         except ValidationError as e:
-            return Response({'error': 'Validation failed', 'details': e.message_dict}, status=status.HTTP_400_BAD_REQUEST)
+            details = e.message_dict if hasattr(e, 'message_dict') else {'error': str(e)}
+            return Response({'error': 'Validation failed', 'details': details}, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
             return Response({'error': 'Invalid data', 'details': str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
