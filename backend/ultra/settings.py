@@ -12,6 +12,7 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 
 from pathlib import Path
 import sys
+import os
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -24,12 +25,21 @@ IS_TESTING = 'test' in sys.argv or 'pytest' in sys.modules
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = "django-insecure-bo-cm(8%s0lu^$5snvv)!guhe00lyh&!qx7xil5%c8bs3_c7gd"
+# For development, a default insecure key is provided
+# For production, ALWAYS set SECRET_KEY environment variable
+SECRET_KEY = os.environ.get(
+    'SECRET_KEY',
+    'django-insecure-bo-cm(8%s0lu^$5snvv)!guhe00lyh&!qx7xil5%c8bs3_c7gd'  # Development default
+)
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.environ.get('DEBUG', 'True') == 'True'
 
-ALLOWED_HOSTS = ['localhost', '127.0.0.1', '0.0.0.0', 'testserver']
+# Parse ALLOWED_HOSTS from environment variable (comma-separated)
+ALLOWED_HOSTS = os.environ.get(
+    'ALLOWED_HOSTS',
+    'localhost,127.0.0.1,0.0.0.0,testserver'
+).split(',')
 
 
 # Application definition
@@ -162,14 +172,18 @@ MEDIA_ROOT = BASE_DIR / "media"
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 # CORS Configuration
-CORS_ALLOW_ALL_ORIGINS = True  # Only for development
+# In development, CORS_ALLOW_ALL_ORIGINS can be True for convenience
+# In production, ALWAYS set to False and specify CORS_ALLOWED_ORIGINS
+CORS_ALLOW_ALL_ORIGINS = os.environ.get('CORS_ALLOW_ALL_ORIGINS', 'False') == 'True'
 CORS_ALLOW_CREDENTIALS = True
 
-# Specific origins for production (uncomment and modify as needed)
-# CORS_ALLOWED_ORIGINS = [
-#     "http://localhost:5173",  # Vite dev server
-#     "http://127.0.0.1:5173",
-# ]
+# Specific origins for production (set via CORS_ALLOWED_ORIGINS environment variable)
+# If CORS_ALLOW_ALL_ORIGINS is False, this list will be used
+if not CORS_ALLOW_ALL_ORIGINS:
+    CORS_ALLOWED_ORIGINS = os.environ.get(
+        'CORS_ALLOWED_ORIGINS',
+        'http://localhost:5173,http://127.0.0.1:5173'
+    ).split(',')
 
 # CORS headers to allow
 CORS_ALLOW_HEADERS = [
@@ -239,6 +253,15 @@ if IS_TESTING:
         'propagate': False,
     }
 
+# Determine default permission class from environment
+# For development: set DEFAULT_PERMISSION_CLASS=AllowAny
+# For production: set DEFAULT_PERMISSION_CLASS=IsAuthenticated (default)
+_permission_class = os.environ.get('DEFAULT_PERMISSION_CLASS', 'IsAuthenticated')
+_permission_mapping = {
+    'AllowAny': 'rest_framework.permissions.AllowAny',
+    'IsAuthenticated': 'rest_framework.permissions.IsAuthenticated',
+}
+
 REST_FRAMEWORK = {
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
     "PAGE_SIZE": 20,
@@ -253,7 +276,7 @@ REST_FRAMEWORK = {
         "rest_framework.authentication.BasicAuthentication",
     ],
     "DEFAULT_PERMISSION_CLASSES": [
-        "rest_framework.permissions.AllowAny",  # Temporarily allow all for testing
+        _permission_mapping.get(_permission_class, 'rest_framework.permissions.IsAuthenticated'),
     ],
     # Rate limiting / throttling (disabled for development)
     # "DEFAULT_THROTTLE_CLASSES": [

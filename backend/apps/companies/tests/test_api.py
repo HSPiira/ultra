@@ -30,7 +30,7 @@ class CompaniesAPITests(TestCase):
                 "company_name": "Test Company",
                 "contact_person": "John Doe",
                 "email": "john@testcompany.com",
-                "phone_number": "1234567890",
+                "phone_number": "+256701234567",
                 "industry": self.industry.id,
                 "company_address": "123 Test St"
             },
@@ -58,7 +58,7 @@ class CompaniesAPITests(TestCase):
                 "company_name": "Updated Company",
                 "contact_person": "Jane Doe",
                 "email": "jane@updatedcompany.com",
-                "phone_number": "0987654321",
+                "phone_number": "+256709876543",
                 "industry": self.industry.id,
                 "company_address": "456 Updated St"
             },
@@ -95,7 +95,7 @@ class CompaniesAPITests(TestCase):
                 "company_name": "Test Company",
                 "contact_person": "John Doe",
                 "email": "invalid-email",
-                "phone_number": "1234567890",
+                "phone_number": "+256701234567",
                 "industry": self.industry.id,
                 "company_address": "123 Test St"
             },
@@ -123,7 +123,7 @@ class CompaniesAPITests(TestCase):
             company_name="Existing Company",
             contact_person="John Doe",
             email="john@existing.com",
-            phone_number="1234567890",
+            phone_number="+256701234567",
             industry=self.industry,
             company_address="123 Test St"
         )
@@ -134,7 +134,7 @@ class CompaniesAPITests(TestCase):
                 "company_name": "Existing Company",
                 "contact_person": "Jane Doe",
                 "email": "jane@different.com",
-                "phone_number": "0987654321",
+                "phone_number": "+256709876543",
                 "industry": self.industry.id,
                 "company_address": "456 Test St"
             },
@@ -149,7 +149,7 @@ class CompaniesAPITests(TestCase):
             company_name="Alpha Corp",
             contact_person="John Doe",
             email="john@alpha.com",
-            phone_number="1234567890",
+            phone_number="+256701234567",
             industry=self.industry,
             company_address="123 Alpha St"
         )
@@ -163,7 +163,7 @@ class CompaniesAPITests(TestCase):
             company_name="Beta Corp",
             contact_person="Jane Doe",
             email="jane@beta.com",
-            phone_number="0987654321",
+            phone_number="+256709876543",
             industry=industry2,
             company_address="456 Beta St"
         )
@@ -214,7 +214,7 @@ class CompaniesAPITests(TestCase):
             company_name="Zebra Corp",
             contact_person="John Doe",
             email="john@zebra.com",
-            phone_number="1234567890",
+            phone_number="+256701234567",
             industry=self.industry,
             company_address="123 Zebra St"
         )
@@ -222,7 +222,7 @@ class CompaniesAPITests(TestCase):
             company_name="Alpha Corp",
             contact_person="Jane Doe",
             email="jane@alpha.com",
-            phone_number="0987654321",
+            phone_number="+256709876543",
             industry=self.industry,
             company_address="456 Alpha St"
         )
@@ -306,7 +306,7 @@ class CompaniesAPITests(TestCase):
             company_name="Active Company",
             contact_person="John Doe",
             email="john@active.com",
-            phone_number="1234567890",
+            phone_number="+256701234567",
             industry=self.industry,
             company_address="123 Active St"
         )
@@ -314,7 +314,7 @@ class CompaniesAPITests(TestCase):
             company_name="Inactive Company",
             contact_person="Jane Doe",
             email="jane@inactive.com",
-            phone_number="0987654321",
+            phone_number="+256709876543",
             industry=self.industry,
             company_address="456 Inactive St"
         )
@@ -338,7 +338,7 @@ class CompaniesAPITests(TestCase):
                 "company_name": "Test Company",
                 "contact_person": "John Doe",
                 "email": "john@testcompany.com",
-                "phone_number": "1234567890",
+                "phone_number": "+256701234567",
                 "industry": "invalid-industry-id",
                 "company_address": "123 Test St"
             },
@@ -352,7 +352,7 @@ class CompaniesAPITests(TestCase):
             company_name="Test Company",
             contact_person="John Doe",
             email="john@testcompany.com",
-            phone_number="1234567890",
+            phone_number="+256701234567",
             industry=self.industry,
             company_address="123 Test St"
         )
@@ -363,7 +363,7 @@ class CompaniesAPITests(TestCase):
                 "company_name": "Updated Company",
                 "contact_person": "Jane Doe",
                 "email": "jane@updated.com",
-                "phone_number": "0987654321",
+                "phone_number": "+256709876543",
                 "industry": "invalid-industry-id",
                 "company_address": "456 Updated St"
             },

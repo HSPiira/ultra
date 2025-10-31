@@ -8,6 +8,7 @@ from django.forms import ValidationError
 from apps.companies.models import Company
 from apps.core.enums.choices import BusinessStatusChoices
 from apps.core.models.base import BaseModel, ActiveManager
+from apps.core.utils.validators import CardCodeValidator, validate_card_code
 
 
 class SchemeManager(ActiveManager):
@@ -27,6 +28,16 @@ class SchemeManager(ActiveManager):
             .filter(status=BusinessStatusChoices.ACTIVE)
         )
 
+    def has_scheme_items(self, scheme_id: str) -> bool:
+        """Check if scheme has any associated scheme items."""
+        from apps.schemes.models.scheme_item import SchemeItem
+        return SchemeItem.objects.filter(scheme_id=scheme_id).exists()
+
+    def has_members(self, scheme_id: str) -> bool:
+        """Check if scheme has any associated members/persons."""
+        from apps.members.models import Person
+        return Person.objects.filter(scheme_id=scheme_id).exists()
+
 # ---------------------------------------------------------------------
 # Scheme
 # ---------------------------------------------------------------------
@@ -39,7 +50,10 @@ class Scheme(BaseModel):
         help_text="Associated company.",
     )
     card_code = models.CharField(
-        max_length=3, unique=True, help_text="Unique code for the scheme."
+        max_length=3,
+        unique=True,
+        validators=[CardCodeValidator()],
+        help_text="Unique 3-character alphanumeric code for the scheme (e.g., ABC, X12).",
     )
     description = models.TextField(
         max_length=500, blank=True, help_text="Scheme description."
@@ -72,6 +86,14 @@ class Scheme(BaseModel):
 
     def clean(self):
         errors = {}
+
+        # Normalize card code to uppercase alphanumeric
+        if self.card_code:
+            try:
+                self.card_code = validate_card_code(self.card_code)
+            except ValidationError as e:
+                errors["card_code"] = e.message
+
         if self.start_date and self.end_date and self.start_date >= self.end_date:
             errors["end_date"] = "End date must be after start date."
         if (
@@ -118,5 +140,17 @@ class Scheme(BaseModel):
                 end_date = self.end_date
             self.termination_date = end_date + timedelta(days=1)
         self.save(update_fields=["status", "termination_date", "updated_at"])
+
+    def soft_delete(self, user=None):
+        """Prevent deletion when related scheme items or members exist."""
+        if Scheme.objects.has_scheme_items(self.id):
+            raise ValidationError(
+                "Cannot delete scheme with existing scheme items. Remove scheme items first."
+            )
+        if Scheme.objects.has_members(self.id):
+            raise ValidationError(
+                "Cannot delete scheme with existing members. Remove or reassign members first."
+            )
+        super().soft_delete(user=user)
 
 

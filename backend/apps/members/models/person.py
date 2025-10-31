@@ -5,6 +5,7 @@ from django.db import models
 from apps.companies.models import Company
 from apps.core.enums.choices import GenderChoices, RelationshipChoices
 from apps.core.models.base import BaseModel
+from apps.core.utils.validators import PhoneNumberValidator, validate_phone_number
 from apps.schemes.models import Scheme
 
 
@@ -76,14 +77,10 @@ class Person(BaseModel):
     address = models.TextField(blank=True)
 
     phone_number = models.CharField(
-        max_length=50,
+        max_length=20,
         blank=True,
-        validators=[
-            RegexValidator(
-                regex=r"^\+?1?\d{9,15}$",
-                message="Phone number must be in format: +999999999",
-            )
-        ],
+        validators=[PhoneNumberValidator()],
+        help_text="Phone number in format: +[country code][number] (e.g., +12345678900).",
     )
 
     email = models.EmailField(blank=True)
@@ -128,6 +125,14 @@ class Person(BaseModel):
         from apps.core.enums.choices import RelationshipChoices
 
         errors = {}
+
+        # Normalize phone number if provided
+        if self.phone_number:
+            try:
+                self.phone_number = validate_phone_number(self.phone_number)
+            except ValidationError as e:
+                errors["phone_number"] = e.message
+
         if self.relationship != RelationshipChoices.SELF:
             if not self.parent:
                 errors["parent"] = "Dependants must reference a parent member."

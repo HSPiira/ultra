@@ -1,9 +1,9 @@
 from django.core.exceptions import ValidationError
-from django.core.validators import RegexValidator
 from django.db import models
 
 from apps.companies.models.industry import Industry
 from apps.core.models.base import BaseModel, ActiveManager
+from apps.core.utils.validators import PhoneNumberValidator, validate_phone_number
 
 
 # ---------------------------------------------------------------------
@@ -35,13 +35,8 @@ class Company(BaseModel):
     company_address = models.TextField(help_text="Company address.")
     phone_number = models.CharField(
         max_length=20,
-        validators=[
-            RegexValidator(
-                regex=r"^\+?1?\d{9,15}$",
-                message="Phone number must be entered in the format: '+999999999'. Up to 15 digits allowed.",
-            )
-        ],
-        help_text="Primary phone number.",
+        validators=[PhoneNumberValidator()],
+        help_text="Primary phone number in format: +[country code][number] (e.g., +12345678900).",
     )
     email = models.EmailField(max_length=255, help_text="Company email.")
     website = models.URLField(
@@ -67,6 +62,18 @@ class Company(BaseModel):
 
     # Managers
     objects = CompanyManager()
+
+    def clean(self):
+        """Validate and normalize data before saving."""
+        super().clean()
+        # Normalize phone number to E.164 format
+        if self.phone_number:
+            self.phone_number = validate_phone_number(self.phone_number)
+
+    def save(self, *args, **kwargs):
+        """Override save to ensure validation runs."""
+        self.full_clean()
+        super().save(*args, **kwargs)
 
     def soft_delete(self, user=None):
         """Prevent deletion when related members or schemes exist."""

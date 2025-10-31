@@ -27,7 +27,7 @@ class SchemesAPITests(TestCase):
             company_name="Test Company",
             contact_person="John Doe",
             email="john@testcompany.com",
-            phone_number="1234567890",
+            phone_number="+256701234567",
             industry=self.industry,
             company_address="123 Test St"
         )
@@ -190,7 +190,7 @@ class SchemesAPITests(TestCase):
             company_name="Another Company",
             contact_person="Jane Doe",
             email="jane@another.com",
-            phone_number="0987654321",
+            phone_number="+256709876543",
             industry=self.industry,
             company_address="456 Another St"
         )
