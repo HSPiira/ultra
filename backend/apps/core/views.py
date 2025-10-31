@@ -3,16 +3,37 @@ import json
 from django.contrib.auth import authenticate, login
 from django.contrib.contenttypes.models import ContentType
 from django.http import JsonResponse
+from django.middleware.csrf import get_token
 from django.utils.decorators import method_decorator
 from django.views import View
-from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.csrf import ensure_csrf_cookie
 
 
-@method_decorator(csrf_exempt, name="dispatch")
+@method_decorator(ensure_csrf_cookie, name="dispatch")
 class APILoginView(View):
     """
     API login view that works with JSON requests and session authentication.
+
+    CSRF Protection:
+    - This view uses @ensure_csrf_cookie to set the CSRF token cookie
+    - Frontend must include the CSRF token in the X-CSRFToken header
+    - The CSRF token can be read from the 'csrftoken' cookie
+
+    GET request returns the CSRF token for the frontend to use in subsequent requests.
+    POST request performs the login.
     """
+
+    def get(self, request):
+        """
+        Return CSRF token for the frontend.
+        This allows the frontend to get a CSRF token before attempting login.
+        """
+        return JsonResponse(
+            {
+                "success": True,
+                "csrfToken": get_token(request),
+            }
+        )
 
     def post(self, request):
         try:
@@ -30,10 +51,13 @@ class APILoginView(View):
 
             if user is not None:
                 login(request, user)
+                # Get CSRF token for subsequent requests
+                csrf_token = get_token(request)
                 return JsonResponse(
                     {
                         "success": True,
                         "message": "Login successful",
+                        "csrfToken": csrf_token,
                         "user": {
                             "id": user.id,
                             "username": user.username,
@@ -56,10 +80,13 @@ class APILoginView(View):
             return JsonResponse({"success": False, "error": str(e)}, status=500)
 
 
-@method_decorator(csrf_exempt, name="dispatch")
 class APILogoutView(View):
     """
     API logout view.
+
+    CSRF Protection:
+    - This view requires CSRF token in the X-CSRFToken header
+    - The CSRF token should be obtained from the login response or 'csrftoken' cookie
     """
 
     def post(self, request):

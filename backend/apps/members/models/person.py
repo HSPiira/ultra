@@ -5,6 +5,7 @@ from django.db import models
 from apps.companies.models import Company
 from apps.core.enums.choices import GenderChoices, RelationshipChoices
 from apps.core.models.base import BaseModel
+from apps.core.utils.validators import PhoneNumberValidator, validate_phone_number
 from apps.schemes.models import Scheme
 
 
@@ -24,10 +25,10 @@ class PersonManager(models.Manager):
 
 class Person(BaseModel):
     company = models.ForeignKey(
-        Company, on_delete=models.CASCADE, help_text="Associated company"
+        Company, on_delete=models.PROTECT, help_text="Associated company"
     )
     scheme = models.ForeignKey(
-        Scheme, on_delete=models.CASCADE, help_text="Insurance scheme"
+        Scheme, on_delete=models.PROTECT, help_text="Insurance scheme"
     )
     name = models.CharField(max_length=200, help_text="Full name of the person")
 
@@ -76,14 +77,10 @@ class Person(BaseModel):
     address = models.TextField(blank=True)
 
     phone_number = models.CharField(
-        max_length=50,
+        max_length=20,
         blank=True,
-        validators=[
-            RegexValidator(
-                regex=r"^\+?1?\d{9,15}$",
-                message="Phone number must be in format: +999999999",
-            )
-        ],
+        validators=[PhoneNumberValidator()],
+        help_text="Phone number in format: +[country code][number] (e.g., +12345678900).",
     )
 
     email = models.EmailField(blank=True)
@@ -128,6 +125,14 @@ class Person(BaseModel):
         from apps.core.enums.choices import RelationshipChoices
 
         errors = {}
+
+        # Normalize phone number if provided
+        if self.phone_number:
+            try:
+                self.phone_number = validate_phone_number(self.phone_number)
+            except ValidationError as e:
+                errors["phone_number"] = e.message
+
         if self.relationship != RelationshipChoices.SELF:
             if not self.parent:
                 errors["parent"] = "Dependants must reference a parent member."
@@ -149,5 +154,22 @@ class Person(BaseModel):
 
         if errors:
             raise ValidationError(errors)
+
+    def soft_delete(self, user=None):
+        """Prevent deletion when person has dependants or claims."""
+        # Check for dependants
+        if Person.all_objects.filter(parent_id=self.id, is_deleted=False).exists():
+            raise ValidationError(
+                "Cannot delete person with dependants. Remove or reassign dependants first."
+            )
+
+        # Check for claims
+        from apps.claims.models import Claim
+        if Claim.all_objects.filter(member_id=self.id, is_deleted=False).exists():
+            raise ValidationError(
+                "Cannot delete person with existing claims."
+            )
+
+        super().soft_delete(user=user)
 
 

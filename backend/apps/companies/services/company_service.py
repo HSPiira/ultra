@@ -2,11 +2,18 @@ import csv
 from io import StringIO
 
 from django.core.exceptions import ValidationError
-from django.db import transaction
+from django.db import transaction, IntegrityError
 from django.db.models import Q
 
 from apps.companies.models import Company
 from apps.core.enums.choices import BusinessStatusChoices
+from apps.core.exceptions.service_errors import (
+    RequiredFieldError,
+    NotFoundError,
+    DuplicateError,
+    InvalidFormatError,
+    InvalidValueError,
+)
 
 
 class CompanyService:
@@ -24,7 +31,10 @@ class CompanyService:
     @transaction.atomic
     def company_create(*, company_data: dict, user=None):
         """
-        Create a new company with validation and duplicate checking.
+        Create a new company with validation.
+
+        Uses database constraints to prevent duplicates, eliminating race conditions.
+        The @transaction.atomic decorator ensures rollback on any error.
 
         Args:
             company_data: Dictionary containing company information
@@ -34,9 +44,12 @@ class CompanyService:
             Company: The created company instance
 
         Raises:
-            ValidationError: If data is invalid or duplicates exist
+            RequiredFieldError: If required field is missing
+            NotFoundError: If referenced industry doesn't exist
+            InvalidFormatError: If email or phone format is invalid
+            DuplicateError: If company name or email already exists
         """
-        # Validate data
+        # Validate required fields
         required_fields = [
             "company_name",
             "contact_person",
@@ -46,34 +59,18 @@ class CompanyService:
         ]
         for field in required_fields:
             if not company_data.get(field):
-                raise ValidationError(f"{field} is required")
+                raise RequiredFieldError(field)
 
-        # Email format validation
+        # Email format validation (basic check - full validation in model)
         if company_data.get("email") and "@" not in company_data["email"]:
-            raise ValidationError("Invalid email format")
+            raise InvalidFormatError("email", "Invalid email format")
 
-        # Phone number basic validation
-        if company_data.get("phone_number"):
-            phone = (
-                company_data["phone_number"]
-                .replace("+", "")
-                .replace("-", "")
-                .replace(" ", "")
-            )
-            if not phone.isdigit() or len(phone) < 10:
-                raise ValidationError("Invalid phone number format")
-
-        # Check for duplicates
-        qs = Company.objects.filter(is_deleted=False)
-        if qs.filter(
-            Q(company_name__iexact=company_data.get("company_name"))
-            | Q(email__iexact=company_data.get("email"))
-        ).exists():
-            raise ValidationError("Company with this name or email already exists")
+        # Phone number validation is handled by model validators
+        # Service layer does basic presence check only
 
         # Create a mutable copy of the data
         data = dict(company_data)
-        
+
         # Handle industry ID - convert to Industry instance if needed
         if "industry" in data and isinstance(data["industry"], str):
             from apps.companies.models import Industry
@@ -81,17 +78,40 @@ class CompanyService:
                 industry = Industry.objects.get(id=data["industry"], is_deleted=False)
                 data["industry"] = industry
             except Industry.DoesNotExist:
-                raise ValidationError("Invalid industry ID")
+                raise NotFoundError("Industry", data["industry"])
 
-        # Create company
-        company = Company.objects.create(**data)
-        return company
+        # Create company - database unique constraints prevent duplicates atomically
+        # This eliminates the race condition from check-then-create pattern
+        try:
+            company = Company.objects.create(**data)
+            return company
+        except ValidationError as e:
+            # Check if this is a uniqueness validation error, otherwise re-raise
+            error_msg = str(e).lower()
+            if hasattr(e, 'message_dict'):
+                for field, messages in e.message_dict.items():
+                    if any('already exists' in str(msg).lower() for msg in messages):
+                        raise DuplicateError("Company", [field], f"Company with this {field} already exists")
+            # Not a uniqueness error - re-raise original ValidationError
+            raise
+        except IntegrityError as e:
+            # Database constraint violation - determine which field caused it
+            error_msg = str(e).lower()
+            if 'email' in error_msg:
+                raise DuplicateError("Company", ["email"], "Company with this email already exists")
+            elif 'company_name' in error_msg or 'unique' in error_msg:
+                raise DuplicateError("Company", ["company_name"], "Company with this name already exists")
+            else:
+                # Unknown integrity error - re-raise as generic duplicate
+                raise DuplicateError("Company", message="Company with duplicate unique field already exists")
 
     @staticmethod
     @transaction.atomic
     def company_update(*, company_id: str, update_data: dict, user=None):
         """
-        Update company with validation and duplicate checking.
+        Update company with validation.
+
+        Uses database constraints to prevent duplicates, eliminating race conditions.
 
         Args:
             company_id: ID of the company to update
@@ -102,47 +122,41 @@ class CompanyService:
             Company: The updated company instance
 
         Raises:
-            ValidationError: If data is invalid or duplicates exist
+            NotFoundError: If company doesn't exist
+            RequiredFieldError: If required field set to empty
+            InvalidFormatError: If email format is invalid
+            DuplicateError: If company name or email conflicts
         """
         try:
             company = Company.objects.get(id=company_id, is_deleted=False)
-        except Company.DoesNotExist as e:
-            raise ValidationError("Company not found") from e
+        except Company.DoesNotExist:
+            raise NotFoundError("Company", company_id)
 
         # Validate data
         if "company_name" in update_data and not update_data["company_name"]:
-            raise ValidationError("company_name is required")
+            raise RequiredFieldError("company_name")
         if "contact_person" in update_data and not update_data["contact_person"]:
-            raise ValidationError("contact_person is required")
+            raise RequiredFieldError("contact_person")
         if "email" in update_data and not update_data["email"]:
-            raise ValidationError("email is required")
+            raise RequiredFieldError("email")
         if "phone_number" in update_data and not update_data["phone_number"]:
-            raise ValidationError("phone_number is required")
+            raise RequiredFieldError("phone_number")
         if "industry" in update_data and not update_data["industry"]:
-            raise ValidationError("industry is required")
+            raise RequiredFieldError("industry")
 
-        # Email format validation
+        # Email format validation (basic check - full validation in model)
         if (
             "email" in update_data
             and update_data["email"]
             and "@" not in update_data["email"]
         ):
-            raise ValidationError("Invalid email format")
+            raise InvalidFormatError("email", "Invalid email format")
 
-        # Phone number basic validation
-        if "phone_number" in update_data and update_data["phone_number"]:
-            phone = (
-                update_data["phone_number"]
-                .replace("+", "")
-                .replace("-", "")
-                .replace(" ", "")
-            )
-            if not phone.isdigit() or len(phone) < 10:
-                raise ValidationError("Invalid phone number format")
+        # Phone number validation is handled by model validators
 
         # Create a mutable copy of the data
         data = dict(update_data)
-        
+
         # Handle industry ID - convert to Industry instance if needed
         if "industry" in data and isinstance(data["industry"], str):
             from apps.companies.models import Industry
@@ -150,26 +164,34 @@ class CompanyService:
                 industry = Industry.objects.get(id=data["industry"], is_deleted=False)
                 data["industry"] = industry
             except Industry.DoesNotExist:
-                raise ValidationError("Invalid industry ID")
-
-        # Check for duplicates (excluding current company)
-        if "company_name" in data or "email" in data:
-            qs = Company.objects.filter(is_deleted=False).exclude(id=company_id)
-            company_name = data.get("company_name", company.company_name)
-            email = data.get("email", company.email)
-            if qs.filter(
-                Q(company_name__iexact=company_name) | Q(email__iexact=email)
-            ).exists():
-                raise ValidationError(
-                    "Another company with this name or email already exists"
-                )
+                raise NotFoundError("Industry", data["industry"])
 
         # Update fields
         for field, value in data.items():
             setattr(company, field, value)
 
-        company.save()
-        return company
+        # Save - database constraints will prevent duplicates atomically
+        try:
+            company.save()
+            return company
+        except ValidationError as e:
+            # Check if this is a uniqueness validation error, otherwise re-raise
+            error_msg = str(e).lower()
+            if hasattr(e, 'message_dict'):
+                for field, messages in e.message_dict.items():
+                    if any('already exists' in str(msg).lower() for msg in messages):
+                        raise DuplicateError("Company", [field], f"Another company with this {field} already exists")
+            # Not a uniqueness error - re-raise original ValidationError
+            raise
+        except IntegrityError as e:
+            # Database constraint violation - determine which field caused it
+            error_msg = str(e).lower()
+            if 'email' in error_msg:
+                raise DuplicateError("Company", ["email"], "Another company with this email already exists")
+            elif 'company_name' in error_msg or 'unique' in error_msg:
+                raise DuplicateError("Company", ["company_name"], "Another company with this name already exists")
+            else:
+                raise DuplicateError("Company", message="Company with duplicate unique field already exists")
 
     # ---------------------------------------------------------------------
     # Status Management
@@ -190,8 +212,8 @@ class CompanyService:
         """
         try:
             company = Company.objects.get(id=company_id, is_deleted=False)
-        except Company.DoesNotExist as e:
-            raise ValidationError("Company not found") from e
+        except Company.DoesNotExist:
+            raise NotFoundError("Company", company_id)
 
         company.status = BusinessStatusChoices.ACTIVE
         company.is_deleted = False
@@ -215,8 +237,8 @@ class CompanyService:
         """
         try:
             company = Company.objects.get(id=company_id, is_deleted=False)
-        except Company.DoesNotExist as e:
-            raise ValidationError("Company not found") from e
+        except Company.DoesNotExist:
+            raise NotFoundError("Company", company_id)
 
         # Only change status to INACTIVE, don't soft-delete the record
         company.status = BusinessStatusChoices.INACTIVE
@@ -238,8 +260,8 @@ class CompanyService:
         """
         try:
             company = Company.objects.get(id=company_id, is_deleted=False)
-        except Company.DoesNotExist as e:
-            raise ValidationError("Company not found") from e
+        except Company.DoesNotExist:
+            raise NotFoundError("Company", company_id)
 
         # Use the model's soft_delete method which handles all the soft delete fields
         # Only pass user if it's authenticated (not AnonymousUser)
@@ -265,8 +287,8 @@ class CompanyService:
         """
         try:
             company = Company.objects.get(id=company_id, is_deleted=False)
-        except Company.DoesNotExist as e:
-            raise ValidationError("Company not found") from e
+        except Company.DoesNotExist:
+            raise NotFoundError("Company", company_id)
 
         company.status = BusinessStatusChoices.SUSPENDED
         suspension_note = f"\nSuspended: {reason}"
@@ -297,7 +319,7 @@ class CompanyService:
             int: Number of companies updated
         """
         if new_status not in [choice[0] for choice in BusinessStatusChoices.choices]:
-            raise ValidationError("Invalid status")
+            raise InvalidValueError("status", "Invalid status value")
 
         updated_count = Company.objects.filter(
             id__in=company_ids, is_deleted=False

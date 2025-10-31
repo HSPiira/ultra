@@ -180,43 +180,54 @@ Ultra follows a modern full-stack architecture pattern:
 
 ### Environment Configuration
 
-While Ultra includes sensible defaults for development, you should configure environment variables for production. Create a `.env` file in the `backend/` directory:
+Ultra uses environment variables for sensitive configuration. A `.env.example` file is provided in the `backend/` directory with sensible defaults for development.
+
+**For development:**
+
+```bash
+cd backend
+cp .env.example .env
+# Edit .env if you need to customize settings
+```
+
+**For production**, you must configure these environment variables:
 
 <details>
-<summary><b>Example .env file</b></summary>
+<summary><b>Required Environment Variables</b></summary>
 
 ```bash
 # Django Settings
+# Generate a new secret key: python -c "from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())"
 SECRET_KEY=your-secret-key-here
 DEBUG=False
-ALLOWED_HOSTS=localhost,127.0.0.1,yourdomain.com
+ALLOWED_HOSTS=yourdomain.com,api.yourdomain.com
 
-# Database (PostgreSQL example)
+# CORS Configuration
+CORS_ALLOW_ALL_ORIGINS=False
+CORS_ALLOWED_ORIGINS=https://yourdomain.com,https://app.yourdomain.com
+
+# Authentication (default: IsAuthenticated)
+DEFAULT_PERMISSION_CLASS=IsAuthenticated
+
+# Database (PostgreSQL recommended for production)
 DATABASE_ENGINE=django.db.backends.postgresql
 DATABASE_NAME=ultra_db
 DATABASE_USER=ultra_user
-DATABASE_PASSWORD=your-password
+DATABASE_PASSWORD=your-secure-password
 DATABASE_HOST=localhost
 DATABASE_PORT=5432
 
-# Redis Cache
+# Redis Cache (recommended for production)
 REDIS_URL=redis://127.0.0.1:6379/1
-
-# CORS
-CORS_ALLOWED_ORIGINS=http://localhost:5173,https://yourdomain.com
-
-# Email (if needed)
-EMAIL_BACKEND=django.core.mail.backends.smtp.EmailBackend
-EMAIL_HOST=smtp.gmail.com
-EMAIL_PORT=587
-EMAIL_USE_TLS=True
-EMAIL_HOST_USER=your-email@example.com
-EMAIL_HOST_PASSWORD=your-email-password
 ```
 
 </details>
 
-**Note**: Currently, settings use hardcoded values for development. Consider using `django-environ` or `python-decouple` to load environment variables in production.
+**Security Defaults:**
+- `SECRET_KEY`: Uses insecure default for development, **must be set in production**
+- `DEBUG`: `True` for development, **must be `False` in production**
+- `CORS_ALLOW_ALL_ORIGINS`: `False` by default (restrictive)
+- `DEFAULT_PERMISSION_CLASS`: `IsAuthenticated` by default (requires authentication)
 
 ---
 
@@ -403,28 +414,61 @@ app_name/
 
 ### Current Security Measures
 
-- **CORS**: Configured for development (restrict in production)
-- **CSRF Protection**: Enabled via Django middleware
+- **Environment Variables**: Sensitive settings configured via environment variables
+- **CORS**: Restrictive by default (`CORS_ALLOW_ALL_ORIGINS=False`), configurable per environment
+- **CSRF Protection**: Enabled for all views with token-based authentication
+  - Login endpoint (GET `/api/auth/login/`) provides CSRF token
+  - Frontend must send token in `X-CSRFToken` header for POST/PUT/PATCH/DELETE requests
+- **Authentication**: Requires authentication by default (`IsAuthenticated`)
 - **Soft Deletes**: Prevents accidental data loss with audit trails
 - **Input Validation**: Model-level validation and serializer checks
-- **Session Authentication**: Django's built-in session management
+- **Session Authentication**: Django's built-in secure session management
+
+### CSRF Token Integration
+
+The API uses CSRF tokens for protection against cross-site request forgery:
+
+1. **Get CSRF Token**: Call `GET /api/auth/login/` to obtain token
+2. **Token Sources**: Available in response `csrfToken` field and `csrftoken` cookie
+3. **Include in Requests**: Send token in `X-CSRFToken` header for authenticated requests
+
+Example frontend integration:
+```javascript
+// Get CSRF token
+const response = await fetch('/api/auth/login/');
+const { csrfToken } = await response.json();
+
+// Include in subsequent requests
+await fetch('/api/some-endpoint/', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+    'X-CSRFToken': csrfToken,
+  },
+  body: JSON.stringify(data),
+});
+```
 
 ### Production Security Checklist
 
 Before deploying to production:
 
-- [ ] Set `DEBUG=False` in production settings
-- [ ] Use a secure `SECRET_KEY` and store it in environment variables
-- [ ] Configure `ALLOWED_HOSTS` properly
-- [ ] Restrict `CORS_ALLOWED_ORIGINS` to your frontend domain(s)
-- [ ] Enable HTTPS/TLS
+- [ ] Set `DEBUG=False` via environment variable
+- [ ] Generate and set a secure `SECRET_KEY` (use provided command in `.env.example`)
+- [ ] Configure `ALLOWED_HOSTS` with your domain(s)
+- [ ] Set `CORS_ALLOW_ALL_ORIGINS=False` and specify exact origins in `CORS_ALLOWED_ORIGINS`
+- [ ] Keep `DEFAULT_PERMISSION_CLASS=IsAuthenticated` (default)
+- [ ] Enable HTTPS/TLS for all communications
 - [ ] Configure database connection pooling
-- [ ] Set up rate limiting (commented in `settings.py`)
+- [ ] Enable rate limiting (uncomment throttle settings in `settings.py`)
 - [ ] Use PostgreSQL instead of SQLite
 - [ ] Configure Redis for caching and session storage
 - [ ] Set up proper logging and monitoring
-- [ ] Review and enable authentication/authorization rules
-- [ ] Implement API authentication (JWT, OAuth2, etc.)
+- [ ] Review authentication/authorization rules per endpoint
+- [ ] Ensure CSRF tokens are properly handled by frontend
+- [ ] Implement additional authentication methods if needed (JWT, OAuth2)
+
+**See `backend/CLAUDE.md` for detailed security configuration and best practices.**
 
 ---
 

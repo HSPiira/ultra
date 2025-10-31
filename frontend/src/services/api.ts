@@ -18,7 +18,9 @@ class ApiClient {
     endpoint: string,
     options: RequestInit = {}
   ): Promise<ApiResponse<T>> {
-    const url = `${this.baseURL}${endpoint}`;
+    // Prepend /api/v1 to all endpoints for versioning
+    const versionedEndpoint = endpoint.startsWith('/api/v1/') ? endpoint : `/api/v1${endpoint}`;
+    const url = `${this.baseURL}${versionedEndpoint}`;
     
     // Get auth token if available
     const token = localStorage.getItem('authToken');

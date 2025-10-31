@@ -2,12 +2,23 @@ from rest_framework import serializers
 
 from apps.core.utils.serializers import BaseSerializer
 from apps.members.models import Person
+from apps.companies.models import Company
+from apps.schemes.models import Scheme
+from apps.companies.api.serializers import CompanySerializer
+from apps.schemes.api.serializers import SchemeSerializer
 
 
 class PersonSerializer(BaseSerializer):
-    company_detail = serializers.SerializerMethodField()
-    scheme_detail = serializers.SerializerMethodField()
-    parent_detail = serializers.SerializerMethodField()
+    company = serializers.PrimaryKeyRelatedField(queryset=Company.objects.all())
+    company_detail = CompanySerializer(source="company", read_only=True)
+
+    scheme = serializers.PrimaryKeyRelatedField(queryset=Scheme.objects.all())
+    scheme_detail = SchemeSerializer(source="scheme", read_only=True)
+
+    parent = serializers.PrimaryKeyRelatedField(
+        queryset=Person.objects.all(), required=False, allow_null=True
+    )
+    parent_detail = serializers.SerializerMethodField(read_only=True)
 
     class Meta(BaseSerializer.Meta):
         model = Person
@@ -29,27 +40,13 @@ class PersonSerializer(BaseSerializer):
             "parent_detail",
         ]
 
-    def get_company_detail(self, obj) -> dict | None:
-        if obj.company:
-            return {
-                "id": str(obj.company.id),
-                "company_name": obj.company.company_name,
-            }
-        return None
-
-    def get_scheme_detail(self, obj) -> dict | None:
-        if obj.scheme:
-            return {
-                "id": str(obj.scheme.id),
-                "scheme_name": obj.scheme.scheme_name,
-            }
-        return None
-
     def get_parent_detail(self, obj) -> dict | None:
+        """Get parent detail (can't use nested PersonSerializer to avoid circular reference)."""
         if obj.parent:
             return {
                 "id": str(obj.parent.id),
                 "name": obj.parent.name,
+                "card_number": obj.parent.card_number,
             }
         return None
 

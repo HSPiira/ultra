@@ -2,10 +2,18 @@ import csv
 from io import StringIO
 
 from django.core.exceptions import ValidationError
-from django.db import transaction
+from django.db import transaction, IntegrityError
 
 from apps.companies.models import Company, Industry
 from apps.core.enums.choices import BusinessStatusChoices
+from apps.core.exceptions.service_errors import (
+    RequiredFieldError,
+    NotFoundError,
+    DuplicateError,
+    InvalidValueError,
+    DependencyError,
+    InactiveEntityError,
+)
 
 
 class IndustryService:
@@ -35,32 +43,43 @@ class IndustryService:
         Raises:
             ValidationError: If data is invalid or duplicates exist
         """
-        # Validate data
+        # Validate required fields
         required_fields = ["industry_name"]
         for field in required_fields:
             if not industry_data.get(field):
-                raise ValidationError(f"{field} is required")
+                raise RequiredFieldError(field)
 
         # Industry name validation
         industry_name = industry_data.get("industry_name", "").strip()
         if len(industry_name) < 2:
-            raise ValidationError("Industry name must be at least 2 characters long")
+            raise InvalidValueError("industry_name", "Industry name must be at least 2 characters long")
 
         if len(industry_name) > 100:
-            raise ValidationError("Industry name cannot exceed 100 characters")
+            raise InvalidValueError("industry_name", "Industry name cannot exceed 100 characters")
 
         # Description validation
         if industry_data.get("description") and len(industry_data["description"]) > 500:
-            raise ValidationError("Description cannot exceed 500 characters")
+            raise InvalidValueError("description", "Description cannot exceed 500 characters")
 
-        # Check for duplicates
-        qs = Industry.objects.filter(is_deleted=False)
-        if qs.filter(industry_name__iexact=industry_name).exists():
-            raise ValidationError("Industry with this name already exists")
-
-        # Create industry
-        industry = Industry.objects.create(**industry_data)
-        return industry
+        # Create industry - database unique constraints prevent duplicates atomically
+        try:
+            industry = Industry.objects.create(**industry_data)
+            return industry
+        except ValidationError as e:
+            # Check if this is a uniqueness validation error, otherwise re-raise
+            if hasattr(e, 'message_dict'):
+                for field, messages in e.message_dict.items():
+                    if any('already exists' in str(msg).lower() for msg in messages):
+                        raise DuplicateError("Industry", [field], f"Industry with this {field} already exists")
+            # Not a uniqueness error - re-raise original ValidationError
+            raise
+        except IntegrityError as e:
+            # Database constraint violation
+            error_msg = str(e).lower()
+            if 'industry_name' in error_msg or 'unique' in error_msg:
+                raise DuplicateError("Industry", ["industry_name"], "Industry with this name already exists")
+            else:
+                raise DuplicateError("Industry", message="Industry with duplicate unique field already exists")
 
     @staticmethod
     @transaction.atomic
@@ -81,38 +100,47 @@ class IndustryService:
         """
         try:
             industry = Industry.objects.get(id=industry_id, is_deleted=False)
-        except Industry.DoesNotExist as e:
-            raise ValidationError("Industry not found") from e
+        except Industry.DoesNotExist:
+            raise NotFoundError("Industry", industry_id)
 
         # Validate data
         if "industry_name" in update_data:
             industry_name = update_data["industry_name"].strip()
             if len(industry_name) < 2:
-                raise ValidationError(
-                    "Industry name must be at least 2 characters long"
-                )
+                raise InvalidValueError("industry_name", "Industry name must be at least 2 characters long")
             if len(industry_name) > 100:
-                raise ValidationError("Industry name cannot exceed 100 characters")
+                raise InvalidValueError("industry_name", "Industry name cannot exceed 100 characters")
 
         if (
             "description" in update_data
             and update_data["description"]
             and len(update_data["description"]) > 500
         ):
-            raise ValidationError("Description cannot exceed 500 characters")
-
-        # Check for duplicates (excluding current industry)
-        if "industry_name" in update_data:
-            qs = Industry.objects.filter(is_deleted=False).exclude(id=industry_id)
-            if qs.filter(industry_name__iexact=update_data["industry_name"]).exists():
-                raise ValidationError("Another industry with this name already exists")
+            raise InvalidValueError("description", "Description cannot exceed 500 characters")
 
         # Update fields
         for field, value in update_data.items():
             setattr(industry, field, value)
 
-        industry.save()
-        return industry
+        # Save - database constraints will prevent duplicates atomically
+        try:
+            industry.save()
+            return industry
+        except ValidationError as e:
+            # Check if this is a uniqueness validation error, otherwise re-raise
+            if hasattr(e, 'message_dict'):
+                for field, messages in e.message_dict.items():
+                    if any('already exists' in str(msg).lower() for msg in messages):
+                        raise DuplicateError("Industry", [field], f"Another industry with this {field} already exists")
+            # Not a uniqueness error - re-raise original ValidationError
+            raise
+        except IntegrityError as e:
+            # Database constraint violation
+            error_msg = str(e).lower()
+            if 'industry_name' in error_msg or 'unique' in error_msg:
+                raise DuplicateError("Industry", ["industry_name"], "Another industry with this name already exists")
+            else:
+                raise DuplicateError("Industry", message="Industry with duplicate unique field already exists")
 
     # ---------------------------------------------------------------------
     # Status Management
@@ -133,8 +161,8 @@ class IndustryService:
         """
         try:
             industry = Industry.objects.get(id=industry_id, is_deleted=False)
-        except Industry.DoesNotExist as e:
-            raise ValidationError("Industry not found") from e
+        except Industry.DoesNotExist:
+            raise NotFoundError("Industry", industry_id)
 
         industry.status = BusinessStatusChoices.ACTIVE
         industry.is_deleted = False
@@ -164,18 +192,15 @@ class IndustryService:
         """
         try:
             industry = Industry.objects.get(id=industry_id, is_deleted=False)
-        except Industry.DoesNotExist as e:
-            raise ValidationError("Industry not found") from e
+        except Industry.DoesNotExist:
+            raise NotFoundError("Industry", industry_id)
 
         # Check if industry has associated companies
         company_count = Company.objects.filter(
             industry=industry, is_deleted=False
         ).count()
         if company_count > 0:
-            raise ValidationError(
-                f"Cannot deactivate industry '{industry.industry_name}' because it has {company_count} associated companies. "
-                "Please reassign or deactivate the companies first."
-            )
+            raise DependencyError("Industry", ["companies"])
 
         industry.status = BusinessStatusChoices.INACTIVE
         industry.is_deleted = True
@@ -198,8 +223,8 @@ class IndustryService:
         """
         try:
             industry = Industry.objects.get(id=industry_id, is_deleted=False)
-        except Industry.DoesNotExist as e:
-            raise ValidationError("Industry not found") from e
+        except Industry.DoesNotExist:
+            raise NotFoundError("Industry", industry_id)
 
         industry.status = BusinessStatusChoices.SUSPENDED
         suspension_note = f"\nSuspended: {reason}"
@@ -232,7 +257,7 @@ class IndustryService:
             int: Number of industries updated
         """
         if new_status not in [choice[0] for choice in BusinessStatusChoices.choices]:
-            raise ValidationError("Invalid status")
+            raise InvalidValueError("status", "Invalid status value")
 
         # Check if any industries have companies (for deactivation)
         if new_status == BusinessStatusChoices.INACTIVE:
@@ -241,12 +266,7 @@ class IndustryService:
             ).distinct()
 
             if industries_with_companies.exists():
-                industry_names = list(
-                    industries_with_companies.values_list("industry_name", flat=True)
-                )
-                raise ValidationError(
-                    f"Cannot deactivate industries with companies: {', '.join(industry_names)}"
-                )
+                raise DependencyError("Industry", ["companies"])
 
         updated_count = Industry.objects.filter(
             id__in=industry_ids, is_deleted=False
@@ -275,10 +295,10 @@ class IndustryService:
                 id=target_industry_id, is_deleted=False
             )
         except Industry.DoesNotExist:
-            raise ValidationError("Target industry not found")
+            raise NotFoundError("Industry", target_industry_id)
 
         if target_industry.status != BusinessStatusChoices.ACTIVE:
-            raise ValidationError("Cannot transfer companies to inactive industry")
+            raise InactiveEntityError("Industry", "Cannot transfer companies to inactive industry")
 
         updated_count = Company.objects.filter(
             id__in=company_ids, is_deleted=False
@@ -306,14 +326,18 @@ class IndustryService:
             source_industry = Industry.objects.get(
                 id=source_industry_id, is_deleted=False
             )
+        except Industry.DoesNotExist:
+            raise NotFoundError("Industry", source_industry_id)
+
+        try:
             target_industry = Industry.objects.get(
                 id=target_industry_id, is_deleted=False
             )
-        except Industry.DoesNotExist as e:
-            raise ValidationError("One or both industries not found") from e
+        except Industry.DoesNotExist:
+            raise NotFoundError("Industry", target_industry_id)
 
         if source_industry.id == target_industry.id:
-            raise ValidationError("Cannot merge industry with itself")
+            raise InvalidValueError("target_industry_id", "Cannot merge industry with itself")
 
         # Get companies to transfer
         companies_to_transfer = Company.objects.filter(

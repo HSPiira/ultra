@@ -2,10 +2,18 @@ import csv
 from io import StringIO
 
 from django.core.exceptions import ValidationError
-from django.db import transaction
+from django.db import transaction, IntegrityError
 from django.db.models import Q
 
 from apps.core.enums.choices import BusinessStatusChoices
+from apps.core.exceptions.service_errors import (
+    RequiredFieldError,
+    NotFoundError,
+    DuplicateError,
+    InvalidValueError,
+    InactiveEntityError,
+)
+from apps.core.utils.integrity import is_unique_constraint_violation
 from apps.schemes.models import Scheme
 from apps.companies.models import Company
 
@@ -25,7 +33,10 @@ class SchemeService:
     @transaction.atomic
     def scheme_create(*, scheme_data: dict, user=None):
         """
-        Create a new scheme with validation and duplicate checking.
+        Create a new scheme with validation.
+
+        Uses database constraints to prevent duplicates, eliminating race conditions.
+        The @transaction.atomic decorator ensures rollback on any error.
 
         Args:
             scheme_data: Dictionary containing scheme information
@@ -35,9 +46,13 @@ class SchemeService:
             Scheme: The created scheme instance
 
         Raises:
-            ValidationError: If data is invalid or duplicates exist
+            RequiredFieldError: If required field is missing
+            NotFoundError: If referenced company doesn't exist
+            InvalidValueError: If field value is invalid
+            InactiveEntityError: If company is not active
+            DuplicateError: If scheme name or card code already exists
         """
-        # Validate data
+        # Validate required fields
         required_fields = [
             "scheme_name",
             "company",
@@ -47,22 +62,22 @@ class SchemeService:
         ]
         for field in required_fields:
             if not scheme_data.get(field):
-                raise ValidationError(f"{field} is required")
+                raise RequiredFieldError(field)
 
         # Handle company field - convert ID to Company instance if needed
         company = scheme_data.get("company")
         if isinstance(company, str):
             try:
-                company = Company.objects.get(id=company)
+                company = Company.objects.get(id=company, is_deleted=False)
                 scheme_data["company"] = company
             except Company.DoesNotExist:
-                raise ValidationError("Invalid company ID")
+                raise NotFoundError("Company", company)
         elif not isinstance(company, Company):
-            raise ValidationError("Company must be a valid Company instance or ID")
+            raise InvalidValueError("company", "Company must be a valid Company instance or ID")
 
         # Validate company is active
         if company.status != BusinessStatusChoices.ACTIVE or company.is_deleted:
-            raise ValidationError("Company must be active to create a scheme")
+            raise InactiveEntityError("Company", "Company must be active to create a scheme")
 
         # Date validation
         if (
@@ -70,30 +85,51 @@ class SchemeService:
             and scheme_data.get("end_date")
             and scheme_data["start_date"] >= scheme_data["end_date"]
         ):
-            raise ValidationError("End date must be after start date")
+            raise InvalidValueError("end_date", "End date must be after start date")
 
-        # Card code validation
+        # Card code validation (length check - format handled by model)
         card_code = scheme_data.get("card_code", "").strip()
         if len(card_code) != 3:
-            raise ValidationError("Card code must be exactly 3 characters")
+            raise InvalidValueError("card_code", "Card code must be exactly 3 characters")
 
-        # Check for duplicates
-        qs = Scheme.objects.filter(is_deleted=False)
-        if qs.filter(
-            Q(scheme_name__iexact=scheme_data.get("scheme_name"))
-            | Q(card_code__iexact=card_code)
-        ).exists():
-            raise ValidationError("Scheme with this name or card code already exists")
-
-        # Create scheme
-        scheme = Scheme.objects.create(**scheme_data)
-        return scheme
+        # Create scheme - database unique constraints prevent duplicates atomically
+        # This eliminates the race condition from check-then-create pattern
+        try:
+            scheme = Scheme.objects.create(**scheme_data)
+            return scheme
+        except ValidationError as e:
+            # Check if this is a uniqueness validation error, otherwise re-raise
+            if hasattr(e, 'message_dict'):
+                for field, messages in e.message_dict.items():
+                    if any('already exists' in str(msg).lower() for msg in messages):
+                        raise DuplicateError("Scheme", [field], f"Scheme with this {field} already exists") from e
+            # Not a uniqueness error - re-raise original ValidationError
+            raise
+        except IntegrityError as e:
+            # Database constraint violation - only raise DuplicateError for unique violations
+            if is_unique_constraint_violation(e):
+                error_msg = str(e).lower()
+                if 'card_code' in error_msg:
+                    raise DuplicateError("Scheme", ["card_code"], "Scheme with this card code already exists") from e
+                elif 'scheme_name' in error_msg or 'unique' in error_msg:
+                    raise DuplicateError("Scheme", ["scheme_name"], "Scheme with this name already exists") from e
+                else:
+                    raise DuplicateError("Scheme", message="Scheme with duplicate unique field already exists") from e
+            else:
+                # Other integrity errors (NOT NULL, FK, etc.) - raise InvalidValueError
+                raise InvalidValueError(
+                    field="database",
+                    message="Database constraint violation",
+                    details={"error": str(e)}
+                ) from e
 
     @staticmethod
     @transaction.atomic
     def scheme_update(*, scheme_id: str, update_data: dict, user=None):
         """
-        Update scheme with validation and duplicate checking.
+        Update scheme with validation.
+
+        Uses database constraints to prevent duplicates, eliminating race conditions.
 
         Args:
             scheme_id: ID of the scheme to update
@@ -104,67 +140,86 @@ class SchemeService:
             Scheme: The updated scheme instance
 
         Raises:
-            ValidationError: If data is invalid or duplicates exist
+            NotFoundError: If scheme doesn't exist
+            RequiredFieldError: If required field set to empty
+            InvalidValueError: If field value is invalid
+            InactiveEntityError: If company is not active
+            DuplicateError: If scheme name or card code conflicts
         """
         try:
             scheme = Scheme.objects.get(id=scheme_id, is_deleted=False)
-        except Scheme.DoesNotExist as e:
-            raise ValidationError("Scheme not found") from e
+        except Scheme.DoesNotExist:
+            raise NotFoundError("Scheme", scheme_id)
 
         # Validate data
         if "scheme_name" in update_data and not update_data["scheme_name"]:
-            raise ValidationError("scheme_name is required")
+            raise RequiredFieldError("scheme_name")
         if "company" in update_data and not update_data["company"]:
-            raise ValidationError("company is required")
+            raise RequiredFieldError("company")
         if "card_code" in update_data and not update_data["card_code"]:
-            raise ValidationError("card_code is required")
+            raise RequiredFieldError("card_code")
 
         # Handle company field - convert ID to Company instance if needed
         if "company" in update_data:
             company = update_data["company"]
             if isinstance(company, str):
                 try:
-                    company = Company.objects.get(id=company)
+                    company = Company.objects.get(id=company, is_deleted=False)
                     update_data["company"] = company
                 except Company.DoesNotExist:
-                    raise ValidationError("Invalid company ID")
+                    raise NotFoundError("Company", company)
             elif not isinstance(company, Company):
-                raise ValidationError("Company must be a valid Company instance or ID")
+                raise InvalidValueError("company", "Company must be a valid Company instance or ID")
 
             # Validate company is active
             if company.status != BusinessStatusChoices.ACTIVE or company.is_deleted:
-                raise ValidationError("Company must be active to update a scheme")
+                raise InactiveEntityError("Company", "Company must be active to update a scheme")
 
         # Date validation
         start_date = update_data.get("start_date", scheme.start_date)
         end_date = update_data.get("end_date", scheme.end_date)
         if start_date and end_date and start_date >= end_date:
-            raise ValidationError("End date must be after start date")
+            raise InvalidValueError("end_date", "End date must be after start date")
 
         # Card code validation
         if "card_code" in update_data:
             card_code = update_data["card_code"].strip()
             if len(card_code) != 3:
-                raise ValidationError("Card code must be exactly 3 characters")
-
-        # Check for duplicates (excluding current scheme)
-        if "scheme_name" in update_data or "card_code" in update_data:
-            qs = Scheme.objects.filter(is_deleted=False).exclude(id=scheme_id)
-            scheme_name = update_data.get("scheme_name", scheme.scheme_name)
-            card_code = update_data.get("card_code", scheme.card_code)
-            if qs.filter(
-                Q(scheme_name__iexact=scheme_name) | Q(card_code__iexact=card_code)
-            ).exists():
-                raise ValidationError(
-                    "Another scheme with this name or card code already exists"
-                )
+                raise InvalidValueError("card_code", "Card code must be exactly 3 characters")
 
         # Update fields
         for field, value in update_data.items():
             setattr(scheme, field, value)
 
-        scheme.save()
-        return scheme
+        # Save - database constraints will prevent duplicates atomically
+        try:
+            scheme.save()
+            return scheme
+        except ValidationError as e:
+            # Check if this is a uniqueness validation error, otherwise re-raise
+            if hasattr(e, 'message_dict'):
+                for field, messages in e.message_dict.items():
+                    if any('already exists' in str(msg).lower() for msg in messages):
+                        raise DuplicateError("Scheme", [field], f"Another scheme with this {field} already exists") from e
+            # Not a uniqueness error - re-raise original ValidationError
+            raise
+        except IntegrityError as e:
+            # Database constraint violation - only raise DuplicateError for unique violations
+            if is_unique_constraint_violation(e):
+                error_msg = str(e).lower()
+                if 'card_code' in error_msg:
+                    raise DuplicateError("Scheme", ["card_code"], "Another scheme with this card code already exists") from e
+                elif 'scheme_name' in error_msg or 'unique' in error_msg:
+                    raise DuplicateError("Scheme", ["scheme_name"], "Another scheme with this name already exists") from e
+                else:
+                    raise DuplicateError("Scheme", message="Scheme with duplicate unique field already exists") from e
+            else:
+                # Other integrity errors (NOT NULL, FK, etc.) - raise InvalidValueError
+                raise InvalidValueError(
+                    field="database",
+                    message="Database constraint violation",
+                    details={"error": str(e)}
+                ) from e
 
     # ---------------------------------------------------------------------
     # Status Management
@@ -185,8 +240,8 @@ class SchemeService:
         """
         try:
             scheme = Scheme.objects.get(id=scheme_id, is_deleted=False)
-        except Scheme.DoesNotExist as e:
-            raise ValidationError("Scheme not found") from e
+        except Scheme.DoesNotExist:
+            raise NotFoundError("Scheme", scheme_id)
 
         scheme.status = BusinessStatusChoices.ACTIVE
         scheme.is_deleted = False
@@ -201,21 +256,33 @@ class SchemeService:
         """
         Soft delete / deactivate scheme.
 
+        Uses the model's soft_delete method which enforces referential checks
+        to prevent deletion when related scheme items or members exist.
+
         Args:
             scheme_id: ID of the scheme to deactivate
             user: User performing the deactivation
 
         Returns:
             Scheme: The deactivated scheme instance
+
+        Raises:
+            NotFoundError: If scheme doesn't exist
+            ValidationError: If scheme has related scheme items or members
         """
         try:
-            scheme = Scheme.objects.get(id=scheme_id, is_deleted=False)
-        except Scheme.DoesNotExist as e:
-            raise ValidationError("Scheme not found") from e
+            # Lock the row to ensure atomic checks and update
+            scheme = Scheme.objects.select_for_update().get(id=scheme_id, is_deleted=False)
+        except Scheme.DoesNotExist as exc:
+            raise NotFoundError("Scheme", scheme_id) from exc
 
+        # Call model's soft_delete which enforces referential checks
+        # This will raise ValidationError if scheme has related items or members
+        scheme.soft_delete(user=user)
+
+        # Set status to INACTIVE after successful soft delete
         scheme.status = BusinessStatusChoices.INACTIVE
-        scheme.is_deleted = True
-        scheme.save(update_fields=["status", "is_deleted"])
+        scheme.save(update_fields=["status"])
         return scheme
 
     @staticmethod
@@ -234,8 +301,8 @@ class SchemeService:
         """
         try:
             scheme = Scheme.objects.get(id=scheme_id, is_deleted=False)
-        except Scheme.DoesNotExist as e:
-            raise ValidationError("Scheme not found") from e
+        except Scheme.DoesNotExist:
+            raise NotFoundError("Scheme", scheme_id)
 
         scheme.status = BusinessStatusChoices.SUSPENDED
         suspension_note = f"\nSuspended: {reason}"
@@ -266,7 +333,7 @@ class SchemeService:
             int: Number of schemes updated
         """
         if new_status not in [choice[0] for choice in BusinessStatusChoices.choices]:
-            raise ValidationError("Invalid status")
+            raise InvalidValueError("status", "Invalid status value")
 
         updated_count = Scheme.objects.filter(
             id__in=scheme_ids, is_deleted=False
