@@ -25,10 +25,10 @@ class PersonManager(models.Manager):
 
 class Person(BaseModel):
     company = models.ForeignKey(
-        Company, on_delete=models.CASCADE, help_text="Associated company"
+        Company, on_delete=models.PROTECT, help_text="Associated company"
     )
     scheme = models.ForeignKey(
-        Scheme, on_delete=models.CASCADE, help_text="Insurance scheme"
+        Scheme, on_delete=models.PROTECT, help_text="Insurance scheme"
     )
     name = models.CharField(max_length=200, help_text="Full name of the person")
 

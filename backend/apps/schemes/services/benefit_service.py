@@ -64,10 +64,10 @@ class BenefitService:
             raise InvalidValueError("in_or_out_patient", "Invalid patient type")
 
         # Limit amount validation
-        if (
-            benefit_data.get("limit_amount") is not None
-            and benefit_data["limit_amount"] < 0
-        ):
+        limit_amount = benefit_data.get("limit_amount")
+        if limit_amount == "":
+            benefit_data["limit_amount"] = None
+        elif limit_amount is not None and limit_amount < 0:
             raise InvalidValueError("limit_amount", "Limit amount cannot be negative")
 
         # Handle plan field conversion
@@ -143,12 +143,12 @@ class BenefitService:
             if update_data["in_or_out_patient"] not in valid_patient_types:
                 raise InvalidValueError("in_or_out_patient", "Invalid patient type")
 
-        if (
-            "limit_amount" in update_data
-            and update_data["limit_amount"] is not None
-            and update_data["limit_amount"] < 0
-        ):
-            raise InvalidValueError("limit_amount", "Limit amount cannot be negative")
+        if "limit_amount" in update_data and isinstance(update_data["limit_amount"], str) and update_data["limit_amount"].strip() == "":
+            update_data["limit_amount"] = None
+        if "limit_amount" in update_data:
+            limit_amount = update_data["limit_amount"]
+            if limit_amount is not None and limit_amount < 0:
+                raise InvalidValueError("limit_amount", "Limit amount cannot be negative")
 
         # Handle plan field conversion
         if 'plan' in update_data:

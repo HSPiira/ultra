@@ -9,6 +9,7 @@ Django REST Framework backend for a health insurance management system. The proj
 ## Development Commands
 
 ### Environment Setup
+
 ```bash
 # Install dependencies
 pip install -r requirements.txt
@@ -26,6 +27,7 @@ python manage.py createsuperuser
 ```
 
 ### Running the Application
+
 ```bash
 # Start development server
 python manage.py runserver
@@ -36,6 +38,7 @@ python manage.py runserver
 ```
 
 ### Testing
+
 ```bash
 # Run all tests
 python manage.py test
@@ -52,6 +55,7 @@ python manage.py test apps.schemes.tests.test_api.SchemesAPITests.test_scheme_cr
 ```
 
 ### Code Quality
+
 ```bash
 # Format code with Black
 black .
@@ -64,6 +68,7 @@ ruff check --fix .
 ```
 
 ### Database Management
+
 ```bash
 # Create migrations after model changes
 python manage.py makemigrations
@@ -126,6 +131,7 @@ app_name/
 ### Core Components
 
 #### BaseModel (`apps.core.models.base.BaseModel`)
+
 All domain models inherit from BaseModel which provides:
 - **CUID-based primary keys** (`id` field): Generated using `cuid2` library for collision-resistant, sortable IDs
 - **Timestamps**: `created_at`, `updated_at` (auto-managed)
@@ -137,12 +143,14 @@ All domain models inherit from BaseModel which provides:
 - **Lifecycle methods**: `soft_delete()`, `restore()`, overridden `delete()`
 
 #### Custom Exception Handler
+
 Centralized error handling in `apps.core.exceptions.custom_exception_handler`:
 - Wraps Django ValidationError and IntegrityError with consistent JSON format
 - Suppresses expected error logs during tests using `IS_TESTING` flag
 - Returns structured error responses: `{"success": false, "error": {"type": "...", "message": "...", "details": "..."}}`
 
 #### Selector/Service Pattern
+
 **Selectors** (`selectors/`) handle all read operations:
 - Pure query functions (e.g., `scheme_list()`, `scheme_get()`, `scheme_statistics_get()`)
 - No business logic, only data retrieval and filtering
@@ -158,6 +166,7 @@ Centralized error handling in `apps.core.exceptions.custom_exception_handler`:
 - Handle complex operations like duplicates checking, status management, bulk operations
 
 Example service method signature:
+
 ```python
 @staticmethod
 @transaction.atomic
@@ -166,6 +175,7 @@ def scheme_create(*, scheme_data: dict, user=None):
 ```
 
 #### URL Configuration
+
 - Root URLs in `ultra/urls.py` aggregate all app routers
 - Each app has `api/urls.py` with a DRF DefaultRouter
 - All app routers registered via `router.registry.extend(app_router.registry)`
@@ -181,6 +191,7 @@ Tests use Django's TestCase with APIClient:
 - **Coverage**: CRUD operations, validation rules, filtering, ordering, edge cases
 
 Test data patterns:
+
 ```python
 # Create test industry and company
 self.industry = Industry.objects.create(
@@ -197,32 +208,39 @@ self.company = Company.objects.create(
 ### Domain Models
 
 #### Companies App
+
 - **Company**: Client companies with contact info, industry reference
 - **Industry**: Industry classification for companies
 - Custom manager methods: `get_by_name()`, `has_members()`, `has_schemes()`
 - Prevents deletion when related members/schemes exist
 
 #### Schemes App
+
 - **Scheme**: Insurance plans with company link, date ranges, limits
 - **Plan**: Sub-plans within schemes
 - **Benefit**: Specific benefits offered in plans
 - **SchemeItem**: Generic foreign key linking schemes to providers/medical items
 
 #### Members App
+
 - Person/member management for company employees
 
 #### Providers App
+
 - Healthcare provider management
 
 #### Medical Catalog App
+
 - Medical services and procedures catalog
 
 #### Claims App
+
 - Claims processing and management
 
 ### Key Patterns
 
 #### Validation Flow
+
 1. Required field validation in services
 2. Company ID resolution (string → Company instance)
 3. Business rule validation (dates, uniqueness, status)
@@ -230,6 +248,7 @@ self.company = Company.objects.create(
 5. Related entity status validation (e.g., company must be ACTIVE)
 
 #### Status Management
+
 Services provide status transition methods:
 - `{model}_activate()`: Reactivate inactive records
 - `{model}_deactivate()`: Soft delete and set INACTIVE status
@@ -237,6 +256,7 @@ Services provide status transition methods:
 - `{models}_bulk_status_update()`: Batch status updates
 
 #### Soft Delete
+
 - Override `delete()` to call `soft_delete()` instead of hard delete
 - Use `is_deleted=False` filters in queries via ActiveManager
 - Access soft-deleted records via `all_objects` manager

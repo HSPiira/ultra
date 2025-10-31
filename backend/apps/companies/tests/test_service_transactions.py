@@ -75,7 +75,7 @@ class CompanyServiceTransactionTests(TransactionTestCase):
         3. Verify only first company exists (rollback succeeded)
         """
         # Create first company
-        company1 = CompanyService.company_create(
+        _ = CompanyService.company_create(
             company_data={
                 "company_name": "Unique Company",
                 "contact_person": "John Doe",
@@ -162,7 +162,7 @@ class CompanyServiceTransactionTests(TransactionTestCase):
         3. Verify company2 data unchanged (rollback succeeded)
         """
         # Create first company
-        company1 = CompanyService.company_create(
+        _ = CompanyService.company_create(
             company_data={
                 "company_name": "Company One",
                 "contact_person": "John Doe",

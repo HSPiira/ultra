@@ -23,8 +23,8 @@ class ClaimService:
                 try:
                     member = Person.objects.get(id=member_id, is_deleted=False)
                     data["member"] = member
-                except Person.DoesNotExist:
-                    raise NotFoundError("Person", member_id)
+                except Person.DoesNotExist as exc:
+                    raise NotFoundError("Person", member_id) from exc
             else:
                 member = member_id
 
@@ -39,8 +39,8 @@ class ClaimService:
                 try:
                     hospital = Hospital.objects.get(id=hospital_id, is_deleted=False)
                     data["hospital"] = hospital
-                except Hospital.DoesNotExist:
-                    raise NotFoundError("Hospital", hospital_id)
+                except Hospital.DoesNotExist as exc:
+                    raise NotFoundError("Hospital", hospital_id) from exc
             else:
                 hospital = hospital_id
 
@@ -55,8 +55,8 @@ class ClaimService:
                 try:
                     doctor = Doctor.objects.get(id=doctor_id, is_deleted=False)
                     data["doctor"] = doctor
-                except Doctor.DoesNotExist:
-                    raise NotFoundError("Doctor", doctor_id)
+                except Doctor.DoesNotExist as exc:
+                    raise NotFoundError("Doctor", doctor_id) from exc
             else:
                 doctor = doctor_id
 

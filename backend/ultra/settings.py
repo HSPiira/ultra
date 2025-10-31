@@ -36,10 +36,13 @@ SECRET_KEY = os.environ.get(
 DEBUG = os.environ.get('DEBUG', 'True') == 'True'
 
 # Parse ALLOWED_HOSTS from environment variable (comma-separated)
-ALLOWED_HOSTS = os.environ.get(
-    'ALLOWED_HOSTS',
-    'localhost,127.0.0.1,0.0.0.0,testserver'
-).split(',')
+ALLOWED_HOSTS = [
+    host.strip() for host in os.environ.get(
+        'ALLOWED_HOSTS',
+        'localhost,127.0.0.1,0.0.0.0,testserver'
+    ).split(',')
+    if host.strip()
+]
 
 
 # Application definition
@@ -180,10 +183,13 @@ CORS_ALLOW_CREDENTIALS = True
 # Specific origins for production (set via CORS_ALLOWED_ORIGINS environment variable)
 # If CORS_ALLOW_ALL_ORIGINS is False, this list will be used
 if not CORS_ALLOW_ALL_ORIGINS:
-    CORS_ALLOWED_ORIGINS = os.environ.get(
-        'CORS_ALLOWED_ORIGINS',
-        'http://localhost:5173,http://127.0.0.1:5173'
-    ).split(',')
+    CORS_ALLOWED_ORIGINS = [
+        origin.strip() for origin in os.environ.get(
+            'CORS_ALLOWED_ORIGINS',
+            'http://localhost:5173,http://127.0.0.1:5173'
+        ).split(',')
+        if origin.strip()
+    ]
 
 # CORS headers to allow
 CORS_ALLOW_HEADERS = [

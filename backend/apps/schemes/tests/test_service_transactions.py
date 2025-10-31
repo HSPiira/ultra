@@ -207,7 +207,7 @@ class SchemeServiceTransactionTests(TransactionTestCase):
         3. Verify scheme2 data unchanged (rollback succeeded)
         """
         # Create first scheme
-        scheme1 = SchemeService.scheme_create(
+        _ = SchemeService.scheme_create(
             scheme_data={
                 "scheme_name": "Scheme One",
                 "company": self.company.id,

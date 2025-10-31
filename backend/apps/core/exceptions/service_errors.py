@@ -30,6 +30,7 @@ class ServiceError(ValidationError):
         self.code = code or getattr(self, 'default_code', 'service_error')
         self.field = field
         self.details = details or {}
+        self._message_text = str(message)
 
         # Format message for Django ValidationError compatibility
         if field:
@@ -41,7 +42,7 @@ class ServiceError(ValidationError):
         """Convert to dictionary format for API responses."""
         error_dict = {
             'code': self.code,
-            'message': str(self.message) if hasattr(self, 'message') else str(self),
+            'message': self._message_text,
         }
         if self.field:
             error_dict['field'] = self.field
@@ -108,7 +109,7 @@ class DuplicateError(ServiceError):
     """Entity with same unique field(s) already exists."""
     default_code = 'duplicate_entity'
 
-    def __init__(self, entity: str, fields: list = None, message: str = None):
+    def __init__(self, entity: str, fields: list = None, message: str = None, field: str = None):
         if not message:
             if fields:
                 field_str = ' or '.join(fields)
@@ -116,8 +117,14 @@ class DuplicateError(ServiceError):
             else:
                 message = f"{entity} already exists"
 
+        # Pass the field to parent to ensure message_dict is created for ValidationError contract
+        # Prefer explicit field parameter, otherwise use first field from fields list
+        # If no field provided, use entity name (lowercased) as fallback to ensure message_dict exists
+        field_to_pass = field or (fields[0] if fields else entity.lower())
+
         super().__init__(
             message=message,
+            field=field_to_pass,
             details={'entity': entity, 'fields': fields} if fields else {'entity': entity}
         )
 

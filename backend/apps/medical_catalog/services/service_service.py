@@ -34,7 +34,8 @@ class ServiceService:
             if 'name' in error_msg or 'unique' in error_msg:
                 raise DuplicateError("Service", ["name"], "Service with this name already exists")
             else:
-                raise DuplicateError("Service", message="Service with duplicate unique field already exists")
+                # Unknown unique constraint violation - use generic field to ensure message_dict is created
+                raise DuplicateError("Service", ["duplicate"], "Service with duplicate unique field already exists")
 
     @staticmethod
     def update(*, service_id: str, data: dict, user=None) -> Service:
@@ -69,7 +70,8 @@ class ServiceService:
             if 'name' in error_msg or 'unique' in error_msg:
                 raise DuplicateError("Service", ["name"], "Another service with this name already exists")
             else:
-                raise DuplicateError("Service", message="Service with duplicate unique field already exists")
+                # Unknown unique constraint violation - use generic field to ensure message_dict is created
+                raise DuplicateError("Service", ["duplicate"], "Service with duplicate unique field already exists")
 
     @staticmethod
     def deactivate(*, service_id: str, user=None) -> None:

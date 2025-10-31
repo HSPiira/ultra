@@ -7,8 +7,8 @@ from apps.providers.models import Doctor, Hospital
 
 
 class Claim(FinancialTransaction):
-    member = models.ForeignKey(Person, on_delete=models.CASCADE, related_name="claims")
-    hospital = models.ForeignKey(Hospital, on_delete=models.CASCADE)
+    member = models.ForeignKey(Person, on_delete=models.PROTECT, related_name="claims")
+    hospital = models.ForeignKey(Hospital, on_delete=models.PROTECT)
     doctor = models.ForeignKey(Doctor, null=True, blank=True, on_delete=models.SET_NULL)
     service_date = models.DateField()
     claim_status = models.CharField(max_length=20, default="PENDING")
