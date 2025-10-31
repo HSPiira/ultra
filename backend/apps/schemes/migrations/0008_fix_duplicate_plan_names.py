@@ -17,7 +17,13 @@ def fix_duplicate_plan_names(apps, schema_editor):
 
     for plan in plans:
         # Normalize whitespace first
+        if not plan.plan_name:
+            # Skip None or empty plan names - they represent invalid data
+            continue
         normalized_name = plan.plan_name.strip()
+        if not normalized_name:
+            # Skip whitespace-only names
+            continue
         name_counter[normalized_name] += 1
 
         # Determine the final name

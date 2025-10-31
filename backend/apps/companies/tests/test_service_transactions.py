@@ -8,6 +8,7 @@ from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
 from django.test import TransactionTestCase
 
+from apps.core.enums.choices import BusinessStatusChoices
 from apps.companies.models import Company, Industry
 from apps.companies.services.company_service import CompanyService
 from apps.core.exceptions.service_errors import (
@@ -278,7 +279,7 @@ class CompanyServiceTransactionTests(TransactionTestCase):
         # Verify company not deleted (rollback succeeded)
         company.refresh_from_db()
         self.assertFalse(company.is_deleted)
-        self.assertEqual(company.status, "ACTIVE")
+        self.assertEqual(company.status, BusinessStatusChoices.ACTIVE)
 
     def test_duplicate_constraint_enforcement(self):
         """

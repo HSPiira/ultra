@@ -55,12 +55,4 @@ urlpatterns = [
         name="swagger-ui",
     ),
     path("api/v1/redoc/", SpectacularRedocView.as_view(url_name="schema"), name="redoc"),
-    # Legacy routes (backward compatibility - redirect to v1)
-    path("api/login/", APILoginView.as_view(), name="api_login_legacy"),
-    path("api/logout/", APILogoutView.as_view(), name="api_logout_legacy"),
-    path("content-types/", content_types_view, name="content_types_legacy"),
-    path("api/schema/", SpectacularAPIView.as_view(), name="schema_legacy"),
-    path("api/docs/", SpectacularSwaggerView.as_view(url_name="schema"), name="swagger-ui-legacy"),
-    path("api/redoc/", SpectacularRedocView.as_view(url_name="schema"), name="redoc_legacy"),
-    path("", include(router.urls)),  # Legacy unversioned routes
 ]

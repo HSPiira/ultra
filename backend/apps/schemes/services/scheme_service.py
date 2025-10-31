@@ -13,6 +13,7 @@ from apps.core.exceptions.service_errors import (
     InvalidValueError,
     InactiveEntityError,
 )
+from apps.core.utils.integrity import is_unique_constraint_violation
 from apps.schemes.models import Scheme
 from apps.companies.models import Company
 
@@ -98,23 +99,29 @@ class SchemeService:
             return scheme
         except ValidationError as e:
             # Check if this is a uniqueness validation error, otherwise re-raise
-            error_msg = str(e).lower()
             if hasattr(e, 'message_dict'):
                 for field, messages in e.message_dict.items():
                     if any('already exists' in str(msg).lower() for msg in messages):
-                        raise DuplicateError("Scheme", [field], f"Scheme with this {field} already exists")
+                        raise DuplicateError("Scheme", [field], f"Scheme with this {field} already exists") from e
             # Not a uniqueness error - re-raise original ValidationError
             raise
         except IntegrityError as e:
-            # Database constraint violation - determine which field caused it
-            error_msg = str(e).lower()
-            if 'card_code' in error_msg:
-                raise DuplicateError("Scheme", ["card_code"], "Scheme with this card code already exists")
-            elif 'scheme_name' in error_msg or 'unique' in error_msg:
-                raise DuplicateError("Scheme", ["scheme_name"], "Scheme with this name already exists")
+            # Database constraint violation - only raise DuplicateError for unique violations
+            if is_unique_constraint_violation(e):
+                error_msg = str(e).lower()
+                if 'card_code' in error_msg:
+                    raise DuplicateError("Scheme", ["card_code"], "Scheme with this card code already exists") from e
+                elif 'scheme_name' in error_msg or 'unique' in error_msg:
+                    raise DuplicateError("Scheme", ["scheme_name"], "Scheme with this name already exists") from e
+                else:
+                    raise DuplicateError("Scheme", message="Scheme with duplicate unique field already exists") from e
             else:
-                # Unknown integrity error - re-raise as generic duplicate
-                raise DuplicateError("Scheme", message="Scheme with duplicate unique field already exists")
+                # Other integrity errors (NOT NULL, FK, etc.) - raise InvalidValueError
+                raise InvalidValueError(
+                    field="database",
+                    message="Database constraint violation",
+                    details={"error": str(e)}
+                ) from e
 
     @staticmethod
     @transaction.atomic
@@ -190,22 +197,29 @@ class SchemeService:
             return scheme
         except ValidationError as e:
             # Check if this is a uniqueness validation error, otherwise re-raise
-            error_msg = str(e).lower()
             if hasattr(e, 'message_dict'):
                 for field, messages in e.message_dict.items():
                     if any('already exists' in str(msg).lower() for msg in messages):
-                        raise DuplicateError("Scheme", [field], f"Another scheme with this {field} already exists")
+                        raise DuplicateError("Scheme", [field], f"Another scheme with this {field} already exists") from e
             # Not a uniqueness error - re-raise original ValidationError
             raise
         except IntegrityError as e:
-            # Database constraint violation - determine which field caused it
-            error_msg = str(e).lower()
-            if 'card_code' in error_msg:
-                raise DuplicateError("Scheme", ["card_code"], "Another scheme with this card code already exists")
-            elif 'scheme_name' in error_msg or 'unique' in error_msg:
-                raise DuplicateError("Scheme", ["scheme_name"], "Another scheme with this name already exists")
+            # Database constraint violation - only raise DuplicateError for unique violations
+            if is_unique_constraint_violation(e):
+                error_msg = str(e).lower()
+                if 'card_code' in error_msg:
+                    raise DuplicateError("Scheme", ["card_code"], "Another scheme with this card code already exists") from e
+                elif 'scheme_name' in error_msg or 'unique' in error_msg:
+                    raise DuplicateError("Scheme", ["scheme_name"], "Another scheme with this name already exists") from e
+                else:
+                    raise DuplicateError("Scheme", message="Scheme with duplicate unique field already exists") from e
             else:
-                raise DuplicateError("Scheme", message="Scheme with duplicate unique field already exists")
+                # Other integrity errors (NOT NULL, FK, etc.) - raise InvalidValueError
+                raise InvalidValueError(
+                    field="database",
+                    message="Database constraint violation",
+                    details={"error": str(e)}
+                ) from e
 
     # ---------------------------------------------------------------------
     # Status Management

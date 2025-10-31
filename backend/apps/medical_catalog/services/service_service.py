@@ -31,11 +31,11 @@ class ServiceService:
         except IntegrityError as e:
             # Database constraint violation
             error_msg = str(e).lower()
-            if 'name' in error_msg or 'unique' in error_msg:
+            if 'name' in error_msg:
                 raise DuplicateError("Service", ["name"], "Service with this name already exists") from e
-            else:
-                # Unknown unique constraint violation - use generic field to ensure message_dict is created
+            if 'unique' in error_msg:
                 raise DuplicateError("Service", ["duplicate"], "Service with duplicate unique field already exists") from e
+            raise
 
     @staticmethod
     def update(*, service_id: str, data: dict, user=None) -> Service:
@@ -67,11 +67,11 @@ class ServiceService:
         except IntegrityError as e:
             # Database constraint violation
             error_msg = str(e).lower()
-            if 'name' in error_msg or 'unique' in error_msg:
+            if 'name' in error_msg:
                 raise DuplicateError("Service", ["name"], "Another service with this name already exists") from e
-            else:
-                # Unknown unique constraint violation - use generic field to ensure message_dict is created
+            if 'unique' in error_msg:
                 raise DuplicateError("Service", ["duplicate"], "Service with duplicate unique field already exists") from e
+            raise
 
     @staticmethod
     def deactivate(*, service_id: str, user=None) -> None:
