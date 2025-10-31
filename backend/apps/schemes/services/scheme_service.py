@@ -242,21 +242,33 @@ class SchemeService:
         """
         Soft delete / deactivate scheme.
 
+        Uses the model's soft_delete method which enforces referential checks
+        to prevent deletion when related scheme items or members exist.
+
         Args:
             scheme_id: ID of the scheme to deactivate
             user: User performing the deactivation
 
         Returns:
             Scheme: The deactivated scheme instance
+
+        Raises:
+            NotFoundError: If scheme doesn't exist
+            ValidationError: If scheme has related scheme items or members
         """
         try:
-            scheme = Scheme.objects.get(id=scheme_id, is_deleted=False)
-        except Scheme.DoesNotExist:
-            raise NotFoundError("Scheme", scheme_id)
+            # Lock the row to ensure atomic checks and update
+            scheme = Scheme.objects.select_for_update().get(id=scheme_id, is_deleted=False)
+        except Scheme.DoesNotExist as exc:
+            raise NotFoundError("Scheme", scheme_id) from exc
 
+        # Call model's soft_delete which enforces referential checks
+        # This will raise ValidationError if scheme has related items or members
+        scheme.soft_delete(user=user)
+
+        # Set status to INACTIVE after successful soft delete
         scheme.status = BusinessStatusChoices.INACTIVE
-        scheme.is_deleted = True
-        scheme.save(update_fields=["status", "is_deleted"])
+        scheme.save(update_fields=["status"])
         return scheme
 
     @staticmethod

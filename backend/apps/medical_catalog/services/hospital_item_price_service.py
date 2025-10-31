@@ -107,8 +107,8 @@ class HospitalItemPriceService:
     def update(*, price_id: str, data: dict, user=None) -> HospitalItemPrice:
         try:
             instance = HospitalItemPrice.objects.get(pk=price_id, is_deleted=False)
-        except HospitalItemPrice.DoesNotExist:
-            raise NotFoundError("HospitalItemPrice", price_id)
+        except HospitalItemPrice.DoesNotExist as err:
+            raise NotFoundError("HospitalItemPrice", price_id) from err
 
         # Filter out non-model fields
         model_fields = {
@@ -151,7 +151,7 @@ class HospitalItemPriceService:
             else:
                 # Other integrity errors (NOT NULL, FK, etc.) - raise InvalidValueError
                 raise InvalidValueError(
-                    field=[],
+                    field="database",
                     message="Database constraint violation",
                     details={"error": str(e)}
                 ) from e

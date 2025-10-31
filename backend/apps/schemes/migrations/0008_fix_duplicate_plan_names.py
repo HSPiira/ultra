@@ -10,16 +10,33 @@ def fix_duplicate_plan_names(apps, schema_editor):
 
     # Get all plan names
     plans = Plan.objects.all().order_by('created_at')
+    
+    # Track normalized names and already assigned names
     name_counter = Counter()
+    assigned_names = set()
 
     for plan in plans:
-        original_name = plan.plan_name
-        name_counter[original_name] += 1
+        # Normalize whitespace first
+        normalized_name = plan.plan_name.strip()
+        name_counter[normalized_name] += 1
 
-        # If this is a duplicate, append the count
-        if name_counter[original_name] > 1:
-            new_name = f"{original_name} {name_counter[original_name]}"
-            plan.plan_name = new_name
+        # Determine the final name
+        if name_counter[normalized_name] == 1 and normalized_name not in assigned_names:
+            # First occurrence, use as-is
+            final_name = normalized_name
+        else:
+            # Duplicate detected, generate unique candidate name
+            final_name = normalized_name
+            candidate_number = 2
+            # Keep incrementing until we find an unused name
+            while final_name in assigned_names:
+                final_name = f"{normalized_name} {candidate_number}"
+                candidate_number += 1
+        
+        # Update counters and sets, assign and save
+        assigned_names.add(final_name)
+        if plan.plan_name != final_name:
+            plan.plan_name = final_name
             plan.save(update_fields=['plan_name'])
 
 

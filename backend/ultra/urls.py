@@ -42,16 +42,25 @@ router.registry.extend(claims_router.registry)
 
 urlpatterns = [
     path("admin/", admin.site.urls),
-    path("api/login/", APILoginView.as_view(), name="api_login"),
-    path("api/logout/", APILogoutView.as_view(), name="api_logout"),
-    path("content-types/", content_types_view, name="content_types"),
+    # API v1 routes with versioning
+    path("api/v1/auth/login/", APILoginView.as_view(), name="api_login"),
+    path("api/v1/auth/logout/", APILogoutView.as_view(), name="api_logout"),
+    path("api/v1/content-types/", content_types_view, name="content_types"),
+    path("api/v1/", include(router.urls)),
     # OpenAPI schema and docs
-    path("api/schema/", SpectacularAPIView.as_view(), name="schema"),
+    path("api/v1/schema/", SpectacularAPIView.as_view(), name="schema"),
     path(
-        "api/docs/",
+        "api/v1/docs/",
         SpectacularSwaggerView.as_view(url_name="schema"),
         name="swagger-ui",
     ),
-    path("api/redoc/", SpectacularRedocView.as_view(url_name="schema"), name="redoc"),
-    path("", include(router.urls)),
+    path("api/v1/redoc/", SpectacularRedocView.as_view(url_name="schema"), name="redoc"),
+    # Legacy routes (backward compatibility - redirect to v1)
+    path("api/login/", APILoginView.as_view(), name="api_login_legacy"),
+    path("api/logout/", APILogoutView.as_view(), name="api_logout_legacy"),
+    path("content-types/", content_types_view, name="content_types_legacy"),
+    path("api/schema/", SpectacularAPIView.as_view(), name="schema_legacy"),
+    path("api/docs/", SpectacularSwaggerView.as_view(url_name="schema"), name="swagger-ui-legacy"),
+    path("api/redoc/", SpectacularRedocView.as_view(url_name="schema"), name="redoc_legacy"),
+    path("", include(router.urls)),  # Legacy unversioned routes
 ]

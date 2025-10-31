@@ -41,8 +41,8 @@ class ServiceService:
     def update(*, service_id: str, data: dict, user=None) -> Service:
         try:
             instance = Service.objects.get(pk=service_id, is_deleted=False)
-        except Service.DoesNotExist:
-            raise NotFoundError("Service", service_id)
+        except Service.DoesNotExist as e:
+            raise NotFoundError("Service", service_id) from e
 
         # Filter out non-model fields
         model_fields = {
@@ -77,8 +77,8 @@ class ServiceService:
     def deactivate(*, service_id: str, user=None) -> None:
         try:
             instance = Service.objects.get(pk=service_id, is_deleted=False)
-        except Service.DoesNotExist:
-            raise NotFoundError("Service", service_id)
+        except Service.DoesNotExist as e:
+            raise NotFoundError("Service", service_id) from e
 
         instance.soft_delete(user=user)
         instance.save(update_fields=["is_deleted", "deleted_at", "deleted_by"])

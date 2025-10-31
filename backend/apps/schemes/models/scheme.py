@@ -36,7 +36,7 @@ class SchemeManager(ActiveManager):
     def has_members(self, scheme_id: str) -> bool:
         """Check if scheme has any associated members/persons."""
         from apps.members.models import Person
-        return Person.objects.filter(scheme_id=scheme_id).exists()
+        return Person.all_objects.filter(is_deleted=False, scheme_id=scheme_id).exists()
 
 # ---------------------------------------------------------------------
 # Scheme
@@ -92,7 +92,7 @@ class Scheme(BaseModel):
             try:
                 self.card_code = validate_card_code(self.card_code)
             except ValidationError as e:
-                errors["card_code"] = e.message
+                errors["card_code"] = str(e)
 
         if self.start_date and self.end_date and self.start_date >= self.end_date:
             errors["end_date"] = "End date must be after start date."

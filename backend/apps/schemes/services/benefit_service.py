@@ -14,6 +14,55 @@ from apps.core.exceptions.service_errors import (
 from apps.schemes.models import Benefit
 
 
+def _is_unique_constraint_violation(error: IntegrityError) -> bool:
+    """
+    Determine if an IntegrityError is a unique constraint violation.
+    
+    Checks database-specific error codes and constraint names to positively
+    identify unique constraint violations, avoiding false positives from
+    NOT NULL, foreign key, or other constraint violations.
+    """
+    # Check for PostgreSQL unique violation (pgcode 23505)
+    if hasattr(error, 'orig') and hasattr(error.orig, 'pgcode'):
+        if error.orig.pgcode == '23505':  # unique_violation
+            return True
+    
+    # Check constraint name for uniqueness indicators
+    if hasattr(error, 'orig'):
+        error_str = str(error).lower()
+        constraint_name = None
+        
+        # Try to extract constraint name from PostgreSQL diagnostic info
+        if hasattr(error.orig, 'diag') and hasattr(error.orig.diag, 'constraint_name'):
+            constraint_name = error.orig.diag.constraint_name.lower()
+        
+        # Check extracted constraint name for uniqueness indicators
+        if constraint_name:
+            if any(indicator in constraint_name for indicator in ['unique', '_pk', 'primary']):
+                return True
+        
+        # Fallback: check error string for constraint-related uniqueness patterns
+        if 'constraint' in error_str:
+            if any(indicator in error_str for indicator in ['unique', '_pk', 'primary key']):
+                return True
+    
+    # Last resort: check error message for unique violation patterns
+    # Only trust this if we see specific unique violation language
+    error_msg = str(error).lower()
+    unique_patterns = [
+        'duplicate key value violates unique constraint',
+        'unique constraint',
+        'duplicate entry',
+        'already exists',
+    ]
+    if any(pattern in error_msg for pattern in unique_patterns):
+        # Double-check it's not another constraint type
+        if 'not null' not in error_msg and 'foreign key' not in error_msg:
+            return True
+    
+    return False
+
+
 class BenefitService:
     """
     Benefit business logic for write operations.
@@ -53,6 +102,8 @@ class BenefitService:
             raise InvalidValueError("benefit_name", "Benefit name must be at least 2 characters long")
         if len(benefit_name) > 255:
             raise InvalidValueError("benefit_name", "Benefit name cannot exceed 255 characters")
+        # Persist the trimmed value
+        benefit_data["benefit_name"] = benefit_name
 
         # Description validation
         if benefit_data.get("description") and len(benefit_data["description"]) > 500:
@@ -90,16 +141,25 @@ class BenefitService:
             if hasattr(e, 'message_dict'):
                 for field, messages in e.message_dict.items():
                     if any('already exists' in str(msg).lower() for msg in messages):
-                        raise DuplicateError("Benefit", [field], f"Benefit with this {field} already exists")
+                        raise DuplicateError("Benefit", [field], f"Benefit with this {field} already exists") from e
             # Not a uniqueness error - re-raise original ValidationError
             raise
         except IntegrityError as e:
-            # Database constraint violation
-            error_msg = str(e).lower()
-            if 'benefit_name' in error_msg or 'unique' in error_msg:
-                raise DuplicateError("Benefit", ["benefit_name", "in_or_out_patient"], "Benefit with this name and patient type already exists")
+            # Database constraint violation - only raise DuplicateError for unique violations
+            if _is_unique_constraint_violation(e):
+                # Check for specific benefit-related unique constraint
+                error_msg = str(e).lower()
+                if 'benefit_name' in error_msg or 'unique' in error_msg:
+                    raise DuplicateError("Benefit", ["benefit_name", "in_or_out_patient"], "Benefit with this name and patient type already exists") from e
+                else:
+                    raise DuplicateError("Benefit", message="Benefit with duplicate unique field already exists") from e
             else:
-                raise DuplicateError("Benefit", message="Benefit with duplicate unique field already exists")
+                # Other integrity errors (NOT NULL, FK, etc.) - raise InvalidValueError
+                raise InvalidValueError(
+                    field=[],
+                    message="Database constraint violation",
+                    details={"error": str(e)}
+                ) from e
 
     @staticmethod
     @transaction.atomic
@@ -130,6 +190,8 @@ class BenefitService:
                 raise InvalidValueError("benefit_name", "Benefit name must be at least 2 characters long")
             if len(benefit_name) > 255:
                 raise InvalidValueError("benefit_name", "Benefit name cannot exceed 255 characters")
+            # Persist the trimmed value
+            update_data["benefit_name"] = benefit_name
 
         if (
             "description" in update_data
@@ -175,16 +237,25 @@ class BenefitService:
             if hasattr(e, 'message_dict'):
                 for field, messages in e.message_dict.items():
                     if any('already exists' in str(msg).lower() for msg in messages):
-                        raise DuplicateError("Benefit", [field], f"Another benefit with this {field} already exists")
+                        raise DuplicateError("Benefit", [field], f"Another benefit with this {field} already exists") from e
             # Not a uniqueness error - re-raise original ValidationError
             raise
         except IntegrityError as e:
-            # Database constraint violation
-            error_msg = str(e).lower()
-            if 'benefit_name' in error_msg or 'unique' in error_msg:
-                raise DuplicateError("Benefit", ["benefit_name", "in_or_out_patient"], "Another benefit with this name and patient type already exists")
+            # Database constraint violation - only raise DuplicateError for unique violations
+            if _is_unique_constraint_violation(e):
+                # Check for specific benefit-related unique constraint
+                error_msg = str(e).lower()
+                if 'benefit_name' in error_msg or 'unique' in error_msg:
+                    raise DuplicateError("Benefit", ["benefit_name", "in_or_out_patient"], "Another benefit with this name and patient type already exists") from e
+                else:
+                    raise DuplicateError("Benefit", message="Benefit with duplicate unique field already exists") from e
             else:
-                raise DuplicateError("Benefit", message="Benefit with duplicate unique field already exists")
+                # Other integrity errors (NOT NULL, FK, etc.) - raise InvalidValueError
+                raise InvalidValueError(
+                    field=[],
+                    message="Database constraint violation",
+                    details={"error": str(e)}
+                ) from e
 
     # ---------------------------------------------------------------------
     # Status Management

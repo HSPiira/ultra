@@ -7,7 +7,6 @@ when errors occur within service methods.
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
 from django.test import TransactionTestCase
-from unittest.mock import patch
 
 from apps.companies.models import Company, Industry
 from apps.companies.services.company_service import CompanyService
