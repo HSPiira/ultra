@@ -81,7 +81,7 @@ export const SchemeAssignmentsTab: React.FC<SchemeAssignmentsTabProps> = ({
       setContentTypeMappingError(undefined);
       
       // Fetch ContentType mapping from backend using the API client
-      const response = await api.get<any[]>('/api/v1/content-types/');
+      const response = await api.get<any[]>('/content-types/');
       
       const contentTypes = response.data;
       const mapping: Record<string, number> = {};
