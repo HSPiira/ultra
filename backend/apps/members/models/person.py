@@ -155,4 +155,21 @@ class Person(BaseModel):
         if errors:
             raise ValidationError(errors)
 
+    def soft_delete(self, user=None):
+        """Prevent deletion when person has dependants or claims."""
+        # Check for dependants
+        if Person.all_objects.filter(parent_id=self.id, is_deleted=False).exists():
+            raise ValidationError(
+                "Cannot delete person with dependants. Remove or reassign dependants first."
+            )
+
+        # Check for claims
+        from apps.claims.models import Claim
+        if Claim.all_objects.filter(member_id=self.id, is_deleted=False).exists():
+            raise ValidationError(
+                "Cannot delete person with existing claims."
+            )
+
+        super().soft_delete(user=user)
+
 

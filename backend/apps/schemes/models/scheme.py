@@ -45,7 +45,7 @@ class Scheme(BaseModel):
     scheme_name = models.CharField(max_length=255, help_text="Name of the scheme.")
     company = models.ForeignKey(
         Company,
-        on_delete=models.CASCADE,
+        on_delete=models.PROTECT,
         related_name="schemes",
         help_text="Associated company.",
     )
