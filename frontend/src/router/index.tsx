@@ -2,6 +2,9 @@ import React from 'react';
 import { createBrowserRouter, RouterProvider } from 'react-router-dom';
 import Layout from '../components/layout/Layout';
 import { ThemeProvider } from '../contexts/ThemeContext';
+import { AuthProvider } from '../store/authStore';
+import { ProtectedRoute } from '../components/common/ProtectedRoute';
+import LoginPage from '../pages/auth/LoginPage';
 import Dashboard from '../pages/dashboard/Dashboard';
 import CompaniesPage from '../pages/companies/CompaniesPage';
 import { CompanyDetailsPage } from '../pages/companies';
@@ -18,8 +21,16 @@ import AnalyticsPage from '../pages/analytics/AnalyticsPage';
 
 const router = createBrowserRouter([
   {
+    path: '/login',
+    element: <LoginPage />,
+  },
+  {
     path: '/',
-    element: <Layout />,
+    element: (
+      <ProtectedRoute>
+        <Layout />
+      </ProtectedRoute>
+    ),
     children: [
       // Dashboard
       {
@@ -105,7 +116,9 @@ const router = createBrowserRouter([
 export const AppRouter: React.FC = () => {
   return (
     <ThemeProvider>
-      <RouterProvider router={router} />
+      <AuthProvider>
+        <RouterProvider router={router} />
+      </AuthProvider>
     </ThemeProvider>
   );
 };

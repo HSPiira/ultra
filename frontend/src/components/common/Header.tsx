@@ -1,25 +1,27 @@
 import { Bell, Search, User, Settings, LogOut, Sun, Moon } from 'lucide-react';
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useThemeStyles } from '../../hooks';
+import { useAuth } from '../../store/authStore';
 import { Tooltip } from './Tooltip';
-
-interface User {
-  id: string;
-  name: string;
-  email: string;
-  avatar?: string;
-}
 
 interface HeaderProps {
   onMenuToggle?: () => void;
-  user?: User | null;
 }
 
-export function Header({ onMenuToggle, user }: HeaderProps) {
+export function Header({ onMenuToggle }: HeaderProps) {
   const [showUserMenu, setShowUserMenu] = useState(false);
   const { theme, toggleTheme } = useTheme();
   const { colors, getIconButtonProps } = useThemeStyles();
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
+
+  const handleLogout = async () => {
+    await logout();
+    navigate('/login');
+    setShowUserMenu(false);
+  };
 
   return (
     <header 
@@ -143,7 +145,7 @@ export function Header({ onMenuToggle, user }: HeaderProps) {
             <div className="absolute right-0 top-full mt-2 w-56 rounded-lg shadow-lg py-2 z-50 border" style={{ backgroundColor: colors.background.primary, borderColor: colors.border.primary }}>
               <div className="px-4 py-3 border-b" style={{ borderColor: colors.border.primary }}>
                 <p className="text-sm font-medium" style={{ color: colors.text.primary }}>
-                  {user ? user.name : 'Guest'}
+                  {user ? user.username : 'Guest'}
                 </p>
                 <p className="text-xs" style={{ color: colors.text.tertiary }}>
                   {user ? user.email : 'Not signed in'}
@@ -175,6 +177,7 @@ export function Header({ onMenuToggle, user }: HeaderProps) {
                 <hr className="my-1" style={{ borderColor: colors.border.primary }} />
                 <Tooltip content="Sign out of your account">
                   <button 
+                    onClick={handleLogout}
                     className="w-full flex items-center gap-3 px-4 py-2 text-sm transition-colors"
                     style={{ backgroundColor: 'transparent', color: colors.status.error }}
                     onMouseEnter={(e) => (e.target as HTMLButtonElement).style.backgroundColor = colors.background.tertiary}

@@ -191,6 +191,16 @@ if not CORS_ALLOW_ALL_ORIGINS:
         if origin.strip()
     ]
 
+# CSRF Trusted Origins - Required for CSRF protection to accept requests from these origins
+# This is separate from CORS and is needed for Django's CSRF middleware
+CSRF_TRUSTED_ORIGINS = [
+    origin.strip() for origin in os.environ.get(
+        'CSRF_TRUSTED_ORIGINS',
+        'http://localhost:5173,http://127.0.0.1:5173,http://localhost:8000,http://127.0.0.1:8000'
+    ).split(',')
+    if origin.strip()
+]
+
 # CORS headers to allow
 CORS_ALLOW_HEADERS = [
     'accept',
