@@ -165,8 +165,9 @@ export const MemberDependantsTab: React.FC<MemberDependantsTabProps> = ({ member
                 <span 
                   className="px-2 py-1 rounded-full text-xs font-medium"
                   style={{ 
-                    backgroundColor: getRelationshipColor(dependant.relationship) + '20',
-                    color: getRelationshipColor(dependant.relationship)
+                    backgroundColor: getRelationshipColor(dependant.relationship),
+                    color: getRelationshipColor(dependant.relationship),
+                    opacity: 0.2
                   }}
                 >
                   {dependant.relationship}
@@ -174,8 +175,9 @@ export const MemberDependantsTab: React.FC<MemberDependantsTabProps> = ({ member
                 <span 
                   className="px-2 py-1 rounded-full text-xs font-medium"
                   style={{ 
-                    backgroundColor: getStatusColor(dependant.status) + '20',
-                    color: getStatusColor(dependant.status)
+                    backgroundColor: getStatusColor(dependant.status),
+                    color: getStatusColor(dependant.status),
+                    opacity: 0.2
                   }}
                 >
                   {dependant.status}

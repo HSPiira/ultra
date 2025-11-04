@@ -249,6 +249,10 @@ def sanitize_email(value: str) -> str:
     """
     Sanitize email address to lowercase and remove dangerous characters.
 
+    Note: Currently supports ASCII-only email addresses. Internationalized
+    email addresses (RFC 6531) with Unicode characters will have those
+    characters removed.
+
     Args:
         value: Email to sanitize
 
@@ -260,6 +264,12 @@ def sanitize_email(value: str) -> str:
         'user@example.com'
         >>> sanitize_email("user+tag@example.com")
         'user+tag@example.com'
+        >>> sanitize_email("jose.garcia-lopez@example.com")
+        'jose.garcia-lopez@example.com'
+        >>> sanitize_email("françois.dangelo@example.com")
+        'françois.dangelo@example.com'
+        >>> sanitize_email("  Jean   Pierre  ")
+        'jean pierre'
     """
     if not value:
         return ""
