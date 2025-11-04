@@ -2,6 +2,14 @@ from rest_framework import serializers
 from drf_spectacular.utils import extend_schema_field
 
 from apps.core.utils.serializers import BaseSerializer
+from apps.core.utils.sanitizers import (
+    sanitize_text,
+    sanitize_name,
+    sanitize_identifier,
+    sanitize_email,
+    sanitize_phone_number,
+    sanitize_url,
+)
 from apps.providers.models import Doctor, DoctorHospitalAffiliation, Hospital
 
 
@@ -17,6 +25,76 @@ class HospitalSerializer(BaseSerializer):
             "email",
             "website",
         ]
+
+    def validate_name(self, value):
+        """Validate and sanitize hospital name."""
+        sanitized = sanitize_name(value)
+        if len(sanitized) < 2:
+            raise serializers.ValidationError(
+                "Hospital name must be at least 2 characters long"
+            )
+        if len(sanitized) > 255:
+            raise serializers.ValidationError("Hospital name cannot exceed 255 characters")
+        return sanitized
+
+    def validate_address(self, value):
+        """Validate and sanitize address."""
+        if not value:
+            return value
+        sanitized = sanitize_text(value, max_length=500)
+        if sanitized and len(sanitized) < 5:
+            raise serializers.ValidationError(
+                "Address must be at least 5 characters long"
+            )
+        return sanitized
+
+    def validate_contact_person(self, value):
+        """Validate and sanitize contact person name."""
+        if not value:
+            return value
+        sanitized = sanitize_name(value)
+        if sanitized and len(sanitized) < 2:
+            raise serializers.ValidationError(
+                "Contact person name must be at least 2 characters long"
+            )
+        return sanitized
+
+    def validate_email(self, value):
+        """Validate and sanitize email format."""
+        if not value:
+            return value
+        sanitized = sanitize_email(value)
+        if sanitized and ("@" not in sanitized or "." not in sanitized.split("@")[-1]):
+            raise serializers.ValidationError("Enter a valid email address")
+        return sanitized
+
+    def validate_phone_number(self, value):
+        """Validate and sanitize phone number."""
+        if not value:
+            return value
+        sanitized = sanitize_phone_number(value)
+        # Remove formatting to check digit count
+        clean_phone = (
+            sanitized.replace("+", "")
+            .replace("-", "")
+            .replace(" ", "")
+            .replace("(", "")
+            .replace(")", "")
+        )
+        if sanitized and (not clean_phone.isdigit() or len(clean_phone) < 10):
+            raise serializers.ValidationError(
+                "Enter a valid phone number (at least 10 digits)"
+            )
+        return sanitized
+
+    def validate_website(self, value):
+        """Validate and sanitize website URL."""
+        if not value:
+            return value
+        sanitized = sanitize_url(value)
+        if sanitized and not sanitized.startswith(("http://", "https://")):
+            sanitized = "https://" + sanitized
+        return sanitized
 
 
 class DoctorHospitalAffiliationSerializer(serializers.ModelSerializer):
@@ -36,6 +114,17 @@ class DoctorHospitalAffiliationSerializer(serializers.ModelSerializer):
         extra_kwargs = {
             "hospital": {"required": True},
         }
+
+    def validate_role(self, value):
+        """Validate and sanitize role description."""
+        if not value:
+            return value
+        sanitized = sanitize_text(value, max_length=255)
+        if sanitized and len(sanitized) < 2:
+            raise serializers.ValidationError(
+                "Role must be at least 2 characters long"
+            )
+        return sanitized
 
 
 class DoctorSerializer(BaseSerializer):
@@ -92,3 +181,75 @@ class DoctorSerializer(BaseSerializer):
     @extend_schema_field({"type": "array", "items": {"type": "string"}})
     def get_hospitals(self, obj):
         return list(obj.hospitals.values_list("id", flat=True))
+
+    def validate_name(self, value):
+        """Validate and sanitize doctor name."""
+        sanitized = sanitize_name(value)
+        if len(sanitized) < 2:
+            raise serializers.ValidationError(
+                "Doctor name must be at least 2 characters long"
+            )
+        if len(sanitized) > 255:
+            raise serializers.ValidationError("Doctor name cannot exceed 255 characters")
+        return sanitized
+
+    def validate_specialization(self, value):
+        """Validate and sanitize specialization."""
+        if not value:
+            return value
+        sanitized = sanitize_text(value, max_length=255)
+        if sanitized and len(sanitized) < 2:
+            raise serializers.ValidationError(
+                "Specialization must be at least 2 characters long"
+            )
+        return sanitized
+
+    def validate_license_number(self, value):
+        """Validate and sanitize license number."""
+        if not value:
+            return value
+        sanitized = sanitize_identifier(value)
+        if sanitized and len(sanitized) < 3:
+            raise serializers.ValidationError(
+                "License number must be at least 3 characters long"
+            )
+        return sanitized
+
+    def validate_qualification(self, value):
+        """Validate and sanitize qualification."""
+        if not value:
+            return value
+        sanitized = sanitize_text(value, max_length=500)
+        if sanitized and len(sanitized) < 2:
+            raise serializers.ValidationError(
+                "Qualification must be at least 2 characters long"
+            )
+        return sanitized
+
+    def validate_email(self, value):
+        """Validate and sanitize email format."""
+        if not value:
+            return value
+        sanitized = sanitize_email(value)
+        if sanitized and ("@" not in sanitized or "." not in sanitized.split("@")[-1]):
+            raise serializers.ValidationError("Enter a valid email address")
+        return sanitized
+
+    def validate_phone_number(self, value):
+        """Validate and sanitize phone number."""
+        if not value:
+            return value
+        sanitized = sanitize_phone_number(value)
+        # Remove formatting to check digit count
+        clean_phone = (
+            sanitized.replace("+", "")
+            .replace("-", "")
+            .replace(" ", "")
+            .replace("(", "")
+            .replace(")", "")
+        )
+        if sanitized and (not clean_phone.isdigit() or len(clean_phone) < 10):
+            raise serializers.ValidationError(
+                "Enter a valid phone number (at least 10 digits)"
+            )
+        return sanitized

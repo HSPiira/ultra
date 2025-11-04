@@ -2,6 +2,7 @@ from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
 from apps.core.utils.serializers import BaseSerializer
+from apps.core.utils.sanitizers import sanitize_text, sanitize_card_code
 from apps.schemes.models import Benefit, Plan, Scheme, SchemeItem
 from apps.companies.models import Company
 from apps.companies.api.serializers import CompanySerializer
@@ -28,30 +29,27 @@ class SchemeSerializer(BaseSerializer):
         ]
 
     def validate_scheme_name(self, value):
-        """Validate scheme name."""
-        if not value or len(value.strip()) < 2:
+        """Validate and sanitize scheme name."""
+        sanitized = sanitize_text(value, max_length=255)
+        if len(sanitized) < 2:
             raise serializers.ValidationError(
                 "Scheme name must be at least 2 characters long"
             )
-        if len(value) > 255:
-            raise serializers.ValidationError(
-                "Scheme name cannot exceed 255 characters"
-            )
-        return value.strip()
+        return sanitized
 
     def validate_card_code(self, value):
-        """Validate card code."""
-        if not value or len(value.strip()) != 3:
+        """Validate and sanitize card code."""
+        sanitized = sanitize_card_code(value)
+        if len(sanitized) != 3:
             raise serializers.ValidationError("Card code must be exactly 3 characters")
-        return value.strip().upper()
+        return sanitized
 
     def validate_description(self, value):
-        """Validate description."""
-        if value and len(value) > 500:
-            raise serializers.ValidationError(
-                "Description cannot exceed 500 characters"
-            )
-        return value
+        """Validate and sanitize description."""
+        if not value:
+            return value
+        sanitized = sanitize_text(value, max_length=500, allow_newlines=True)
+        return sanitized
 
     def validate_limit_amount(self, value):
         """Validate limit amount."""
@@ -89,22 +87,20 @@ class PlanSerializer(BaseSerializer):
         fields = BaseSerializer.Meta.fields + ["plan_name", "description"]
 
     def validate_plan_name(self, value):
-        """Validate plan name."""
-        if not value or len(value.strip()) < 2:
+        """Validate and sanitize plan name."""
+        sanitized = sanitize_text(value, max_length=255)
+        if len(sanitized) < 2:
             raise serializers.ValidationError(
                 "Plan name must be at least 2 characters long"
             )
-        if len(value) > 255:
-            raise serializers.ValidationError("Plan name cannot exceed 255 characters")
-        return value.strip()
+        return sanitized
 
     def validate_description(self, value):
-        """Validate description."""
-        if value and len(value) > 500:
-            raise serializers.ValidationError(
-                "Description cannot exceed 500 characters"
-            )
-        return value
+        """Validate and sanitize description."""
+        if not value:
+            return value
+        sanitized = sanitize_text(value, max_length=500, allow_newlines=True)
+        return sanitized
 
 
 class BenefitSerializer(BaseSerializer):
@@ -125,24 +121,20 @@ class BenefitSerializer(BaseSerializer):
         ]
 
     def validate_benefit_name(self, value):
-        """Validate benefit name."""
-        if not value or len(value.strip()) < 2:
+        """Validate and sanitize benefit name."""
+        sanitized = sanitize_text(value, max_length=255)
+        if len(sanitized) < 2:
             raise serializers.ValidationError(
                 "Benefit name must be at least 2 characters long"
             )
-        if len(value) > 255:
-            raise serializers.ValidationError(
-                "Benefit name cannot exceed 255 characters"
-            )
-        return value.strip()
+        return sanitized
 
     def validate_description(self, value):
-        """Validate description."""
-        if value and len(value) > 500:
-            raise serializers.ValidationError(
-                "Description cannot exceed 500 characters"
-            )
-        return value
+        """Validate and sanitize description."""
+        if not value:
+            return value
+        sanitized = sanitize_text(value, max_length=500, allow_newlines=True)
+        return sanitized
 
     def validate_in_or_out_patient(self, value):
         """Validate patient type."""

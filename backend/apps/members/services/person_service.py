@@ -19,7 +19,7 @@ class PersonService:
     """Business logic for Person write operations."""
 
     @staticmethod
-    def _generate_card_number(*, scheme, relationship: str, parent=None, company=None):
+    def _generate_card_number(*, scheme, relationship: str, parent=None, company=None) -> str:
         """
         Generate card number in format: {card_code}-{member_count:03d}-{member_number:02d}
 

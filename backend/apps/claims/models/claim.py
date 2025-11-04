@@ -1,6 +1,7 @@
 from django.core.exceptions import ValidationError
 from django.db import models
 
+from apps.core.enums.choices import ClaimStatusChoices
 from apps.core.models import FinancialTransaction
 from apps.members.models import Person
 from apps.providers.models import Doctor, Hospital
@@ -11,7 +12,12 @@ class Claim(FinancialTransaction):
     hospital = models.ForeignKey(Hospital, on_delete=models.PROTECT)
     doctor = models.ForeignKey(Doctor, null=True, blank=True, on_delete=models.SET_NULL)
     service_date = models.DateField()
-    claim_status = models.CharField(max_length=20, default="PENDING")
+    claim_status = models.CharField(
+        max_length=20,
+        choices=ClaimStatusChoices.choices,
+        default=ClaimStatusChoices.PENDING,
+        help_text="Current status of the claim",
+    )
     invoice_number = models.CharField(max_length=100, blank=True)
 
     class Meta:

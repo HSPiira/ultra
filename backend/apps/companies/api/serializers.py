@@ -2,6 +2,13 @@ from rest_framework import serializers
 
 from apps.companies.models import Company, Industry
 from apps.core.utils.serializers import BaseSerializer
+from apps.core.utils.sanitizers import (
+    sanitize_text,
+    sanitize_name,
+    sanitize_email,
+    sanitize_phone_number,
+    sanitize_url,
+)
 
 
 class IndustrySerializer(BaseSerializer):
@@ -10,28 +17,24 @@ class IndustrySerializer(BaseSerializer):
         fields = BaseSerializer.Meta.fields + ["industry_name", "description"]
 
     def validate_industry_name(self, value):
-        """Validate industry name."""
-        if not value or len(value.strip()) < 2:
+        """Validate and sanitize industry name."""
+        sanitized = sanitize_text(value, max_length=100)
+        if len(sanitized) < 2:
             raise serializers.ValidationError(
                 "Industry name must be at least 2 characters long"
             )
-        if len(value) > 100:
-            raise serializers.ValidationError(
-                "Industry name cannot exceed 100 characters"
-            )
-        return value.strip()
+        return sanitized
 
     def validate_description(self, value):
-        """Validate description."""
-        if value and len(value) > 500:
-            raise serializers.ValidationError(
-                "Description cannot exceed 500 characters"
-            )
-        return value
+        """Validate and sanitize description."""
+        if not value:
+            return value
+        sanitized = sanitize_text(value, max_length=500, allow_newlines=True)
+        return sanitized
 
 
 class CompanySerializer(BaseSerializer):
-    industry = serializers.PrimaryKeyRelatedField(queryset=Industry.objects.all()) # Explicitly define industry
+    industry = serializers.PrimaryKeyRelatedField(queryset=Industry.objects.all())
     industry_detail = IndustrySerializer(source="industry", read_only=True)
 
     class Meta(BaseSerializer.Meta):
@@ -49,53 +52,54 @@ class CompanySerializer(BaseSerializer):
         ]
 
     def validate_company_name(self, value):
-        """Validate company name."""
-        if not value or len(value.strip()) < 2:
+        """Validate and sanitize company name."""
+        sanitized = sanitize_name(value)
+        if len(sanitized) < 2:
             raise serializers.ValidationError(
                 "Company name must be at least 2 characters long"
             )
-        if len(value) > 255:
+        if len(sanitized) > 255:
             raise serializers.ValidationError(
                 "Company name cannot exceed 255 characters"
             )
-        return value.strip()
+        return sanitized
 
     def validate_email(self, value):
-        """Validate email format."""
+        """Validate and sanitize email format."""
         if not value:
             raise serializers.ValidationError("Email is required")
-        if "@" not in value or "." not in value.split("@")[-1]:
+        sanitized = sanitize_email(value)
+        if "@" not in sanitized or "." not in sanitized.split("@")[-1]:
             raise serializers.ValidationError("Enter a valid email address")
-        return value.lower().strip()
+        return sanitized
 
     def validate_phone_number(self, value):
-        """Validate phone number."""
+        """Validate and sanitize phone number."""
         if not value:
             raise serializers.ValidationError("Phone number is required")
-        # Remove common formatting characters
-        clean_phone = (
-            value.replace("+", "")
-            .replace("-", "")
-            .replace(" ", "")
-            .replace("(", "")
-            .replace(")", "")
-        )
+        sanitized = sanitize_phone_number(value)
+        # Remove formatting to check digit count
+        clean_phone = sanitized.replace("+", "").replace("-", "").replace(" ", "").replace("(", "").replace(")", "")
         if not clean_phone.isdigit() or len(clean_phone) < 10:
             raise serializers.ValidationError(
                 "Enter a valid phone number (at least 10 digits)"
             )
-        return value
+        return sanitized
 
     def validate_contact_person(self, value):
-        """Validate contact person name."""
-        if not value or len(value.strip()) < 2:
+        """Validate and sanitize contact person name."""
+        sanitized = sanitize_name(value)
+        if len(sanitized) < 2:
             raise serializers.ValidationError(
                 "Contact person name must be at least 2 characters long"
             )
-        return value.strip()
+        return sanitized
 
     def validate_website(self, value):
-        """Validate website URL."""
-        if value and not value.startswith(("http://", "https://")):
-            value = "https://" + value
-        return value
+        """Validate and sanitize website URL."""
+        if not value:
+            return value
+        sanitized = sanitize_url(value)
+        if sanitized and not sanitized.startswith(("http://", "https://")):
+            sanitized = "https://" + sanitized
+        return sanitized
