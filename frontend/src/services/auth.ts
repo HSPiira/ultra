@@ -59,6 +59,8 @@ export const authApi = {
         // Login failed - return error from response
         const errorMsg = response.data.error || 'Login failed';
         console.error('Login failed:', errorMsg);
+        localStorage.removeItem('user');
+        localStorage.removeItem('isAuthenticated');
         return {
           success: false,
           error: errorMsg,
@@ -78,6 +80,8 @@ export const authApi = {
       // Log only sanitized error message (no config/data fields)
       const status = error?.response?.status;
       console.error('Login failed:', status ? `Status ${status}: ${errorMessage}` : errorMessage);
+      localStorage.removeItem('user');
+      localStorage.removeItem('isAuthenticated');
       return {
         success: false,
         error: errorMessage,

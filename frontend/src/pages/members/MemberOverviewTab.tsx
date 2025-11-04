@@ -231,6 +231,7 @@ export const MemberOverviewTab: React.FC<MemberOverviewTabProps> = ({ member, on
               <span className="text-sm font-medium" style={{ color: '#9ca3af' }}>Company</span>
               {member.company_detail ? (
                 <button
+                  type="button"
                   onClick={handleCompanyClick}
                   className="flex items-center gap-2 text-sm font-medium text-blue-400 hover:text-blue-300"
                 >
@@ -248,6 +249,7 @@ export const MemberOverviewTab: React.FC<MemberOverviewTabProps> = ({ member, on
               <span className="text-sm font-medium" style={{ color: '#9ca3af' }}>Scheme</span>
               {member.scheme_detail ? (
                 <button
+                  type="button"
                   onClick={handleSchemeClick}
                   className="flex items-center gap-2 text-sm font-medium text-blue-400 hover:text-blue-300"
                 >
@@ -265,6 +267,7 @@ export const MemberOverviewTab: React.FC<MemberOverviewTabProps> = ({ member, on
               <div className="flex justify-between items-center py-0.5">
                 <span className="text-sm font-medium" style={{ color: '#9ca3af' }}>Primary Member</span>
                 <button
+                  type="button"
                   onClick={handleParentClick}
                   className="flex items-center gap-2 text-sm font-medium text-blue-400 hover:text-blue-300"
                 >
@@ -297,6 +300,7 @@ export const MemberOverviewTab: React.FC<MemberOverviewTabProps> = ({ member, on
               <div className="flex items-center justify-between mb-3">
                 <h2 className="text-lg font-semibold" style={{ color: '#ffffff' }}>Dependants</h2>
                 <button
+                  type="button"
                   className="flex items-center gap-2 px-3 py-1 rounded-lg transition-colors text-sm"
                   style={{ backgroundColor: '#3b3b3b', color: '#ffffff' }}
                   onMouseEnter={(e) => {
@@ -372,6 +376,7 @@ export const MemberOverviewTab: React.FC<MemberOverviewTabProps> = ({ member, on
                         </div>
                         <div className="flex items-center gap-1">
                           <button
+                            type="button"
                             onClick={() => handleDependantClick(dependant.id)}
                             className="p-1 rounded transition-colors"
                             style={{ backgroundColor: '#3b3b3b', color: '#9ca3af' }}
@@ -388,6 +393,7 @@ export const MemberOverviewTab: React.FC<MemberOverviewTabProps> = ({ member, on
                             <Eye className="w-3 h-3" />
                           </button>
                           <button
+                            type="button"
                             className="p-1 rounded transition-colors"
                             style={{ backgroundColor: '#3b3b3b', color: '#9ca3af' }}
                             onMouseEnter={(e) => {
@@ -403,6 +409,7 @@ export const MemberOverviewTab: React.FC<MemberOverviewTabProps> = ({ member, on
                             <Edit className="w-3 h-3" />
                           </button>
                           <button
+                            type="button"
                             className="p-1 rounded transition-colors"
                             style={{ backgroundColor: '#3b3b3b', color: '#9ca3af' }}
                             onMouseEnter={(e) => {
@@ -441,6 +448,7 @@ export const MemberOverviewTab: React.FC<MemberOverviewTabProps> = ({ member, on
                 </p>
                 {member.parent_detail && (
                   <button
+                    type="button"
                     onClick={handleParentClick}
                     className="flex items-center gap-2 mx-auto px-4 py-2 rounded-lg transition-colors text-sm"
                     style={{ backgroundColor: '#3b3b3b', color: '#ffffff' }}

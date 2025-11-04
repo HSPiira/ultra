@@ -8,6 +8,11 @@ def fix_duplicate_plan_names(apps, schema_editor):
     """Fix duplicate plan names by appending index to duplicates."""
     Plan = apps.get_model("schemes", "Plan")
 
+    MAX_NAME_LENGTH = 255
+
+    # Reserve space for suffix like " 999" (5 chars)
+    MAX_BASE_LENGTH = MAX_NAME_LENGTH - 5
+
     # Get all plan names
     plans = Plan.objects.all().order_by('created_at')
     
@@ -25,6 +30,10 @@ def fix_duplicate_plan_names(apps, schema_editor):
             if not normalized_name:
                 # Treat whitespace-only names as invalid - assign default normalized name
                 normalized_name = "Unnamed Plan"
+        
+        # Truncate to leave room for numbering suffix
+        if len(normalized_name) > MAX_BASE_LENGTH:
+            normalized_name = normalized_name[:MAX_BASE_LENGTH].rstrip()
         
         name_counter[normalized_name] += 1
 

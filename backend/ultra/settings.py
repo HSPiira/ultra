@@ -48,12 +48,6 @@ if IS_PRODUCTION and not secret_key:
 if not secret_key and not IS_PRODUCTION:
     secret_key = 'django-insecure-bo-cm(8%s0lu^$5snvv)!guhe00lyh&!qx7xil5%c8bs3_c7gd'  # Development default only
 
-# Final check: SECRET_KEY must not be empty
-if not secret_key:
-    raise ImproperlyConfigured(
-        "SECRET_KEY must be set. Provide SECRET_KEY environment variable or set ENVIRONMENT=production with a valid SECRET_KEY."
-    )
-
 SECRET_KEY = secret_key
 
 # Parse ALLOWED_HOSTS from environment variable (comma-separated)

@@ -100,6 +100,7 @@ export const MemberDetailsPage: React.FC = () => {
             The member you're looking for doesn't exist or has been removed.
           </p>
           <button
+            type="button"
             onClick={handleBack}
             className="px-4 py-2 rounded-lg transition-colors"
             style={{ backgroundColor: colors.background.tertiary, color: colors.text.primary }}
@@ -151,6 +152,7 @@ export const MemberDetailsPage: React.FC = () => {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               <button
+                type="button"
                 onClick={handleBack}
                 className="p-2 rounded-lg transition-colors"
                 style={{ backgroundColor: colors.background.secondary, color: colors.text.primary }}
@@ -203,6 +205,7 @@ export const MemberDetailsPage: React.FC = () => {
 
             <div className="flex items-center gap-2">
               <button
+                type="button"
                 onClick={handleEdit}
                 className="px-4 py-2 rounded-lg transition-colors flex items-center gap-2"
                 style={{ backgroundColor: colors.background.secondary, color: colors.text.primary }}
@@ -217,6 +220,7 @@ export const MemberDetailsPage: React.FC = () => {
                 Edit
               </button>
               <button
+                type="button"
                 onClick={handleDelete}
                 className="px-4 py-2 rounded-lg transition-colors flex items-center gap-2"
                 style={{ backgroundColor: colors.status.error + '20', color: colors.status.error }}
@@ -245,6 +249,7 @@ export const MemberDetailsPage: React.FC = () => {
             ].map((tab) => (
               <button
                 key={tab.id}
+                type="button"
                 onClick={() => handleTabChange(tab.id as MemberDetailsTab)}
                 className="py-4 px-1 border-b-2 font-medium text-sm transition-colors"
                 style={{

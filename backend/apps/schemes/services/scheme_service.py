@@ -74,10 +74,10 @@ class SchemeService:
             try:
                 company = Company.objects.get(id=company, is_deleted=False)
                 scheme_data["company"] = company
-            except Company.DoesNotExist:
-                raise NotFoundError("Company", company)
-            except (ValueError, TypeError):
-                raise InvalidValueError("company", "Company must be a valid Company instance or ID")
+            except Company.DoesNotExist as exc:
+                raise NotFoundError("Company", company) from exc
+            except (ValueError, TypeError) as exc:
+                raise InvalidValueError("company", "Company must be a valid Company instance or ID") from exc
 
         # Validate company is active
         if company.status != BusinessStatusChoices.ACTIVE or company.is_deleted:
@@ -152,8 +152,8 @@ class SchemeService:
         """
         try:
             scheme = Scheme.objects.get(id=scheme_id, is_deleted=False)
-        except Scheme.DoesNotExist:
-            raise NotFoundError("Scheme", scheme_id)
+        except Scheme.DoesNotExist as exc:
+            raise NotFoundError("Scheme", scheme_id) from exc
 
         # Validate data
         if "scheme_name" in update_data and not update_data["scheme_name"]:
@@ -174,10 +174,10 @@ class SchemeService:
                 try:
                     company = Company.objects.get(id=company, is_deleted=False)
                     update_data["company"] = company
-                except Company.DoesNotExist:
-                    raise NotFoundError("Company", company)
-                except (ValueError, TypeError):
-                    raise InvalidValueError("company", "Company must be a valid Company instance or ID")
+                except Company.DoesNotExist as exc:
+                    raise NotFoundError("Company", company) from exc
+                except (ValueError, TypeError) as exc:
+                    raise InvalidValueError("company", "Company must be a valid Company instance or ID") from exc
 
             # Validate company is active
             if company.status != BusinessStatusChoices.ACTIVE or company.is_deleted:

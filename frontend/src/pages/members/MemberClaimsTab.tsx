@@ -143,6 +143,7 @@ export const MemberClaimsTab: React.FC<MemberClaimsTabProps> = ({ member }) => {
                 </div>
                 
                 <button
+                  type="button"
                   onClick={() => navigate(`/claims/${claim.id}`)}
                   className="ml-4 p-2 rounded-lg transition-colors"
                   style={{ backgroundColor: colors.background.tertiary, color: colors.text.primary }}

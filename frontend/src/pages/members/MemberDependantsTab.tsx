@@ -95,6 +95,7 @@ export const MemberDependantsTab: React.FC<MemberDependantsTabProps> = ({ member
           Dependants ({dependants.length})
         </h2>
         <button
+          type="button"
           className="px-4 py-2 rounded-lg transition-colors flex items-center gap-2"
           style={{ backgroundColor: colors.action.primary, color: '#ffffff' }}
           onMouseEnter={(e) => {
@@ -124,9 +125,10 @@ export const MemberDependantsTab: React.FC<MemberDependantsTabProps> = ({ member
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {dependants.map((dependant) => (
-            <div
+            <button
               key={dependant.id}
-              className="rounded-lg border p-4 cursor-pointer transition-colors"
+              type="button"
+              className="rounded-lg border p-4 cursor-pointer transition-colors text-left w-full"
               style={{ 
                 backgroundColor: colors.background.secondary, 
                 borderColor: colors.border.primary 
@@ -179,7 +181,7 @@ export const MemberDependantsTab: React.FC<MemberDependantsTabProps> = ({ member
                   {dependant.status}
                 </span>
               </div>
-            </div>
+            </button>
           ))}
         </div>
       )}
