@@ -27,7 +27,8 @@ IS_TESTING = 'test' in sys.argv or 'pytest' in sys.modules
 
 # SECURITY WARNING: don't run with debug turned on in production!
 # Parse DEBUG from environment with support for common truthy tokens
-_debug_value = os.environ.get('DEBUG', 'False').strip().lower()
+# Default to True for development convenience
+_debug_value = os.environ.get('DEBUG', 'True').strip().lower()
 DEBUG = _debug_value in ('1', 'true', 'yes', 'y', 't')
 
 # Check for production environment flag
@@ -222,6 +223,17 @@ CSRF_TRUSTED_ORIGINS = [
     ).split(',')
     if origin.strip()
 ]
+
+# Session and CSRF Cookie Settings
+# In development (DEBUG=True), cookies don't need to be secure (HTTP is OK)
+# In production (DEBUG=False), cookies must be secure (HTTPS only)
+SESSION_COOKIE_SECURE = not DEBUG  # Secure cookies only in production
+SESSION_COOKIE_HTTPONLY = True  # Prevent JavaScript access to session cookies
+SESSION_COOKIE_SAMESITE = 'Lax'  # CSRF protection while allowing cross-site navigation
+
+CSRF_COOKIE_SECURE = not DEBUG  # Secure cookies only in production
+CSRF_COOKIE_HTTPONLY = False  # Allow JavaScript to read CSRF token (needed for X-CSRFToken header)
+CSRF_COOKIE_SAMESITE = 'Lax'  # CSRF protection while allowing cross-site navigation
 
 # CORS headers to allow
 CORS_ALLOW_HEADERS = [
