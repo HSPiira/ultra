@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { 
   Users, 
   Plus,
@@ -25,10 +26,9 @@ interface MemberStatistics {
 }
 
 const MembersPage: React.FC = () => {
+  const navigate = useNavigate();
   const { colors, getPageStyles, getIconButtonProps } = useThemeStyles();
-  const [selectedMember, setSelectedMember] = useState<Member | null>(null);
   const [isFormOpen, setIsFormOpen] = useState(false);
-  const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [editingMember, setEditingMember] = useState<Member | null>(null);
   const [statistics, setStatistics] = useState<MemberStatistics | null>(null);
   const [loading, setLoading] = useState(true);
@@ -113,8 +113,7 @@ const MembersPage: React.FC = () => {
   };
 
   const handleMemberSelect = (member: Member) => {
-    setSelectedMember(member);
-    setIsDetailsOpen(true);
+    navigate(`/members/${member.id}`);
   };
 
   const handleMemberEdit = (member: Member) => {
@@ -143,11 +142,6 @@ const MembersPage: React.FC = () => {
     setEditingMember(null);
     loadStatistics();
     setRefreshTrigger(prev => prev + 1);
-  };
-
-  const handleDetailsClose = () => {
-    setIsDetailsOpen(false);
-    setSelectedMember(null);
   };
 
   const refreshData = () => {
@@ -258,71 +252,6 @@ const MembersPage: React.FC = () => {
         onSave={handleFormSave}
       />
 
-      {/* Member Details Modal */}
-      {isDetailsOpen && selectedMember && (
-              <div 
-                className="fixed inset-0 flex items-center justify-center z-50 backdrop-blur-xs"
-                style={{ backgroundColor: 'rgba(0, 0, 0, 0.05)' }}
-                onClick={handleDetailsClose}
-              >
-                <div 
-                  className="p-6 rounded-lg max-w-md w-full mx-4 shadow-2xl border"
-                  style={{ 
-                    backgroundColor: colors.background.tertiary,
-                    borderColor: colors.border.secondary
-                  }}
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <h3 
-                    className="text-lg font-semibold mb-4"
-                    style={{ color: colors.text.primary }}
-                  >
-                    Member Details
-                  </h3>
-                  <div className="space-y-2 text-sm">
-                    <p><span style={{ color: colors.text.tertiary }}>Name:</span> {selectedMember.name}</p>
-                    <p><span style={{ color: colors.text.tertiary }}>Card Number:</span> {selectedMember.card_number}</p>
-                    <p><span style={{ color: colors.text.tertiary }}>Gender:</span> {selectedMember.gender}</p>
-                    <p><span style={{ color: colors.text.tertiary }}>Relationship:</span> {selectedMember.relationship}</p>
-                    <p><span style={{ color: colors.text.tertiary }}>Status:</span> {selectedMember.status}</p>
-                  </div>
-                  <div className="flex gap-2 mt-4">
-                    <button
-                      onClick={handleDetailsClose}
-                      className="px-4 py-2 rounded transition-colors"
-                      style={{ 
-                        backgroundColor: colors.background.quaternary, 
-                        color: colors.text.primary 
-                      }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.backgroundColor = colors.background.hover;
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.backgroundColor = colors.background.quaternary;
-                      }}
-                    >
-                      Close
-                    </button>
-                    <button
-                      onClick={() => handleMemberEdit(selectedMember)}
-                      className="px-4 py-2 rounded transition-colors"
-                      style={{ 
-                        backgroundColor: colors.action.primary, 
-                        color: colors.text.primary 
-                      }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.backgroundColor = '#2563eb';
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.backgroundColor = colors.action.primary;
-                      }}
-                    >
-                      Edit
-                    </button>
-                  </div>
-                </div>
-              </div>
-            )}
 
       {/* Bulk Upload Modal */}
       <BulkUploadModal

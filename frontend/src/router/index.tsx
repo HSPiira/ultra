@@ -11,6 +11,7 @@ import { CompanyDetailsPage } from '../pages/companies';
 import { SettingsPage } from '../pages/settings';
 import ClaimsPage from '../pages/claims/ClaimsPage';
 import MembersPage from '../pages/members/MembersPage';
+import { MemberDetailsPage } from '../pages/members/MemberDetailsPage';
 import ProvidersPage from '../pages/providers/ProvidersPage';
 import MedicalCatalogPage from '../pages/medical-catalog/MedicalCatalogPage';
 import SchemesPage from '../pages/schemes/SchemesPage';
@@ -96,6 +97,14 @@ const router = createBrowserRouter([
       {
         path: 'members',
         element: <MembersPage />
+      },
+      {
+        path: 'members/:id',
+        element: <MemberDetailsPage />
+      },
+      {
+        path: 'members/:id/:tab',
+        element: <MemberDetailsPage />
       },
       {
         path: 'providers',
