@@ -10,23 +10,23 @@ from django.views.decorators.csrf import ensure_csrf_cookie
 
 
 @method_decorator(ensure_csrf_cookie, name="dispatch")
-class APILoginView(View):
+class APICsrfTokenView(View):
     """
-    API login view that works with JSON requests and session authentication.
-
+    Dedicated CSRF token endpoint.
+    
+    Provides CSRF tokens for the frontend without requiring authentication.
+    This endpoint is semantically correct for CSRF token provisioning.
+    
     CSRF Protection:
     - This view uses @ensure_csrf_cookie to set the CSRF token cookie
-    - Frontend must include the CSRF token in the X-CSRFToken header
-    - The CSRF token can be read from the 'csrftoken' cookie
-
-    GET request returns the CSRF token for the frontend to use in subsequent requests.
-    POST request performs the login.
+    - Frontend can read the token from the 'csrftoken' cookie or response body
+    - Token should be included in X-CSRFToken header for state-changing requests
     """
-
+    
     def get(self, request):
         """
         Return CSRF token for the frontend.
-        This allows the frontend to get a CSRF token before attempting login.
+        Sets the CSRF token cookie and returns the token in the response.
         """
         return JsonResponse(
             {
@@ -34,6 +34,20 @@ class APILoginView(View):
                 "csrfToken": get_token(request),
             }
         )
+
+
+@method_decorator(ensure_csrf_cookie, name="dispatch")
+class APILoginView(View):
+    """
+    API login view that works with JSON requests and session authentication.
+
+    CSRF Protection:
+    - This view uses @ensure_csrf_cookie to set the CSRF token cookie
+    - Frontend must include the CSRF token in the X-CSRFToken header
+    - The CSRF token should be obtained from /api/v1/auth/csrf/ or 'csrftoken' cookie
+    
+    POST request performs the login.
+    """
 
     def post(self, request):
         try:

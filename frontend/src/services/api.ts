@@ -34,7 +34,7 @@ class ApiClient {
     // Fetch CSRF token from backend
     this.csrfTokenPromise = (async () => {
       try {
-        const response = await fetch(`${this.baseURL}/api/v1/auth/login/`, {
+        const response = await fetch(`${this.baseURL}/api/v1/auth/csrf/`, {
           method: 'GET',
           credentials: 'include',
         });
@@ -114,7 +114,6 @@ class ApiClient {
       // But don't redirect if this is the login endpoint itself (allow login errors to be shown)
       if ((response.status === 401 || response.status === 403) && !url.includes('/auth/login/')) {
         // Clear any stored auth data
-        localStorage.removeItem('authToken');
         localStorage.removeItem('user');
         localStorage.removeItem('isAuthenticated');
         // Redirect to login if not already there

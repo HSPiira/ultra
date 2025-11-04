@@ -26,10 +26,12 @@ export const authApi = {
    */
   async getCsrfToken(): Promise<string | null> {
     try {
-      const response = await api.get<LoginResponse>('/auth/login/');
+      const response = await api.get<LoginResponse>('/auth/csrf/');
       return response.data.csrfToken || null;
-    } catch (error) {
-      console.error('Failed to get CSRF token:', error);
+    } catch (error: any) {
+      const status = error?.response?.status;
+      const message = error?.message || 'Failed to get CSRF token';
+      console.error('Failed to get CSRF token:', status ? `Status ${status}` : message);
       return null;
     }
   },
@@ -45,8 +47,8 @@ export const authApi = {
       // Then perform login
       const response = await api.post<LoginResponse>('/auth/login/', credentials);
       
-      // Log response for debugging
-      console.log('Login response:', response);
+      // Log success status only (no sensitive data)
+      console.log('Login response:', response.data.success ? 'Success' : 'Failed');
       
       if (response.data.success && response.data.user) {
         // Store user info in localStorage
@@ -56,15 +58,14 @@ export const authApi = {
       } else {
         // Login failed - return error from response
         const errorMsg = response.data.error || 'Login failed';
-        console.error('Login failed:', errorMsg, response.data);
+        console.error('Login failed:', errorMsg);
         return {
           success: false,
           error: errorMsg,
         };
       }
     } catch (error: any) {
-      console.error('Login failed:', error);
-      // Extract error message from error response
+      // Extract error message from error response (sanitized - no sensitive data)
       // The API client throws an error with error.response containing the parsed JSON data
       let errorMessage = 'Login failed';
       if (error.response && typeof error.response === 'object') {
@@ -74,6 +75,9 @@ export const authApi = {
         // Use error message if it's not the generic HTTP error
         errorMessage = error.message;
       }
+      // Log only sanitized error message (no config/data fields)
+      const status = error?.response?.status;
+      console.error('Login failed:', status ? `Status ${status}: ${errorMessage}` : errorMessage);
       return {
         success: false,
         error: errorMessage,
@@ -89,8 +93,11 @@ export const authApi = {
       await api.post('/auth/logout/', {});
       localStorage.removeItem('user');
       localStorage.removeItem('isAuthenticated');
-    } catch (error) {
-      console.error('Logout failed:', error);
+    } catch (error: any) {
+      // Log only sanitized error info (no config/data fields)
+      const status = error?.response?.status;
+      const message = error?.message || 'Logout failed';
+      console.error('Logout failed:', status ? `Status ${status}` : message);
       // Clear local storage anyway
       localStorage.removeItem('user');
       localStorage.removeItem('isAuthenticated');

@@ -2,6 +2,7 @@ from django.core.exceptions import ValidationError
 from django.db import IntegrityError
 
 from apps.core.exceptions.service_errors import NotFoundError, DuplicateError
+from apps.core.utils.integrity import is_unique_constraint_violation
 from apps.medical_catalog.models import Service
 
 
@@ -29,13 +30,17 @@ class ServiceService:
             # Not a uniqueness error - re-raise original ValidationError
             raise
         except IntegrityError as e:
-            # Database constraint violation
-            error_msg = str(e).lower()
-            if 'name' in error_msg:
-                raise DuplicateError("Service", ["name"], "Service with this name already exists") from e
-            if 'unique' in error_msg:
-                raise DuplicateError("Service", ["duplicate"], "Service with duplicate unique field already exists") from e
-            raise
+            # Database constraint violation - only raise DuplicateError for unique violations
+            if is_unique_constraint_violation(e):
+                # Check if we can identify the specific field from the error message
+                error_msg = str(e).lower()
+                if 'name' in error_msg:
+                    raise DuplicateError("Service", ["name"], "Service with this name already exists") from e
+                else:
+                    raise DuplicateError("Service", message="Service with these values already exists") from e
+            else:
+                # Other integrity errors (NOT NULL, FK, etc.) - re-raise
+                raise
 
     @staticmethod
     def update(*, service_id: str, data: dict, user=None) -> Service:
@@ -65,13 +70,17 @@ class ServiceService:
             # Not a uniqueness error - re-raise original ValidationError
             raise
         except IntegrityError as e:
-            # Database constraint violation
-            error_msg = str(e).lower()
-            if 'name' in error_msg:
-                raise DuplicateError("Service", ["name"], "Another service with this name already exists") from e
-            if 'unique' in error_msg:
-                raise DuplicateError("Service", ["duplicate"], "Service with duplicate unique field already exists") from e
-            raise
+            # Database constraint violation - only raise DuplicateError for unique violations
+            if is_unique_constraint_violation(e):
+                # Check if we can identify the specific field from the error message
+                error_msg = str(e).lower()
+                if 'name' in error_msg:
+                    raise DuplicateError("Service", ["name"], "Another service with this name already exists") from e
+                else:
+                    raise DuplicateError("Service", message="Service with these values already exists") from e
+            else:
+                # Other integrity errors (NOT NULL, FK, etc.) - re-raise
+                raise
 
     @staticmethod
     def deactivate(*, service_id: str, user=None) -> None:

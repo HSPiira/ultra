@@ -13,6 +13,7 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 from pathlib import Path
 import sys
 import os
+from django.core.exceptions import ImproperlyConfigured
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -24,16 +25,30 @@ IS_TESTING = 'test' in sys.argv or 'pytest' in sys.modules
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
-# SECURITY WARNING: keep the secret key used in production secret!
-# For development, a default insecure key is provided
-# For production, ALWAYS set SECRET_KEY environment variable
-SECRET_KEY = os.environ.get(
-    'SECRET_KEY',
-    'django-insecure-bo-cm(8%s0lu^$5snvv)!guhe00lyh&!qx7xil5%c8bs3_c7gd'  # Development default
-)
-
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = os.environ.get('DEBUG', 'True') == 'True'
+# Parse DEBUG from environment with support for common truthy tokens
+_debug_value = os.environ.get('DEBUG', 'False').strip().lower()
+DEBUG = _debug_value in ('1', 'true', 'yes', 'y', 't')
+
+# Check for production environment flag
+IS_PRODUCTION = os.environ.get('ENVIRONMENT', '').lower() in ('production', 'prod')
+
+# SECURITY WARNING: keep the secret key used in production secret!
+# Read SECRET_KEY from environment - no default for security
+secret_key = os.environ.get('SECRET_KEY', '').strip()
+
+# In production, SECRET_KEY must be set and non-empty
+if (not secret_key) and (not DEBUG or IS_PRODUCTION):
+    raise ImproperlyConfigured(
+        "SECRET_KEY must be set as an environment variable when running in production. "
+        "Set DEBUG=False or ENVIRONMENT=production requires a valid SECRET_KEY."
+    )
+
+# Only use development default when explicitly in DEBUG mode
+if not secret_key and DEBUG and not IS_PRODUCTION:
+    secret_key = 'django-insecure-bo-cm(8%s0lu^$5snvv)!guhe00lyh&!qx7xil5%c8bs3_c7gd'  # Development default only
+
+SECRET_KEY = secret_key
 
 # Parse ALLOWED_HOSTS from environment variable (comma-separated)
 ALLOWED_HOSTS = [
@@ -177,7 +192,8 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 # CORS Configuration
 # In development, CORS_ALLOW_ALL_ORIGINS can be True for convenience
 # In production, ALWAYS set to False and specify CORS_ALLOWED_ORIGINS
-CORS_ALLOW_ALL_ORIGINS = os.environ.get('CORS_ALLOW_ALL_ORIGINS', 'False') == 'True'
+_cors_allow_all_origins_value = os.environ.get('CORS_ALLOW_ALL_ORIGINS', 'False').strip().lower()
+CORS_ALLOW_ALL_ORIGINS = _cors_allow_all_origins_value in ('1', 'true', 'yes', 'y', 't')
 CORS_ALLOW_CREDENTIALS = True
 
 # Specific origins for production (set via CORS_ALLOWED_ORIGINS environment variable)

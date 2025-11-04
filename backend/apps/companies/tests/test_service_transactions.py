@@ -4,6 +4,8 @@ Transaction rollback tests for service layer.
 Verifies that @transaction.atomic properly rolls back database changes
 when errors occur within service methods.
 """
+from datetime import date, timedelta
+
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
 from django.test import TransactionTestCase
@@ -16,6 +18,7 @@ from apps.core.exceptions.service_errors import (
     DuplicateError,
     RequiredFieldError,
 )
+from apps.schemes.models import Scheme
 
 
 class CompanyServiceTransactionTests(TransactionTestCase):
@@ -258,8 +261,6 @@ class CompanyServiceTransactionTests(TransactionTestCase):
         )
 
         # Create dependent scheme
-        from apps.schemes.models import Scheme
-        from datetime import date, timedelta
         Scheme.objects.create(
             scheme_name="Test Scheme",
             company=company,

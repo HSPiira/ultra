@@ -76,11 +76,17 @@ class BenefitService:
         # Handle plan field conversion
         if 'plan' in benefit_data and benefit_data['plan']:
             from apps.schemes.models import Plan
-            try:
-                plan = Plan.objects.get(id=benefit_data['plan'], is_deleted=False)
-                benefit_data['plan'] = plan
-            except Plan.DoesNotExist as exc:
-                raise NotFoundError("Plan", benefit_data['plan']) from exc
+            plan_value = benefit_data['plan']
+            if isinstance(plan_value, Plan):
+                if plan_value.is_deleted:
+                    raise InvalidValueError("plan", "Plan must be active to create a benefit")
+                plan = plan_value
+            else:
+                try:
+                    plan = Plan.objects.get(id=plan_value, is_deleted=False)
+                except Plan.DoesNotExist as exc:
+                    raise NotFoundError("Plan", plan_value) from exc
+            benefit_data['plan'] = plan
         elif 'plan' in benefit_data and benefit_data['plan'] is None:
             benefit_data['plan'] = None
 
@@ -168,11 +174,17 @@ class BenefitService:
         if 'plan' in update_data:
             if update_data['plan']:
                 from apps.schemes.models import Plan
-                try:
-                    plan = Plan.objects.get(id=update_data['plan'], is_deleted=False)
-                    update_data['plan'] = plan
-                except Plan.DoesNotExist as exc:
-                    raise NotFoundError("Plan", update_data['plan']) from exc
+                plan_value = update_data['plan']
+                if isinstance(plan_value, Plan):
+                    if plan_value.is_deleted:
+                        raise InvalidValueError("plan", "Plan must be active to update a benefit")
+                    plan = plan_value
+                else:
+                    try:
+                        plan = Plan.objects.get(id=plan_value, is_deleted=False)
+                    except Plan.DoesNotExist as exc:
+                        raise NotFoundError("Plan", plan_value) from exc
+                update_data['plan'] = plan
             else:
                 update_data['plan'] = None
 

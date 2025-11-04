@@ -66,14 +66,18 @@ class SchemeService:
 
         # Handle company field - convert ID to Company instance if needed
         company = scheme_data.get("company")
-        if isinstance(company, str):
+        if isinstance(company, Company):
+            # Already a Company instance, use it directly
+            pass
+        else:
+            # Attempt to resolve company by ID (supports str, UUID, int, etc.)
             try:
                 company = Company.objects.get(id=company, is_deleted=False)
                 scheme_data["company"] = company
             except Company.DoesNotExist:
                 raise NotFoundError("Company", company)
-        elif not isinstance(company, Company):
-            raise InvalidValueError("company", "Company must be a valid Company instance or ID")
+            except (ValueError, TypeError):
+                raise InvalidValueError("company", "Company must be a valid Company instance or ID")
 
         # Validate company is active
         if company.status != BusinessStatusChoices.ACTIVE or company.is_deleted:
@@ -162,14 +166,18 @@ class SchemeService:
         # Handle company field - convert ID to Company instance if needed
         if "company" in update_data:
             company = update_data["company"]
-            if isinstance(company, str):
+            if isinstance(company, Company):
+                # Already a Company instance, use it directly
+                pass
+            else:
+                # Attempt to resolve company by ID (supports str, UUID, int, etc.)
                 try:
                     company = Company.objects.get(id=company, is_deleted=False)
                     update_data["company"] = company
                 except Company.DoesNotExist:
                     raise NotFoundError("Company", company)
-            elif not isinstance(company, Company):
-                raise InvalidValueError("company", "Company must be a valid Company instance or ID")
+                except (ValueError, TypeError):
+                    raise InvalidValueError("company", "Company must be a valid Company instance or ID")
 
             # Validate company is active
             if company.status != BusinessStatusChoices.ACTIVE or company.is_deleted:
