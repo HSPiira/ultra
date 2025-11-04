@@ -5,6 +5,7 @@ from rest_framework.response import Response
 from rest_framework.exceptions import ValidationError
 import logging
 
+from apps.core.throttling import StrictRateThrottle
 from apps.schemes.api.serializers import SchemeItemSerializer, BulkAssignmentSerializer
 from apps.schemes.models import SchemeItem
 from apps.schemes.selectors import (
@@ -24,6 +25,7 @@ class SchemeItemViewSet(viewsets.ModelViewSet):
     """
 
     serializer_class = SchemeItemSerializer
+    throttle_classes = [StrictRateThrottle]  # Apply to bulk operations
     # Using global authentication settings from REST_FRAMEWORK
 
     filter_backends = [
@@ -70,7 +72,7 @@ class SchemeItemViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=["post"], url_path="bulk")
     def bulk_create(self, request):
-        """Bulk create scheme items for a specific scheme."""
+        """Bulk create scheme items for a specific scheme. Rate limited to 20/hour."""
         serializer = BulkAssignmentSerializer(data=request.data)
         
         try:
@@ -100,7 +102,7 @@ class SchemeItemViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=["post"], url_path="bulk-remove")
     def bulk_remove(self, request):
-        """Bulk remove scheme items."""
+        """Bulk remove scheme items. Rate limited to 20/hour."""
         scheme_item_ids = request.data.get("scheme_item_ids", [])
         
         if not scheme_item_ids:

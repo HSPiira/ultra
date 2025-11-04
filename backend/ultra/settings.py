@@ -90,6 +90,7 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
+    "apps.core.middleware.RequestIDMiddleware",  # Request ID tracking - must be early
     "corsheaders.middleware.CorsMiddleware",
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
@@ -264,9 +265,14 @@ TEST_RUNNER = 'django.test.runner.DiscoverRunner'
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
+    'filters': {
+        'request_id': {
+            '()': 'apps.core.utils.logging_filters.RequestIDFilter',
+        },
+    },
     'formatters': {
         'verbose': {
-            'format': '{levelname} {name} {message}',
+            'format': '{levelname} [{request_id}] {name} {message}',
             'style': '{',
         },
     },
@@ -274,6 +280,7 @@ LOGGING = {
         'console': {
             'class': 'logging.StreamHandler',
             'formatter': 'verbose',
+            'filters': ['request_id'],
         },
     },
     'root': {
@@ -328,15 +335,54 @@ REST_FRAMEWORK = {
     "DEFAULT_PERMISSION_CLASSES": [
         _permission_mapping.get(_permission_class, 'rest_framework.permissions.IsAuthenticated'),
     ],
-    # Rate limiting / throttling (disabled for development)
-    # "DEFAULT_THROTTLE_CLASSES": [
-    #     "rest_framework.throttling.AnonRateThrottle",
-    #     "rest_framework.throttling.UserRateThrottle",
-    # ],
-    # "DEFAULT_THROTTLE_RATES": {
-    #     "anon": "100/day",
-    #     "user": "1000/day",
-    # },
+    # Rate limiting / throttling
+    "DEFAULT_THROTTLE_CLASSES": [
+        "rest_framework.throttling.AnonRateThrottle",
+        "rest_framework.throttling.UserRateThrottle",
+    ],
+    "DEFAULT_THROTTLE_RATES": {
+        "anon": "100/day",
+        "user": "1000/day",
+        "burst": "10/minute",
+        "strict": "20/hour",
+        "anon_burst": "10/minute",
+        "export": "5/hour",
+    },
     # OpenAPI schema generation
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
+}
+
+# OpenAPI/Swagger schema customization
+SPECTACULAR_SETTINGS = {
+    "TITLE": "Ultra Health Insurance API",
+    "DESCRIPTION": (
+        "Comprehensive health insurance management system providing "
+        "APIs for companies, insurance schemes, members, healthcare providers, "
+        "medical catalogs, and claims processing."
+    ),
+    "VERSION": "1.0.0",
+    "SERVE_INCLUDE_SCHEMA": False,
+    "CONTACT": {
+        "name": "API Support",
+        "email": "api-support@ultra-insurance.example",
+    },
+    "LICENSE": {
+        "name": "Proprietary",
+    },
+    "TAGS": [
+        {"name": "Authentication", "description": "Login, logout, CSRF token operations"},
+        {"name": "Companies", "description": "Company and industry management"},
+        {"name": "Schemes", "description": "Insurance schemes, plans, and benefits"},
+        {"name": "Members", "description": "Member enrollment and management"},
+        {"name": "Providers", "description": "Healthcare providers (hospitals, doctors)"},
+        {"name": "Medical Catalog", "description": "Medical services, medicines, and lab tests"},
+        {"name": "Claims", "description": "Insurance claim submission and processing"},
+        {"name": "Health", "description": "System health check endpoints"},
+    ],
+    "SWAGGER_UI_SETTINGS": {
+        "deepLinking": True,
+        "persistAuthorization": True,
+        "displayOperationId": False,
+    },
+    "COMPONENT_SPLIT_REQUEST": True,
 }

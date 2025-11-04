@@ -5,6 +5,7 @@ from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
+from apps.core.throttling import ExportRateThrottle, StrictRateThrottle
 from apps.companies.api.serializers import CompanySerializer
 from apps.companies.selectors import (
     company_contact_info_get,
@@ -30,6 +31,7 @@ class CompanyAnalyticsViewSet(viewsets.ViewSet):
 
     # Using global authentication settings from REST_FRAMEWORK
     serializer_class = CompanySerializer
+    throttle_classes = [ExportRateThrottle, StrictRateThrottle]
 
     @action(detail=False, methods=["get"])
     def statistics(self, request):
@@ -92,7 +94,7 @@ class CompanyAnalyticsViewSet(viewsets.ViewSet):
 
     @action(detail=False, methods=["post"])
     def bulk_update_status(self, request):
-        """Bulk update company status."""
+        """Bulk update company status. Rate limited to 20/hour."""
         company_ids = request.data.get("company_ids", [])
         new_status = request.data.get("status")
 
@@ -123,7 +125,7 @@ class CompanyAnalyticsViewSet(viewsets.ViewSet):
 
     @action(detail=False, methods=["get"])
     def export_csv(self, request):
-        """Export companies to CSV."""
+        """Export companies to CSV. Rate limited to 5/hour."""
         # Get filters from query parameters
         filters = {}
         if request.query_params.get("status"):

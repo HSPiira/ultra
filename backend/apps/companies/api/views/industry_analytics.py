@@ -5,6 +5,7 @@ from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
+from apps.core.throttling import ExportRateThrottle, StrictRateThrottle
 from apps.companies.api.serializers import IndustrySerializer
 from apps.companies.selectors import (
     industry_choices_get,
@@ -29,6 +30,7 @@ class IndustryAnalyticsViewSet(viewsets.ViewSet):
 
     # Using global authentication settings from REST_FRAMEWORK
     serializer_class = IndustrySerializer
+    throttle_classes = [ExportRateThrottle, StrictRateThrottle]
 
     @action(detail=False, methods=["get"])
     def statistics(self, request):

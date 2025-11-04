@@ -4,6 +4,7 @@ from rest_framework import filters, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
+from apps.core.throttling import StrictRateThrottle
 from apps.members.api.serializers import BulkPersonRowSerializer, PersonSerializer
 from apps.members.models import Person
 from apps.members.selectors.person_selector import person_list
@@ -13,6 +14,7 @@ from apps.members.services.person_service import PersonService
 class PersonViewSet(viewsets.ModelViewSet):
     serializer_class = PersonSerializer
     queryset = Person.objects.all()
+    throttle_classes = [StrictRateThrottle]  # Apply to bulk operations
 
     filter_backends = [
         DjangoFilterBackend,
@@ -84,6 +86,7 @@ class PersonViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=["post"])
     def bulk_import(self, request):
+        """Bulk import persons with rate limiting (20/hour)."""
         company = request.data.get("company")
         scheme = request.data.get("scheme")
         dry_run = bool(request.data.get("dry_run", False))

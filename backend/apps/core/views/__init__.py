@@ -8,6 +8,8 @@ from django.utils.decorators import method_decorator
 from django.views import View
 from django.views.decorators.csrf import ensure_csrf_cookie
 
+from apps.core.throttling import AnonBurstRateThrottle, check_throttle_for_view
+
 
 @method_decorator(ensure_csrf_cookie, name="dispatch")
 class APICsrfTokenView(View):
@@ -46,8 +48,28 @@ class APILoginView(View):
     - Frontend must include the CSRF token in the X-CSRFToken header
     - The CSRF token should be obtained from /api/v1/auth/csrf/ or 'csrftoken' cookie
     
+    Rate Limiting:
+    - Burst protection: 10 requests/minute for login attempts
+    
     POST request performs the login.
     """
+    throttle_classes = [AnonBurstRateThrottle]
+
+    def dispatch(self, request, *args, **kwargs):
+        # Apply throttling manually for Django Views
+        for throttle_class in self.throttle_classes:
+            allowed, wait_time = check_throttle_for_view(request, throttle_class)
+            if not allowed:
+                return JsonResponse(
+                    {
+                        "success": False,
+                        "error": "Rate limit exceeded. Please try again later.",
+                        "retry_after": wait_time,
+                    },
+                    status=429,
+                    headers={"Retry-After": str(wait_time) if wait_time else "60"},
+                )
+        return super().dispatch(request, *args, **kwargs)
 
     def post(self, request):
         try:
