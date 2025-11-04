@@ -38,15 +38,21 @@ IS_PRODUCTION = os.environ.get('ENVIRONMENT', '').lower() in ('production', 'pro
 secret_key = os.environ.get('SECRET_KEY', '').strip()
 
 # In production, SECRET_KEY must be set and non-empty
-if (not secret_key) and (not DEBUG or IS_PRODUCTION):
+if IS_PRODUCTION and not secret_key:
     raise ImproperlyConfigured(
         "SECRET_KEY must be set as an environment variable when running in production. "
-        "Set DEBUG=False or ENVIRONMENT=production requires a valid SECRET_KEY."
+        "Set ENVIRONMENT=production requires a valid SECRET_KEY."
     )
 
-# Only use development default when explicitly in DEBUG mode
-if not secret_key and DEBUG and not IS_PRODUCTION:
+# Use development default when not in production and no SECRET_KEY is provided
+if not secret_key and not IS_PRODUCTION:
     secret_key = 'django-insecure-bo-cm(8%s0lu^$5snvv)!guhe00lyh&!qx7xil5%c8bs3_c7gd'  # Development default only
+
+# Final check: SECRET_KEY must not be empty
+if not secret_key:
+    raise ImproperlyConfigured(
+        "SECRET_KEY must be set. Provide SECRET_KEY environment variable or set ENVIRONMENT=production with a valid SECRET_KEY."
+    )
 
 SECRET_KEY = secret_key
 
