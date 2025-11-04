@@ -70,15 +70,15 @@ export const authApi = {
       // Extract error message from error response (sanitized - no sensitive data)
       // The API client throws an error with error.response containing the parsed JSON data
       let errorMessage = 'Login failed';
+      const status = error?.status || error?.response?.status;
       if (error.response && typeof error.response === 'object') {
         // Error response from API client - the response property contains the backend JSON
         errorMessage = error.response.error || errorMessage;
-      } else if (error.message && !error.message.includes('HTTP error! status: 401')) {
-        // Use error message if it's not the generic HTTP error
+      } else if (error.message && status !== undefined && status !== 401 && status !== 403) {
+        // Use error message if status exists and is not an authentication error
         errorMessage = error.message;
       }
       // Log only sanitized error message (no config/data fields)
-      const status = error?.response?.status;
       console.error('Login failed:', status ? `Status ${status}: ${errorMessage}` : errorMessage);
       localStorage.removeItem('user');
       localStorage.removeItem('isAuthenticated');

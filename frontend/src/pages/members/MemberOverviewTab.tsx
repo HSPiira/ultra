@@ -32,7 +32,7 @@ export const MemberOverviewTab: React.FC<MemberOverviewTabProps> = ({ member, on
     if (member.relationship === 'SELF') {
       loadDependants();
     }
-  }, [member.id]);
+  }, [member.id, member.relationship]);
 
   const loadDependants = async () => {
     try {

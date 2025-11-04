@@ -44,9 +44,15 @@ if IS_PRODUCTION and not secret_key:
         "Set ENVIRONMENT=production requires a valid SECRET_KEY."
     )
 
-# Use development default when not in production and no SECRET_KEY is provided
-if not secret_key and not IS_PRODUCTION:
-    secret_key = 'django-insecure-bo-cm(8%s0lu^$5snvv)!guhe00lyh&!qx7xil5%c8bs3_c7gd'  # Development default only
+# Use development default only when DEBUG is true
+if not secret_key:
+    if DEBUG:
+        secret_key = 'django-insecure-bo-cm(8%s0lu^$5snvv)!guhe00lyh&!qx7xil5%c8bs3_c7gd'  # Development default only
+    else:
+        raise ImproperlyConfigured(
+            "SECRET_KEY must be set whenever DEBUG=False. "
+            "Generate one with: python -c \"from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())\""
+        )
 
 SECRET_KEY = secret_key
 

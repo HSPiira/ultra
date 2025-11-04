@@ -19,7 +19,7 @@ export const MemberDependantsTab: React.FC<MemberDependantsTabProps> = ({ member
     if (member.relationship === 'SELF') {
       loadDependants();
     }
-  }, [member.id]);
+  }, [member.id, member.relationship]);
 
   const loadDependants = async () => {
     try {

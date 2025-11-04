@@ -9,6 +9,7 @@ These utilities provide consistent sanitization across the application to preven
 """
 
 import re
+import unicodedata
 from typing import Optional
 
 
@@ -133,30 +134,52 @@ def sanitize_text(value: str, max_length: Optional[int] = None, allow_newlines: 
 
 def sanitize_name(value: str) -> str:
     """
-    Sanitize person/company names to allow letters, spaces, hyphens, and apostrophes.
+    Sanitize person/company names to allow Unicode letters, spaces, hyphens, apostrophes, and periods.
+
+    Uses Unicode-aware character detection to support names in any language while
+    preserving common punctuation used in names. Normalizes Unicode characters to
+    their composed form (NFKC) before sanitization.
 
     Args:
         value: Name to sanitize
 
     Returns:
-        Sanitized name
+        Sanitized name with normalized whitespace
 
     Examples:
         >>> sanitize_name("John O'Brien")
         "John O'Brien"
         >>> sanitize_name("Mary-Jane")
         "Mary-Jane"
+        >>> sanitize_name("José García-López")
+        "José García-López"
+        >>> sanitize_name("François d'Angelo")
+        "François d'Angelo"
         >>> sanitize_name("John<script>")
         "Johnscript"
+        >>> sanitize_name("  Jean   Pierre  ")
+        "Jean Pierre"
     """
     if not value:
         return ""
 
-    # Allow letters, spaces, hyphens, apostrophes, and periods
-    pattern = r"[^A-Za-z\s\-\'\.]"
-    sanitized = re.sub(pattern, "", value)
+    # Normalize Unicode characters (NFKC: composed form, compatibility decomposition)
+    normalized = unicodedata.normalize("NFKC", value)
 
-    # Normalize whitespace
+    # Build sanitized string: keep Unicode letters and allowed punctuation
+    allowed_chars = []
+    for char in normalized:
+        if char.isalpha():
+            # Keep all Unicode letters (including é, ñ, ç, etc.)
+            allowed_chars.append(char)
+        elif char in (' ', '-', "'", '.'):
+            # Keep allowed punctuation: space, hyphen, apostrophe, period
+            allowed_chars.append(char)
+        # All other characters are removed
+
+    sanitized = ''.join(allowed_chars)
+
+    # Collapse/normalize internal whitespace
     sanitized = " ".join(sanitized.split())
 
     return sanitized.strip()
