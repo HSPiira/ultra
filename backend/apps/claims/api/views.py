@@ -2,12 +2,13 @@ from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import filters, status, viewsets
 from rest_framework.response import Response
 
+from apps.core.utils.caching import CacheableResponseMixin
 from apps.claims.api.serializers import ClaimSerializer
 from apps.claims.selectors import claim_list
 from apps.claims.services import ClaimService
 
 
-class ClaimViewSet(viewsets.ModelViewSet):
+class ClaimViewSet(CacheableResponseMixin, viewsets.ModelViewSet):
     serializer_class = ClaimSerializer
     filter_backends = [
         DjangoFilterBackend,

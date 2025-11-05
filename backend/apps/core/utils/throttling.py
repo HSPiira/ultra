@@ -103,3 +103,4 @@ def check_throttle_for_view(request, throttle_class):
         wait_time = throttle.wait()
         return False, wait_time
     return True, None
+

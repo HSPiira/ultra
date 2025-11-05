@@ -5,7 +5,8 @@ from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
-from apps.core.throttling import ExportRateThrottle, StrictRateThrottle
+from apps.core.utils.throttling import ExportRateThrottle, StrictRateThrottle
+from apps.core.utils.caching import ThrottleAwareCacheMixin
 from apps.companies.api.serializers import IndustrySerializer
 from apps.companies.selectors import (
     industry_choices_get,
@@ -23,7 +24,7 @@ from apps.companies.selectors import (
 from apps.companies.services.industry_service import IndustryService
 
 
-class IndustryAnalyticsViewSet(viewsets.ViewSet):
+class IndustryAnalyticsViewSet(ThrottleAwareCacheMixin, viewsets.ViewSet):
     """
     Industry analytics and advanced operations.
     """

@@ -3,6 +3,7 @@ from rest_framework import filters, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
+from apps.core.utils.caching import CacheableResponseMixin
 # JWT authentication removed - using global session authentication
 from apps.companies.api.serializers import CompanySerializer, IndustrySerializer
 from apps.companies.selectors import (
@@ -13,7 +14,7 @@ from apps.companies.services.company_service import CompanyService
 from apps.companies.services.industry_service import IndustryService
 
 
-class IndustryViewSet(viewsets.ModelViewSet):
+class IndustryViewSet(CacheableResponseMixin, viewsets.ModelViewSet):
     """
     Handles CRUD operations for Industry (company categories/sectors).
     Uses IndustryService for business logic.
@@ -61,7 +62,7 @@ class IndustryViewSet(viewsets.ModelViewSet):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
-class CompanyViewSet(viewsets.ModelViewSet):
+class CompanyViewSet(CacheableResponseMixin, viewsets.ModelViewSet):
     """
     Handles CRUD operations for Company entities.
     Uses CompanyService for business logic.

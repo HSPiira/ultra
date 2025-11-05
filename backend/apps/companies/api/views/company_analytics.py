@@ -5,7 +5,8 @@ from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
-from apps.core.throttling import ExportRateThrottle, StrictRateThrottle
+from apps.core.utils.throttling import ExportRateThrottle, StrictRateThrottle
+from apps.core.utils.caching import ThrottleAwareCacheMixin
 from apps.companies.api.serializers import CompanySerializer
 from apps.companies.selectors import (
     company_contact_info_get,
@@ -24,7 +25,7 @@ from apps.companies.selectors import (
 from apps.companies.services.company_service import CompanyService
 
 
-class CompanyAnalyticsViewSet(viewsets.ViewSet):
+class CompanyAnalyticsViewSet(ThrottleAwareCacheMixin, viewsets.ViewSet):
     """
     Company analytics and advanced operations.
     """

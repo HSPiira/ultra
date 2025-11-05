@@ -4,12 +4,13 @@ from rest_framework import filters, status, viewsets
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
+from apps.core.utils.caching import CacheableResponseMixin
 from apps.medical_catalog.api.serializers import ServiceSerializer
 from apps.medical_catalog.models import Service
 from apps.medical_catalog.services import ServiceService
 
 
-class ServiceViewSet(viewsets.ModelViewSet):
+class ServiceViewSet(CacheableResponseMixin, viewsets.ModelViewSet):
     serializer_class = ServiceSerializer
     queryset = Service.objects.all()
     permission_classes = [IsAuthenticated]

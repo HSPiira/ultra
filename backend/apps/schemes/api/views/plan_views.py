@@ -2,12 +2,13 @@ from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import filters, status, viewsets
 from rest_framework.response import Response
 
+from apps.core.utils.caching import CacheableResponseMixin
 from apps.schemes.api.serializers import PlanSerializer
 from apps.schemes.selectors import plan_list
 from apps.schemes.services.plan_service import PlanService
 
 
-class PlanViewSet(viewsets.ModelViewSet):
+class PlanViewSet(CacheableResponseMixin, viewsets.ModelViewSet):
     """
     Handles CRUD operations for Plan entities.
     Uses PlanService for business logic.

@@ -10,7 +10,7 @@ from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APIClient
 
-from apps.core.throttling import (
+from apps.core.utils.throttling import (
     AnonBurstRateThrottle,
     BurstRateThrottle,
     StrictRateThrottle,
@@ -174,7 +174,7 @@ class ExportThrottlingTests(ThrottlingTestCase):
         
         # Just verify throttling configuration exists, not specific endpoint
         # The actual endpoint may vary by implementation
-        from apps.core.throttling import ExportRateThrottle
+        from apps.core.utils.throttling import ExportRateThrottle
         throttle = ExportRateThrottle()
         self.assertEqual(throttle.rate, '5/hour')
         self.assertEqual(throttle.scope, 'export')

@@ -8,7 +8,7 @@ from django.utils.decorators import method_decorator
 from django.views import View
 from django.views.decorators.csrf import ensure_csrf_cookie
 
-from apps.core.throttling import AnonBurstRateThrottle, check_throttle_for_view
+from apps.core.utils.throttling import AnonBurstRateThrottle, check_throttle_for_view
 
 
 @method_decorator(ensure_csrf_cookie, name="dispatch")

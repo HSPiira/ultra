@@ -2,13 +2,14 @@ from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import filters, status, viewsets
 from rest_framework.response import Response
 
+from apps.core.utils.caching import CacheableResponseMixin
 from apps.schemes.api.serializers import SchemeSerializer
 from apps.schemes.models import Scheme
 from apps.schemes.selectors import scheme_list
 from apps.schemes.services.scheme_service import SchemeService
 
 
-class SchemeViewSet(viewsets.ModelViewSet):
+class SchemeViewSet(CacheableResponseMixin, viewsets.ModelViewSet):
     """
     Handles CRUD operations for Scheme entities.
     Uses SchemeService for business logic.

@@ -2,12 +2,13 @@ from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import filters, status, viewsets
 from rest_framework.response import Response
 
+from apps.core.utils.caching import CacheableResponseMixin
 from apps.providers.api.serializers import DoctorSerializer
 from apps.providers.selectors import doctor_get, doctor_list
 from apps.providers.services import DoctorService
 
 
-class DoctorViewSet(viewsets.ModelViewSet):
+class DoctorViewSet(CacheableResponseMixin, viewsets.ModelViewSet):
     serializer_class = DoctorSerializer
     filter_backends = [
         DjangoFilterBackend,

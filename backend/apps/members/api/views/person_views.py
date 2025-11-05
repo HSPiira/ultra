@@ -4,14 +4,15 @@ from rest_framework import filters, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
-from apps.core.throttling import StrictRateThrottle
+from apps.core.utils.throttling import StrictRateThrottle
+from apps.core.utils.caching import ThrottleAwareCacheMixin
 from apps.members.api.serializers import BulkPersonRowSerializer, PersonSerializer
 from apps.members.models import Person
 from apps.members.selectors.person_selector import person_list
 from apps.members.services.person_service import PersonService
 
 
-class PersonViewSet(viewsets.ModelViewSet):
+class PersonViewSet(ThrottleAwareCacheMixin, viewsets.ModelViewSet):
     serializer_class = PersonSerializer
     queryset = Person.objects.all()
     throttle_classes = [StrictRateThrottle]  # Apply to bulk operations

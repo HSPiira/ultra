@@ -5,7 +5,8 @@ from rest_framework.response import Response
 from rest_framework.exceptions import ValidationError
 import logging
 
-from apps.core.throttling import StrictRateThrottle
+from apps.core.utils.throttling import StrictRateThrottle
+from apps.core.utils.caching import ThrottleAwareCacheMixin
 from apps.schemes.api.serializers import SchemeItemSerializer, BulkAssignmentSerializer
 from apps.schemes.models import SchemeItem
 from apps.schemes.selectors import (
@@ -18,7 +19,7 @@ from apps.schemes.services.scheme_item_service import SchemeItemService
 logger = logging.getLogger(__name__)
 
 
-class SchemeItemViewSet(viewsets.ModelViewSet):
+class SchemeItemViewSet(ThrottleAwareCacheMixin, viewsets.ModelViewSet):
     """
     Handles CRUD operations for SchemeItem entities.
     Uses SchemeItemService for business logic.
