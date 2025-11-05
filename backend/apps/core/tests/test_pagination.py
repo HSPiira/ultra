@@ -3,7 +3,7 @@ Test pagination edge cases across all API endpoints.
 """
 
 from django.contrib.auth import get_user_model
-from django.test import TestCase
+from django.test import TransactionTestCase
 from rest_framework.test import APIClient
 
 from apps.companies.models import Company, Industry
@@ -12,7 +12,7 @@ from apps.schemes.models import Plan, Scheme
 User = get_user_model()
 
 
-class PaginationEdgeCasesTest(TestCase):
+class PaginationEdgeCasesTest(TransactionTestCase):
     """Test pagination edge cases for all API endpoints."""
 
     def setUp(self):
@@ -22,6 +22,11 @@ class PaginationEdgeCasesTest(TestCase):
             username="testuser", password="testpass123", email="test@example.com"
         )
         self.client.force_login(self.user)
+
+        # Clean up any existing test data to ensure isolation
+        Company.objects.all().delete()
+        Industry.objects.all().delete()
+        Plan.objects.all().delete()
 
         # Create test industry
         self.industry = Industry.objects.create(

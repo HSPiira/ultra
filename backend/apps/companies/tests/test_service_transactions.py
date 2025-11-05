@@ -17,6 +17,7 @@ from apps.core.exceptions.service_errors import (
     NotFoundError,
     DuplicateError,
     RequiredFieldError,
+    InvalidValueError,
 )
 from apps.schemes.models import Scheme
 
@@ -140,7 +141,7 @@ class CompanyServiceTransactionTests(TransactionTestCase):
         original_email = company.email
 
         # Attempt update with empty required field
-        with self.assertRaises(RequiredFieldError):
+        with self.assertRaises(InvalidValueError):
             CompanyService.company_update(
                 company_id=company.id,
                 update_data={
