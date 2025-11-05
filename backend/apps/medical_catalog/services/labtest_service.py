@@ -60,4 +60,4 @@ class LabTestService(BaseService, CSVExportMixin):
     @classmethod
     def labtest_deactivate(cls, *, labtest_id: str, user=None) -> None:
         """Deactivate labtest using base method."""
-        return BaseService.deactivate(cls, entity_id=labtest_id, user=user, soft_delete=True)
+        return cls.deactivate(entity_id=labtest_id, user=user, soft_delete=True)

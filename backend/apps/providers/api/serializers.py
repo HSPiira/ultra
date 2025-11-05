@@ -168,8 +168,12 @@ class DoctorSerializer(BaseSerializer):
     @extend_schema_field({"type": "array", "items": {"type": "object"}})
     def get_affiliations(self, obj):
         """Get doctor hospital affiliations."""
-        # Query affiliations directly to ensure we get all active ones
-        affiliations = DoctorHospitalAffiliation.objects.filter(doctor=obj).select_related("hospital")
+        # Always query directly to ensure we get fresh data
+        # Don't rely on prefetched data as it might be stale after creation
+        # The objects manager filters is_deleted=False automatically
+        affiliations = DoctorHospitalAffiliation.objects.filter(
+            doctor_id=obj.id if hasattr(obj, 'id') else obj.pk
+        ).select_related("hospital")
         return DoctorHospitalAffiliationSerializer(affiliations, many=True).data
 
     def validate_name(self, value):

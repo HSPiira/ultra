@@ -63,4 +63,4 @@ class ServiceService(BaseService, CSVExportMixin):
     @classmethod
     def service_deactivate(cls, *, service_id: str, user=None) -> None:
         """Deactivate service using base method."""
-        return BaseService.deactivate(cls, entity_id=service_id, user=user, soft_delete=True)
+        return cls.deactivate(entity_id=service_id, user=user, soft_delete=True)

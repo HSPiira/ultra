@@ -50,18 +50,19 @@ class DoctorService(BaseService, CSVExportMixin):
         Returns:
             Doctor: The created doctor instance
         """
+        # Extract special fields before filtering (they're not model fields)
+        hospital_id = doctor_data.pop("hospital", None)
+        hospitals_ids = doctor_data.pop("hospitals", None)
+        affiliations_payload: list[dict[str, Any]] | None = doctor_data.pop(
+            "affiliations_payload", None
+        )
+        
         # Filter fields if allowed_fields is defined
         if cls.allowed_fields is not None:
             doctor_data = cls._filter_model_fields(doctor_data, cls.allowed_fields)
         
         # Apply validation rules (configured in BaseService)
         cls._apply_validation_rules(doctor_data)
-        
-        hospital_id = doctor_data.pop("hospital", None)
-        hospitals_ids = doctor_data.pop("hospitals", None)
-        affiliations_payload: list[dict[str, Any]] | None = doctor_data.pop(
-            "affiliations_payload", None
-        )
 
         with transaction.atomic():
             doctor = Doctor.objects.create(**doctor_data)
@@ -147,7 +148,10 @@ class DoctorService(BaseService, CSVExportMixin):
         *, doctor: Doctor, affiliations_payload: list[dict[str, Any]]
     ) -> None:
         # Replace all existing affiliations for simplicity and deterministic updates
-        DoctorHospitalAffiliation.objects.filter(doctor=doctor).delete()
+        # Use soft delete by iterating and calling delete on each instance
+        existing_affiliations = DoctorHospitalAffiliation.all_objects.filter(doctor=doctor)
+        for affiliation in existing_affiliations:
+            affiliation.delete()  # This calls the model's delete() which performs soft delete
 
         primary_set = False
         for payload in affiliations_payload:
@@ -204,4 +208,4 @@ class DoctorService(BaseService, CSVExportMixin):
     @classmethod
     def doctor_deactivate(cls, *, doctor_id: str, user=None) -> None:
         """Deactivate doctor using base method."""
-        return BaseService.deactivate(cls, entity_id=doctor_id, user=user, soft_delete=True)
+        return cls.deactivate(entity_id=doctor_id, user=user, soft_delete=True)

@@ -317,7 +317,7 @@ class PersonService(BaseService, CSVExportMixin):
     @transaction.atomic
     def person_deactivate(cls, *, person_id: str, user=None) -> Person:
         """Deactivate person using base method."""
-        return BaseService.deactivate(cls, entity_id=person_id, user=user, soft_delete=True)
+        return cls.deactivate(entity_id=person_id, user=user, soft_delete=True)
 
     # ------------------------------------------------------------------
     # Bulk Import

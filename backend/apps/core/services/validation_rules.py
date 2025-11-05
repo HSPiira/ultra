@@ -36,6 +36,11 @@ class RequiredFieldsRule(IValidationRule):
     
     def validate(self, data: Dict[str, Any], entity=None) -> None:
         """Validate that all required fields are present."""
+        # Skip required field validation on updates (when entity is provided)
+        # Only validate required fields on creates
+        if entity is not None:
+            return
+        
         for field in self.fields:
             value = data.get(field)
             if value is None or value == "" or value == [] or value == {}:

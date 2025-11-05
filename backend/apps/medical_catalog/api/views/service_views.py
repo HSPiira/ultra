@@ -1,6 +1,6 @@
 from django.core.exceptions import ValidationError
 from django_filters.rest_framework import DjangoFilterBackend
-from rest_framework import filters, status, viewsets
+from rest_framework import filters, status, viewsets, serializers
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
@@ -26,6 +26,11 @@ class ServiceViewSet(CacheableResponseMixin, viewsets.ModelViewSet):
     def create(self, request, *args, **kwargs):
         user_id = request.user.id if request.user.is_authenticated else None
         try:
+            # Validate serializer first to catch validation errors
+            serializer = self.get_serializer(data=request.data)
+            serializer.is_valid(raise_exception=True)
+            
+            # Pass request.data to service (service will filter allowed_fields)
             instance = ServiceService.service_create(service_data=request.data, user=request.user)
             serializer = self.get_serializer(instance)
             response = Response(serializer.data, status=status.HTTP_201_CREATED)
@@ -37,17 +42,17 @@ class ServiceViewSet(CacheableResponseMixin, viewsets.ModelViewSet):
 
     def update(self, request, *args, **kwargs):
         user_id = request.user.id if request.user.is_authenticated else None
-        try:
-            instance = ServiceService.service_update(
-                service_id=kwargs["pk"], update_data=request.data, user=request.user
-            )
-            serializer = self.get_serializer(instance)
-            response = Response(serializer.data)
-            # Invalidate cache after successful update
-            self.invalidate_cache(user_id=user_id)
-            return response
-        except ValidationError as e:
-            return Response({'error': 'Validation failed', 'details': e.message_dict}, status=status.HTTP_400_BAD_REQUEST)
+        # Service layer will handle validation and filter allowed_fields
+        # We don't validate serializer here to allow extra fields to be filtered by service
+        # Let DRF's exception handler deal with any ValidationErrors
+        instance = ServiceService.service_update(
+            service_id=kwargs["pk"], update_data=request.data, user=request.user
+        )
+        serializer = self.get_serializer(instance)
+        response = Response(serializer.data)
+        # Invalidate cache after successful update
+        self.invalidate_cache(user_id=user_id)
+        return response
 
     def destroy(self, request, *args, **kwargs):
         user_id = request.user.id if request.user.is_authenticated else None

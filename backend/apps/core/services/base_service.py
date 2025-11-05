@@ -337,6 +337,15 @@ class BaseService(ABC):
         if cls.allowed_fields is not None:
             data = cls._filter_model_fields(data, cls.allowed_fields)
         
+        # Merge existing entity data with update data for validation
+        # This ensures validation rules work correctly for partial updates
+        merged_data = {}
+        if cls.allowed_fields is not None:
+            for field in cls.allowed_fields:
+                if hasattr(instance, field):
+                    merged_data[field] = getattr(instance, field)
+        merged_data.update(data)
+        
         # Apply validation rules if defined (validation_rules should be a list of rule instances)
         if cls.validation_rules:
             from apps.core.services.validation_rules import ValidationRuleSet
@@ -350,7 +359,7 @@ class BaseService(ABC):
                     # It's already an instance
                     rule_instances.append(rule)
             rule_set = ValidationRuleSet(rule_instances)
-            rule_set.validate(data, entity=instance)
+            rule_set.validate(merged_data, entity=instance)
         
         # Update fields
         for field, value in data.items():
@@ -414,8 +423,12 @@ class BaseService(ABC):
         update_fields = ["status"]
         
         if soft_delete:
+            from django.utils import timezone
             instance.is_deleted = True
-            update_fields.append("is_deleted")
+            instance.deleted_at = timezone.now()
+            if user:
+                instance.deleted_by = user
+            update_fields.extend(["is_deleted", "deleted_at", "deleted_by"])
         
         instance.save(update_fields=update_fields)
         return instance

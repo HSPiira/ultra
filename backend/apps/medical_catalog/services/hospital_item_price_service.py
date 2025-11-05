@@ -144,4 +144,4 @@ class HospitalItemPriceService(BaseService, CSVExportMixin):
     @classmethod
     def hospital_item_price_deactivate(cls, *, price_id: str, user=None) -> None:
         """Deactivate hospital item price using base method."""
-        return BaseService.deactivate(cls, entity_id=price_id, user=user, soft_delete=True)
+        return cls.deactivate(entity_id=price_id, user=user, soft_delete=True)

@@ -234,7 +234,7 @@ class SchemeItemService(BaseService, CSVExportMixin):
         Returns:
             SchemeItem: The deactivated scheme item instance
         """
-        return BaseService.deactivate(cls, entity_id=scheme_item_id, user=user, soft_delete=True)
+        return cls.deactivate(entity_id=scheme_item_id, user=user, soft_delete=True)
 
     @classmethod
     @transaction.atomic

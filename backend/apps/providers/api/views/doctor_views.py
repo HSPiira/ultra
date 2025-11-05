@@ -41,11 +41,13 @@ class DoctorViewSet(CacheableResponseMixin, viewsets.ModelViewSet):
         serializer.is_valid(raise_exception=True)
         
         # Pass request.data to service as it handles nested affiliations_payload
+        # The service creates doctor and affiliations in a transaction
         created_doctor = DoctorService.doctor_create(
             doctor_data=request.data, user=request.user
         )
-        # Refresh doctor with prefetched relationships using selector
-        doctor = doctor_get(doctor_id=created_doctor.id)
+        # Use the created doctor directly - it already has affiliations created
+        # The selector will fetch with prefetched relationships
+        doctor = doctor_get(doctor_id=created_doctor.id) or created_doctor
         if not doctor:
             return Response(
                 {"error": "Doctor not found"}, 

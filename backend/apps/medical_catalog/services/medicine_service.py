@@ -60,4 +60,4 @@ class MedicineService(BaseService, CSVExportMixin):
     @classmethod
     def medicine_deactivate(cls, *, medicine_id: str, user=None) -> None:
         """Deactivate medicine using base method."""
-        return BaseService.deactivate(cls, entity_id=medicine_id, user=user, soft_delete=True)
+        return cls.deactivate(entity_id=medicine_id, user=user, soft_delete=True)

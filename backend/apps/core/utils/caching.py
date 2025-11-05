@@ -163,15 +163,7 @@ class CacheableResponseMixin:
         """
         Override dispatch to cache GET responses.
         """
-        # Check cache first for GET requests
-        if request.method == 'GET':
-            cache_key = self._get_cache_key(request)
-            cached_response = get_cached_response(cache_key)
-            if cached_response is not None:
-                # Cache hit - return immediately without calling the view
-                return cached_response
-        
-        # Cache miss - proceed with normal request handling
+        # Proceed with normal request handling
         response = super().dispatch(request, *args, **kwargs)
         
         # Cache successful GET responses
@@ -179,10 +171,28 @@ class CacheableResponseMixin:
             cache_key = self._get_cache_key(request)
             timeout = self._get_cache_timeout(request)
             cache_response(cache_key, response, timeout)
-            # Note: cache_response already sets X-Cache='MISS', but we keep it explicit
             response['X-Cache'] = 'MISS'
         
         return response
+    
+    def finalize_response(self, request, response, *args, **kwargs):
+        """
+        Override finalize_response to check cache for GET requests.
+        This happens after content negotiation, so renderer is already set.
+        """
+        # Check cache for GET requests (after content negotiation)
+        if request.method == 'GET' and isinstance(response, Response):
+            cache_key = self._get_cache_key(request)
+            cached_response = get_cached_response(cache_key)
+            if cached_response is not None:
+                # Cache hit - use cached data but with current renderer setup
+                cached_response.accepted_renderer = response.accepted_renderer
+                cached_response.accepted_media_type = response.accepted_media_type
+                cached_response.renderer_context = response.renderer_context
+                return cached_response
+        
+        # Cache miss - proceed with normal finalization
+        return super().finalize_response(request, response, *args, **kwargs)
     
     def _get_cache_key(self, request) -> str:
         """Generate cache key for this request."""
@@ -299,18 +309,7 @@ class ThrottleAwareCacheMixin(CacheableResponseMixin):
         Override dispatch to check cache first for GET requests.
         This bypasses throttling for cached responses.
         """
-        # Check cache first for GET requests (before throttling)
-        if request.method == 'GET':
-            cache_key = self._get_cache_key(request)
-            cached_response = get_cached_response(cache_key)
-            
-            if cached_response is not None:
-                # Cache hit - finalize response through DRF's pipeline
-                # This ensures accepted_renderer and other attributes are set correctly
-                finalized_response = self.finalize_response(request, cached_response, *args, **kwargs)
-                return finalized_response
-        
-        # No cache hit - proceed with normal flow (including throttling)
+        # Proceed with normal request handling
         response = super().dispatch(request, *args, **kwargs)
         
         # Cache successful GET responses
@@ -327,6 +326,25 @@ class ThrottleAwareCacheMixin(CacheableResponseMixin):
             self.invalidate_cache(user_id=user_id)
         
         return response
+    
+    def finalize_response(self, request, response, *args, **kwargs):
+        """
+        Override finalize_response to check cache for GET requests.
+        This happens after content negotiation, so renderer is already set.
+        """
+        # Check cache for GET requests (after content negotiation)
+        if request.method == 'GET' and isinstance(response, Response):
+            cache_key = self._get_cache_key(request)
+            cached_response = get_cached_response(cache_key)
+            if cached_response is not None:
+                # Cache hit - use cached data but with current renderer setup
+                cached_response.accepted_renderer = response.accepted_renderer
+                cached_response.accepted_media_type = response.accepted_media_type
+                cached_response.renderer_context = response.renderer_context
+                return cached_response
+        
+        # Cache miss - proceed with normal finalization
+        return super().finalize_response(request, response, *args, **kwargs)
     
     def create(self, request, *args, **kwargs):
         """Override create to invalidate cache after creation."""

@@ -164,7 +164,7 @@ class PlanService(BaseService, CSVExportMixin):
         Returns:
             Plan: The deactivated plan instance
         """
-        return BaseService.deactivate(cls, entity_id=plan_id, user=user, soft_delete=True)
+        return cls.deactivate(entity_id=plan_id, user=user, soft_delete=True)
 
     @classmethod
     @transaction.atomic
