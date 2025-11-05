@@ -12,7 +12,7 @@ Addresses SOLID principles:
 - DIP: Uses repository abstraction instead of direct model access
 """
 from abc import ABC
-from typing import Optional, Any
+from typing import Dict, Optional, Any, Type
 
 from django.core.exceptions import ValidationError
 from django.db import transaction, IntegrityError
