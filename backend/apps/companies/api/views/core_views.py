@@ -42,24 +42,36 @@ class IndustryViewSet(CacheableResponseMixin, viewsets.ModelViewSet):
 
     def create(self, request, *args, **kwargs):
         """Create a new industry using the service layer."""
+        user_id = request.user.id if request.user.is_authenticated else None
         industry = IndustryService.industry_create(
             industry_data=request.data, user=request.user
         )
         serializer = self.get_serializer(industry)
-        return Response(serializer.data, status=status.HTTP_201_CREATED)
+        response = Response(serializer.data, status=status.HTTP_201_CREATED)
+        # Invalidate cache after successful create
+        self.invalidate_cache(user_id=user_id)
+        return response
 
     def update(self, request, *args, **kwargs):
         """Update an industry using the service layer."""
+        user_id = request.user.id if request.user.is_authenticated else None
         industry = IndustryService.industry_update(
             industry_id=kwargs["pk"], update_data=request.data, user=request.user
         )
         serializer = self.get_serializer(industry)
-        return Response(serializer.data)
+        response = Response(serializer.data)
+        # Invalidate cache after successful update
+        self.invalidate_cache(user_id=user_id)
+        return response
 
     def destroy(self, request, *args, **kwargs):
         """Override delete → perform soft-delete via the service layer."""
+        user_id = request.user.id if request.user.is_authenticated else None
         IndustryService.industry_deactivate(industry_id=kwargs["pk"], user=request.user)
-        return Response(status=status.HTTP_204_NO_CONTENT)
+        response = Response(status=status.HTTP_204_NO_CONTENT)
+        # Invalidate cache after successful delete
+        self.invalidate_cache(user_id=user_id)
+        return response
 
 
 class CompanyViewSet(CacheableResponseMixin, viewsets.ModelViewSet):
@@ -90,42 +102,63 @@ class CompanyViewSet(CacheableResponseMixin, viewsets.ModelViewSet):
 
     def create(self, request, *args, **kwargs):
         """Create a new company using the service layer."""
+        user_id = request.user.id if request.user.is_authenticated else None
         company = CompanyService.company_create(
             company_data=request.data, user=request.user
         )
         serializer = self.get_serializer(company)
-        return Response(serializer.data, status=status.HTTP_201_CREATED)
+        response = Response(serializer.data, status=status.HTTP_201_CREATED)
+        # Invalidate cache after successful create
+        self.invalidate_cache(user_id=user_id)
+        return response
 
     def update(self, request, *args, **kwargs):
         """Update a company using the service layer."""
+        user_id = request.user.id if request.user.is_authenticated else None
         company = CompanyService.company_update(
             company_id=kwargs["pk"], update_data=request.data, user=request.user
         )
         serializer = self.get_serializer(company)
-        return Response(serializer.data)
+        response = Response(serializer.data)
+        # Invalidate cache after successful update
+        self.invalidate_cache(user_id=user_id)
+        return response
 
     def destroy(self, request, *args, **kwargs):
         """Override delete → perform soft-delete via the service layer."""
+        user_id = request.user.id if request.user.is_authenticated else None
         CompanyService.company_soft_delete(company_id=kwargs["pk"], user=request.user)
-        return Response(status=status.HTTP_204_NO_CONTENT)
+        response = Response(status=status.HTTP_204_NO_CONTENT)
+        # Invalidate cache after successful delete
+        self.invalidate_cache(user_id=user_id)
+        return response
 
     @action(detail=True, methods=['post'])
     def activate(self, request, pk=None):
         """Activate a company."""
+        user_id = request.user.id if request.user.is_authenticated else None
         company = CompanyService.company_activate(company_id=pk, user=request.user)
         serializer = self.get_serializer(company)
-        return Response(serializer.data)
+        response = Response(serializer.data)
+        # Invalidate cache after status change
+        self.invalidate_cache(user_id=user_id)
+        return response
 
     @action(detail=True, methods=['post'])
     def deactivate(self, request, pk=None):
         """Deactivate a company."""
+        user_id = request.user.id if request.user.is_authenticated else None
         company = CompanyService.company_deactivate(company_id=pk, user=request.user)
         serializer = self.get_serializer(company)
-        return Response(serializer.data)
+        response = Response(serializer.data)
+        # Invalidate cache after status change
+        self.invalidate_cache(user_id=user_id)
+        return response
 
     @action(detail=True, methods=['post'])
     def suspend(self, request, pk=None):
         """Suspend a company with reason."""
+        user_id = request.user.id if request.user.is_authenticated else None
         reason = request.data.get('reason', '')
         if not reason:
             return Response(
@@ -134,4 +167,7 @@ class CompanyViewSet(CacheableResponseMixin, viewsets.ModelViewSet):
             )
         company = CompanyService.company_suspend(company_id=pk, reason=reason, user=request.user)
         serializer = self.get_serializer(company)
-        return Response(serializer.data)
+        response = Response(serializer.data)
+        # Invalidate cache after status change
+        self.invalidate_cache(user_id=user_id)
+        return response

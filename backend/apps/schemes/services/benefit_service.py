@@ -215,7 +215,7 @@ class BenefitService(BaseService, CSVExportMixin):
         Returns:
             Benefit: The deactivated benefit instance
         """
-        return BaseService.deactivate(cls, entity_id=benefit_id, user=user, soft_delete=True)
+        return cls.deactivate(entity_id=benefit_id, user=user, soft_delete=True)
 
     @classmethod
     @transaction.atomic

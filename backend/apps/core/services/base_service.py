@@ -238,10 +238,20 @@ class BaseService(ABC):
         Raises:
             NotFoundError: If entity doesn't exist or is deleted
         """
-        queryset = cls.entity_model.objects if raise_if_deleted else cls.entity_model.all_objects
+        # Choose the appropriate queryset based on raise_if_deleted flag
+        if raise_if_deleted:
+            queryset = cls.entity_model.objects
+        else:
+            # Use all_objects if available (includes soft-deleted), otherwise use objects
+            queryset = cls.entity_model.all_objects if hasattr(cls.entity_model, 'all_objects') else cls.entity_model.objects
+        
+        # Build filters - only include is_deleted=False when raise_if_deleted is True
+        filters = {"id": entity_id}
+        if raise_if_deleted:
+            filters["is_deleted"] = False
         
         try:
-            return queryset.get(id=entity_id, is_deleted=False)
+            return queryset.get(**filters)
         except cls.entity_model.DoesNotExist:
             raise NotFoundError(cls.entity_name, entity_id)
     
@@ -371,7 +381,7 @@ class BaseService(ABC):
         Raises:
             NotFoundError: If entity doesn't exist
         """
-        instance = cls._get_entity(entity_id)
+        instance = cls._get_entity(entity_id, raise_if_deleted=False)
         
         instance.status = BusinessStatusChoices.ACTIVE
         instance.is_deleted = False

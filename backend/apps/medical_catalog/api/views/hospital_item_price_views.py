@@ -24,10 +24,14 @@ class HospitalItemPriceViewSet(CacheableResponseMixin, viewsets.ModelViewSet):
     ordering_fields = ["created_at", "updated_at", "amount"]
 
     def create(self, request, *args, **kwargs):
+        user_id = request.user.id if request.user.is_authenticated else None
         try:
             instance = HospitalItemPriceService.hospital_item_price_create(price_data=request.data, user=request.user)
             serializer = self.get_serializer(instance)
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
+            response = Response(serializer.data, status=status.HTTP_201_CREATED)
+            # Invalidate cache after successful create
+            self.invalidate_cache(user_id=user_id)
+            return response
         except ValidationError as e:
             details = e.message_dict if hasattr(e, 'message_dict') else {'error': str(e)}
             return Response({'error': 'Validation failed', 'details': details}, status=status.HTTP_400_BAD_REQUEST)
@@ -35,12 +39,16 @@ class HospitalItemPriceViewSet(CacheableResponseMixin, viewsets.ModelViewSet):
             return Response({'error': 'Invalid data', 'details': str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
     def update(self, request, *args, **kwargs):
+        user_id = request.user.id if request.user.is_authenticated else None
         try:
             instance = HospitalItemPriceService.hospital_item_price_update(
                 price_id=kwargs["pk"], update_data=request.data, user=request.user
             )
             serializer = self.get_serializer(instance)
-            return Response(serializer.data)
+            response = Response(serializer.data)
+            # Invalidate cache after successful update
+            self.invalidate_cache(user_id=user_id)
+            return response
         except ValidationError as e:
             details = e.message_dict if hasattr(e, 'message_dict') else {'error': str(e)}
             return Response({'error': 'Validation failed', 'details': details}, status=status.HTTP_400_BAD_REQUEST)
@@ -48,5 +56,9 @@ class HospitalItemPriceViewSet(CacheableResponseMixin, viewsets.ModelViewSet):
             return Response({'error': 'Invalid data', 'details': str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
     def destroy(self, request, *args, **kwargs):
+        user_id = request.user.id if request.user.is_authenticated else None
         HospitalItemPriceService.hospital_item_price_deactivate(price_id=kwargs["pk"], user=request.user)
-        return Response(status=status.HTTP_204_NO_CONTENT)
+        response = Response(status=status.HTTP_204_NO_CONTENT)
+        # Invalidate cache after successful delete
+        self.invalidate_cache(user_id=user_id)
+        return response

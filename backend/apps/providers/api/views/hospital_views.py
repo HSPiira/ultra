@@ -29,19 +29,31 @@ class HospitalViewSet(CacheableResponseMixin, viewsets.ModelViewSet):
         return hospital_list(filters=filters_dict)
 
     def create(self, request, *args, **kwargs):
+        user_id = request.user.id if request.user.is_authenticated else None
         hospital = HospitalService.hospital_create(
             hospital_data=request.data, user=request.user
         )
         serializer = self.get_serializer(hospital)
-        return Response(serializer.data, status=status.HTTP_201_CREATED)
+        response = Response(serializer.data, status=status.HTTP_201_CREATED)
+        # Invalidate cache after successful create
+        self.invalidate_cache(user_id=user_id)
+        return response
 
     def update(self, request, *args, **kwargs):
+        user_id = request.user.id if request.user.is_authenticated else None
         hospital = HospitalService.hospital_update(
             hospital_id=kwargs["pk"], update_data=request.data, user=request.user
         )
         serializer = self.get_serializer(hospital)
-        return Response(serializer.data)
+        response = Response(serializer.data)
+        # Invalidate cache after successful update
+        self.invalidate_cache(user_id=user_id)
+        return response
 
     def destroy(self, request, *args, **kwargs):
+        user_id = request.user.id if request.user.is_authenticated else None
         HospitalService.hospital_deactivate(hospital_id=kwargs["pk"], user=request.user)
-        return Response(status=status.HTTP_204_NO_CONTENT)
+        response = Response(status=status.HTTP_204_NO_CONTENT)
+        # Invalidate cache after successful delete
+        self.invalidate_cache(user_id=user_id)
+        return response

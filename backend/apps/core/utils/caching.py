@@ -163,7 +163,15 @@ class CacheableResponseMixin:
         """
         Override dispatch to cache GET responses.
         """
-        # No cache hit - proceed with normal request handling
+        # Check cache first for GET requests
+        if request.method == 'GET':
+            cache_key = self._get_cache_key(request)
+            cached_response = get_cached_response(cache_key)
+            if cached_response is not None:
+                # Cache hit - return immediately without calling the view
+                return cached_response
+        
+        # Cache miss - proceed with normal request handling
         response = super().dispatch(request, *args, **kwargs)
         
         # Cache successful GET responses
@@ -171,6 +179,7 @@ class CacheableResponseMixin:
             cache_key = self._get_cache_key(request)
             timeout = self._get_cache_timeout(request)
             cache_response(cache_key, response, timeout)
+            # Note: cache_response already sets X-Cache='MISS', but we keep it explicit
             response['X-Cache'] = 'MISS'
         
         return response
@@ -296,8 +305,10 @@ class ThrottleAwareCacheMixin(CacheableResponseMixin):
             cached_response = get_cached_response(cache_key)
             
             if cached_response is not None:
-                # Cache hit - return immediately (bypasses throttling and DB query)
-                return cached_response
+                # Cache hit - finalize response through DRF's pipeline
+                # This ensures accepted_renderer and other attributes are set correctly
+                finalized_response = self.finalize_response(request, cached_response, *args, **kwargs)
+                return finalized_response
         
         # No cache hit - proceed with normal flow (including throttling)
         response = super().dispatch(request, *args, **kwargs)

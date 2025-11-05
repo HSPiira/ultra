@@ -60,11 +60,17 @@ class AnonRateLimitTests(ThrottlingTestCase):
     def test_anon_rate_limit_headers(self):
         """Test that rate limit headers may be included in responses."""
         response = self.client.get('/api/v1/auth/csrf/')
-        # DRF throttle headers may not always be present depending on configuration
-        # Check if any throttle-related headers exist (optional)
-        headers_str = str(response.headers).lower()
         # Headers are optional - just verify request succeeded
         self.assertEqual(response.status_code, status.HTTP_200_OK)
+        # If rate limit headers are present, verify they contain expected values
+        if 'X-RateLimit-Limit' in response.headers:
+            limit = response.headers.get('X-RateLimit-Limit')
+            self.assertIsNotNone(limit)
+            self.assertGreater(int(limit), 0)
+        if 'X-RateLimit-Remaining' in response.headers:
+            remaining = response.headers.get('X-RateLimit-Remaining')
+            self.assertIsNotNone(remaining)
+            self.assertGreaterEqual(int(remaining), 0)
 
 
 class AuthenticatedRateLimitTests(ThrottlingTestCase):
@@ -110,6 +116,7 @@ class LoginBurstProtectionTests(ThrottlingTestCase):
     def test_login_rate_limit_headers(self):
         """Test that login rate limit responses include proper headers."""
         # Make requests until rate limited
+        saw_throttle = False
         responses = []
         for i in range(12):
             response = self.client.post(
@@ -119,9 +126,12 @@ class LoginBurstProtectionTests(ThrottlingTestCase):
             )
             responses.append(response)
             if response.status_code == status.HTTP_429_TOO_MANY_REQUESTS:
+                saw_throttle = True
                 # Check headers
                 self.assertIn('Retry-After', response.headers)
                 break
+        # Assert that throttling actually occurred
+        self.assertTrue(saw_throttle, "Expected to receive 429 Too Many Requests but never did")
 
 
 class BulkOperationThrottlingTests(ThrottlingTestCase):
@@ -164,14 +174,6 @@ class ExportThrottlingTests(ThrottlingTestCase):
 
     def test_export_csv_rate_limit_5_per_hour(self):
         """Test that export CSV endpoints have throttling configured."""
-        # Note: Export endpoints may vary - check if any export endpoint exists
-        # Try companies export endpoint (may not exist, that's OK)
-        possible_urls = [
-            '/api/v1/companies/export_csv/',
-            '/api/v1/schemes/export_csv/',
-            '/api/v1/companies/analytics/export_csv/',
-        ]
-        
         # Just verify throttling configuration exists, not specific endpoint
         # The actual endpoint may vary by implementation
         from apps.core.utils.throttling import ExportRateThrottle

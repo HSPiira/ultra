@@ -3,7 +3,10 @@ Custom validators for data integrity.
 """
 import re
 from django.core.exceptions import ValidationError
-from django.core.validators import RegexValidator
+from django.core.validators import EmailValidator as DjangoEmailValidator, RegexValidator
+from rest_framework import serializers
+
+from apps.core.utils.sanitizers import sanitize_name, sanitize_phone_number, sanitize_email
 
 
 # ---------------------------------------------------------------------
@@ -168,3 +171,109 @@ class CardCodeValidator(RegexValidator):
     regex = r'^[A-Z0-9]{3}$'
     message = "Card code must be exactly 3 alphanumeric characters (A-Z, 0-9)."
     code = 'invalid_card_code'
+
+
+# ---------------------------------------------------------------------
+# Name Field Validation
+# ---------------------------------------------------------------------
+def validate_name_field(value, min_length=2, max_length=255, field_name="Name"):
+    """
+    Validate and sanitize name field.
+
+    Args:
+        value: Name value to validate and sanitize
+        min_length: Minimum length requirement (default: 2)
+        max_length: Maximum length requirement (default: 255)
+        field_name: Name of the field for error messages (default: "Name")
+
+    Returns:
+        Sanitized name string
+
+    Raises:
+        serializers.ValidationError: If validation fails
+
+    Examples:
+        >>> validate_name_field("John Doe", field_name="Doctor name")
+        'John Doe'
+        >>> validate_name_field("A", field_name="Hospital name")
+        # Raises ValidationError: "Hospital name must be at least 2 characters long"
+    """
+    sanitized = sanitize_name(value)
+    if not sanitized or len(sanitized) < min_length:
+        raise serializers.ValidationError(
+            f"{field_name} must be at least {min_length} characters long"
+        )
+    if len(sanitized) > max_length:
+        raise serializers.ValidationError(
+            f"{field_name} cannot exceed {max_length} characters"
+        )
+    return sanitized
+
+
+# ---------------------------------------------------------------------
+# Phone Number Field Validation
+# ---------------------------------------------------------------------
+def validate_phone_number_field(value):
+    """
+    Validate and sanitize phone number field.
+
+    Args:
+        value: Phone number value to validate and sanitize
+
+    Returns:
+        Sanitized phone number string, or original value if empty
+
+    Raises:
+        serializers.ValidationError: If validation fails
+
+    Examples:
+        >>> validate_phone_number_field("+256 207 123 4567")
+        '+2562071234567'
+        >>> validate_phone_number_field("123")
+        # Raises ValidationError: "Enter a valid phone number (at least 10 digits)"
+    """
+    if not value:
+        return value
+    sanitized = sanitize_phone_number(value)
+    # Remove formatting to check digit count using str.translate (more efficient than chained replace)
+    clean_phone = sanitized.translate(str.maketrans('', '', '+- ()'))
+    if sanitized and (not clean_phone.isdigit() or len(clean_phone) < 10):
+        raise serializers.ValidationError(
+            "Enter a valid phone number (at least 10 digits)"
+        )
+    return sanitized
+
+
+# ---------------------------------------------------------------------
+# Email Field Validation
+# ---------------------------------------------------------------------
+def validate_email_field(value):
+    """
+    Validate and sanitize email format using Django's EmailValidator.
+
+    Args:
+        value: Email value to validate and sanitize
+
+    Returns:
+        Sanitized email string, or original value if empty
+
+    Raises:
+        serializers.ValidationError: If validation fails
+
+    Examples:
+        >>> validate_email_field("user@example.com")
+        'user@example.com'
+        >>> validate_email_field("invalid@email")
+        # Raises ValidationError: "Enter a valid email address"
+    """
+    if not value:
+        return value
+    sanitized = sanitize_email(value)
+    if sanitized:
+        validator = DjangoEmailValidator(message="Enter a valid email address")
+        try:
+            validator(sanitized)
+        except ValidationError:
+            # Convert Django's ValidationError to DRF's ValidationError
+            raise serializers.ValidationError("Enter a valid email address")
+    return sanitized

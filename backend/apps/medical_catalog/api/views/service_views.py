@@ -24,23 +24,35 @@ class ServiceViewSet(CacheableResponseMixin, viewsets.ModelViewSet):
     ordering_fields = ["created_at", "updated_at", "name", "base_amount"]
 
     def create(self, request, *args, **kwargs):
+        user_id = request.user.id if request.user.is_authenticated else None
         try:
             instance = ServiceService.service_create(service_data=request.data, user=request.user)
             serializer = self.get_serializer(instance)
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
+            response = Response(serializer.data, status=status.HTTP_201_CREATED)
+            # Invalidate cache after successful create
+            self.invalidate_cache(user_id=user_id)
+            return response
         except ValidationError as e:
             return Response({'error': 'Validation failed', 'details': e.message_dict}, status=status.HTTP_400_BAD_REQUEST)
 
     def update(self, request, *args, **kwargs):
+        user_id = request.user.id if request.user.is_authenticated else None
         try:
             instance = ServiceService.service_update(
                 service_id=kwargs["pk"], update_data=request.data, user=request.user
             )
             serializer = self.get_serializer(instance)
-            return Response(serializer.data)
+            response = Response(serializer.data)
+            # Invalidate cache after successful update
+            self.invalidate_cache(user_id=user_id)
+            return response
         except ValidationError as e:
             return Response({'error': 'Validation failed', 'details': e.message_dict}, status=status.HTTP_400_BAD_REQUEST)
 
     def destroy(self, request, *args, **kwargs):
+        user_id = request.user.id if request.user.is_authenticated else None
         ServiceService.service_deactivate(service_id=kwargs["pk"], user=request.user)
-        return Response(status=status.HTTP_204_NO_CONTENT)
+        response = Response(status=status.HTTP_204_NO_CONTENT)
+        # Invalidate cache after successful delete
+        self.invalidate_cache(user_id=user_id)
+        return response

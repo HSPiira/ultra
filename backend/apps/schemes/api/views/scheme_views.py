@@ -38,16 +38,21 @@ class SchemeViewSet(CacheableResponseMixin, viewsets.ModelViewSet):
 
     def create(self, request, *args, **kwargs):
         """Create a new scheme using the serializer."""
+        user_id = request.user.id if request.user.is_authenticated else None
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         scheme = SchemeService.scheme_create(
             scheme_data=serializer.validated_data, user=request.user
         )
         response_serializer = self.get_serializer(scheme)
-        return Response(response_serializer.data, status=status.HTTP_201_CREATED)
+        response = Response(response_serializer.data, status=status.HTTP_201_CREATED)
+        # Invalidate cache after successful create
+        self.invalidate_cache(user_id=user_id)
+        return response
 
     def update(self, request, *args, **kwargs):
         """Update a scheme using the serializer."""
+        user_id = request.user.id if request.user.is_authenticated else None
         instance = self.get_object()
         serializer = self.get_serializer(instance, data=request.data, partial=kwargs.get('partial', False))
         serializer.is_valid(raise_exception=True)
@@ -55,9 +60,16 @@ class SchemeViewSet(CacheableResponseMixin, viewsets.ModelViewSet):
             scheme_id=kwargs["pk"], update_data=serializer.validated_data, user=request.user
         )
         response_serializer = self.get_serializer(scheme)
-        return Response(response_serializer.data)
+        response = Response(response_serializer.data)
+        # Invalidate cache after successful update
+        self.invalidate_cache(user_id=user_id)
+        return response
 
     def destroy(self, request, *args, **kwargs):
         """Override delete → perform soft-delete via the service layer."""
+        user_id = request.user.id if request.user.is_authenticated else None
         SchemeService.scheme_deactivate(scheme_id=kwargs["pk"], user=request.user)
-        return Response(status=status.HTTP_204_NO_CONTENT)
+        response = Response(status=status.HTTP_204_NO_CONTENT)
+        # Invalidate cache after successful delete
+        self.invalidate_cache(user_id=user_id)
+        return response

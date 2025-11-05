@@ -202,8 +202,8 @@ class CompanyService(BaseService, CSVExportMixin):
         """
         try:
             company = Company.objects.get(id=company_id, is_deleted=False)
-        except Company.DoesNotExist:
-            raise NotFoundError("Company", company_id)
+        except Company.DoesNotExist as err:
+            raise NotFoundError("Company", company_id) from err
 
         # Use the model's soft_delete method which handles all the soft delete fields
         # Only pass user if it's authenticated (not AnonymousUser)

@@ -32,7 +32,7 @@ class DoctorService(BaseService, CSVExportMixin):
     unique_fields = []
     allowed_fields = {
         'name', 'specialization', 'license_number', 'phone', 'email',
-        'address', 'status', 'hospitals'
+        'address', 'status', 'hospital', 'hospitals'
     }
     validation_rules = [
         RequiredFieldsRule(["name"], "Doctor"),

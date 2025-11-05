@@ -1,6 +1,6 @@
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import filters, status, viewsets
-from rest_framework.decorators import action
+from rest_framework.decorators import action, throttle_classes
 from rest_framework.response import Response
 from rest_framework.exceptions import ValidationError
 import logging
@@ -26,7 +26,6 @@ class SchemeItemViewSet(ThrottleAwareCacheMixin, viewsets.ModelViewSet):
     """
 
     serializer_class = SchemeItemSerializer
-    throttle_classes = [StrictRateThrottle]  # Apply to bulk operations
     # Using global authentication settings from REST_FRAMEWORK
 
     filter_backends = [
@@ -50,28 +49,41 @@ class SchemeItemViewSet(ThrottleAwareCacheMixin, viewsets.ModelViewSet):
 
     def create(self, request, *args, **kwargs):
         """Create a new scheme item using the service layer."""
+        user_id = request.user.id if request.user.is_authenticated else None
         scheme_item = SchemeItemService.scheme_item_create(
             scheme_item_data=request.data, user=request.user
         )
         serializer = self.get_serializer(scheme_item)
-        return Response(serializer.data, status=status.HTTP_201_CREATED)
+        response = Response(serializer.data, status=status.HTTP_201_CREATED)
+        # Invalidate cache after successful create
+        self.invalidate_cache(user_id=user_id)
+        return response
 
     def update(self, request, *args, **kwargs):
         """Update a scheme item using the service layer."""
+        user_id = request.user.id if request.user.is_authenticated else None
         scheme_item = SchemeItemService.scheme_item_update(
             scheme_item_id=kwargs["pk"], update_data=request.data, user=request.user
         )
         serializer = self.get_serializer(scheme_item)
-        return Response(serializer.data)
+        response = Response(serializer.data)
+        # Invalidate cache after successful update
+        self.invalidate_cache(user_id=user_id)
+        return response
 
     def destroy(self, request, *args, **kwargs):
         """Override delete → perform soft-delete via the service layer."""
+        user_id = request.user.id if request.user.is_authenticated else None
         SchemeItemService.scheme_item_deactivate(
             scheme_item_id=kwargs["pk"], user=request.user
         )
-        return Response(status=status.HTTP_204_NO_CONTENT)
+        response = Response(status=status.HTTP_204_NO_CONTENT)
+        # Invalidate cache after successful delete
+        self.invalidate_cache(user_id=user_id)
+        return response
 
     @action(detail=False, methods=["post"], url_path="bulk")
+    @throttle_classes([StrictRateThrottle])
     def bulk_create(self, request):
         """Bulk create scheme items for a specific scheme. Rate limited to 20/hour."""
         serializer = BulkAssignmentSerializer(data=request.data)
@@ -102,6 +114,7 @@ class SchemeItemViewSet(ThrottleAwareCacheMixin, viewsets.ModelViewSet):
             )
 
     @action(detail=False, methods=["post"], url_path="bulk-remove")
+    @throttle_classes([StrictRateThrottle])
     def bulk_remove(self, request):
         """Bulk remove scheme items. Rate limited to 20/hour."""
         scheme_item_ids = request.data.get("scheme_item_ids", [])

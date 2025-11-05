@@ -36,21 +36,33 @@ class BenefitViewSet(CacheableResponseMixin, viewsets.ModelViewSet):
 
     def create(self, request, *args, **kwargs):
         """Create a new benefit using the service layer."""
+        user_id = request.user.id if request.user.is_authenticated else None
         benefit = BenefitService.benefit_create(
             benefit_data=request.data, user=request.user
         )
         serializer = self.get_serializer(benefit)
-        return Response(serializer.data, status=status.HTTP_201_CREATED)
+        response = Response(serializer.data, status=status.HTTP_201_CREATED)
+        # Invalidate cache after successful create
+        self.invalidate_cache(user_id=user_id)
+        return response
 
     def update(self, request, *args, **kwargs):
         """Update a benefit using the service layer."""
+        user_id = request.user.id if request.user.is_authenticated else None
         benefit = BenefitService.benefit_update(
             benefit_id=kwargs["pk"], update_data=request.data, user=request.user
         )
         serializer = self.get_serializer(benefit)
-        return Response(serializer.data)
+        response = Response(serializer.data)
+        # Invalidate cache after successful update
+        self.invalidate_cache(user_id=user_id)
+        return response
 
     def destroy(self, request, *args, **kwargs):
         """Override delete → perform soft-delete via the service layer."""
+        user_id = request.user.id if request.user.is_authenticated else None
         BenefitService.benefit_deactivate(benefit_id=kwargs["pk"], user=request.user)
-        return Response(status=status.HTTP_204_NO_CONTENT)
+        response = Response(status=status.HTTP_204_NO_CONTENT)
+        # Invalidate cache after successful delete
+        self.invalidate_cache(user_id=user_id)
+        return response

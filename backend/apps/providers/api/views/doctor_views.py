@@ -35,34 +35,54 @@ class DoctorViewSet(CacheableResponseMixin, viewsets.ModelViewSet):
         return doctor_list(filters=filters_dict)
 
     def create(self, request, *args, **kwargs):
+        user_id = request.user.id if request.user.is_authenticated else None
         # Validate serializer first to catch validation errors
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         
         # Pass request.data to service as it handles nested affiliations_payload
-        doctor = DoctorService.doctor_create(
+        created_doctor = DoctorService.doctor_create(
             doctor_data=request.data, user=request.user
         )
-        # Refresh doctor with prefetched relationships
-        from apps.providers.models import Doctor
-        doctor = Doctor.objects.prefetch_related("hospitals").prefetch_related("doctorhospitalaffiliation_set__hospital").get(pk=doctor.id)
+        # Refresh doctor with prefetched relationships using selector
+        doctor = doctor_get(doctor_id=created_doctor.id)
+        if not doctor:
+            return Response(
+                {"error": "Doctor not found"}, 
+                status=status.HTTP_404_NOT_FOUND
+            )
         serializer = self.get_serializer(doctor)
-        return Response(serializer.data, status=status.HTTP_201_CREATED)
+        response = Response(serializer.data, status=status.HTTP_201_CREATED)
+        # Invalidate cache after successful create
+        self.invalidate_cache(user_id=user_id)
+        return response
 
     def update(self, request, *args, **kwargs):
+        user_id = request.user.id if request.user.is_authenticated else None
         # Validate serializer first to catch validation errors
         serializer = self.get_serializer(instance=self.get_object(), data=request.data, partial=kwargs.get('partial', False))
         serializer.is_valid(raise_exception=True)
         
         # Pass request.data to service as it handles nested affiliations_payload
-        doctor = DoctorService.doctor_update(
+        DoctorService.doctor_update(
             doctor_id=kwargs["pk"], update_data=request.data, user=request.user
         )
-        # Refresh doctor with prefetched relationships
-        from apps.providers.models import Doctor
-        doctor = Doctor.objects.prefetch_related("hospitals").prefetch_related("doctorhospitalaffiliation_set__hospital").get(pk=doctor.id)
-        return Response(self.get_serializer(doctor).data, status=status.HTTP_200_OK)
+        # Refresh doctor with prefetched relationships using selector
+        doctor = doctor_get(doctor_id=kwargs["pk"])
+        if not doctor:
+            return Response(
+                {"error": "Doctor not found"}, 
+                status=status.HTTP_404_NOT_FOUND
+            )
+        response = Response(self.get_serializer(doctor).data, status=status.HTTP_200_OK)
+        # Invalidate cache after successful update
+        self.invalidate_cache(user_id=user_id)
+        return response
 
     def destroy(self, request, *args, **kwargs):
+        user_id = request.user.id if request.user.is_authenticated else None
         DoctorService.doctor_deactivate(doctor_id=kwargs["pk"], user=request.user)
-        return Response(status=status.HTTP_204_NO_CONTENT)
+        response = Response(status=status.HTTP_204_NO_CONTENT)
+        # Invalidate cache after successful delete
+        self.invalidate_cache(user_id=user_id)
+        return response

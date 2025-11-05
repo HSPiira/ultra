@@ -1,3 +1,5 @@
+from typing import Any, Optional
+
 from django.core.exceptions import ValidationError
 from django.db import transaction
 
@@ -41,13 +43,14 @@ class SchemeItemService(BaseService, CSVExportMixin):
 
     @classmethod
     @transaction.atomic
-    def scheme_item_create(cls, *, scheme_item_data: dict, user=None):
+    def scheme_item_create(cls, *, scheme_item_data: dict, user: Optional[Any] = None):
         """
         Create a new scheme item with validation and duplicate checking.
 
         Args:
             scheme_item_data: Dictionary containing scheme item information
-            user: User creating the scheme item (for audit trail)
+            user: User creating the scheme item (reserved for future audit trail implementation)
+                TODO: Implement audit trail logging when user is provided (e.g., created_by field)
 
         Returns:
             SchemeItem: The created scheme item instance
