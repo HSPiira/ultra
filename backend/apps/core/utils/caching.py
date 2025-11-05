@@ -57,13 +57,24 @@ def generate_cache_key(request, view_name: str, include_user: bool = True, views
         key_parts.append("user:anon")
     
     # Include query parameters for filtering/search
-    query_params = request.query_params.dict()
-    if query_params:
-        # Sort query params for consistent keys
-        sorted_params = sorted(query_params.items())
-        params_str = json.dumps(sorted_params, sort_keys=True)
-        params_hash = hashlib.md5(params_str.encode()).hexdigest()[:8]
-        key_parts.append(f"params:{params_hash}")
+    # Handle both DRF Request objects (query_params) and Django WSGIRequest (GET)
+    try:
+        if hasattr(request, 'query_params'):
+            # DRF Request object
+            query_params = request.query_params.dict()
+        else:
+            # Django WSGIRequest object
+            query_params = dict(request.GET)
+        
+        if query_params:
+            # Sort query params for consistent keys
+            sorted_params = sorted(query_params.items())
+            params_str = json.dumps(sorted_params, sort_keys=True)
+            params_hash = hashlib.md5(params_str.encode()).hexdigest()[:8]
+            key_parts.append(f"params:{params_hash}")
+    except (AttributeError, TypeError):
+        # If query params can't be accessed, skip them
+        pass
     
     # Include path parameters (like pk)
     try:
