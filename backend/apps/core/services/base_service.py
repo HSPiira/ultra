@@ -105,7 +105,8 @@ class BaseService(ABC):
         field_name: str,
         model_class: Type[Model],
         entity_name: str,
-        validate_active: bool = True
+        validate_active: bool = True,
+        allow_none: bool = False
     ) -> Optional[Model]:
         """
         Resolve a foreign key field from string ID to model instance.
@@ -116,9 +117,10 @@ class BaseService(ABC):
             model_class: Model class to resolve to
             entity_name: Name for error messages
             validate_active: Whether to validate entity is active and not deleted
+            allow_none: Whether to allow None values (if True, None values are preserved)
             
         Returns:
-            Model instance or None if field not in data
+            Model instance or None if field not in data or value is None (when allow_none=True)
             
         Raises:
             NotFoundError: If entity doesn't exist
@@ -128,6 +130,14 @@ class BaseService(ABC):
             return None
         
         value = data[field_name]
+        
+        # Handle None values when allow_none is True
+        if value is None:
+            if allow_none:
+                data[field_name] = None
+                return None
+            else:
+                raise NotFoundError(entity_name, None)
         
         # Already a model instance
         if isinstance(value, model_class):

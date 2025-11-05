@@ -24,7 +24,7 @@ class ServiceViewSet(viewsets.ModelViewSet):
 
     def create(self, request, *args, **kwargs):
         try:
-            instance = ServiceService.create(data=request.data, user=request.user)
+            instance = ServiceService.service_create(service_data=request.data, user=request.user)
             serializer = self.get_serializer(instance)
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         except ValidationError as e:
@@ -32,8 +32,8 @@ class ServiceViewSet(viewsets.ModelViewSet):
 
     def update(self, request, *args, **kwargs):
         try:
-            instance = ServiceService.update(
-                service_id=kwargs["pk"], data=request.data, user=request.user
+            instance = ServiceService.service_update(
+                service_id=kwargs["pk"], update_data=request.data, user=request.user
             )
             serializer = self.get_serializer(instance)
             return Response(serializer.data)
@@ -41,5 +41,5 @@ class ServiceViewSet(viewsets.ModelViewSet):
             return Response({'error': 'Validation failed', 'details': e.message_dict}, status=status.HTTP_400_BAD_REQUEST)
 
     def destroy(self, request, *args, **kwargs):
-        ServiceService.deactivate(service_id=kwargs["pk"], user=request.user)
+        ServiceService.service_deactivate(service_id=kwargs["pk"], user=request.user)
         return Response(status=status.HTTP_204_NO_CONTENT)

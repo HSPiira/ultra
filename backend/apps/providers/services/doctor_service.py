@@ -1,4 +1,5 @@
 from typing import Any
+from datetime import datetime
 
 from django.core.exceptions import ValidationError
 from django.db import transaction
@@ -172,12 +173,20 @@ class DoctorService(BaseService, CSVExportMixin):
             if is_primary:
                 primary_set = True
 
+            # Parse dates if they're strings
+            start_date = payload.get("start_date")
+            end_date = payload.get("end_date")
+            if start_date and isinstance(start_date, str):
+                start_date = datetime.strptime(start_date, "%Y-%m-%d").date()
+            if end_date and isinstance(end_date, str):
+                end_date = datetime.strptime(end_date, "%Y-%m-%d").date()
+            
             affiliation = DoctorHospitalAffiliation(
                 doctor=doctor,
                 hospital=hospital,
                 role=payload.get("role", ""),
-                start_date=payload.get("start_date"),
-                end_date=payload.get("end_date"),
+                start_date=start_date,
+                end_date=end_date,
                 is_primary=is_primary,
             )
             affiliation.full_clean()  # Run model validation including clean() method

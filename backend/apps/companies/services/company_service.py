@@ -33,7 +33,7 @@ class CompanyService(BaseService, CSVExportMixin):
     unique_fields = ["company_name", "email"]
     allowed_fields = {
         'company_name', 'contact_person', 'email', 'phone_number', 'industry',
-        'address', 'city', 'state', 'country', 'postal_code', 'status'
+        'company_address', 'website', 'status', 'remark'
     }
     validation_rules = [
         RequiredFieldsRule(

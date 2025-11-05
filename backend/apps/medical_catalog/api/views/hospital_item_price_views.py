@@ -24,7 +24,7 @@ class HospitalItemPriceViewSet(viewsets.ModelViewSet):
 
     def create(self, request, *args, **kwargs):
         try:
-            instance = HospitalItemPriceService.create(data=request.data, user=request.user)
+            instance = HospitalItemPriceService.hospital_item_price_create(price_data=request.data, user=request.user)
             serializer = self.get_serializer(instance)
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         except ValidationError as e:
@@ -35,8 +35,8 @@ class HospitalItemPriceViewSet(viewsets.ModelViewSet):
 
     def update(self, request, *args, **kwargs):
         try:
-            instance = HospitalItemPriceService.update(
-                price_id=kwargs["pk"], data=request.data, user=request.user
+            instance = HospitalItemPriceService.hospital_item_price_update(
+                price_id=kwargs["pk"], update_data=request.data, user=request.user
             )
             serializer = self.get_serializer(instance)
             return Response(serializer.data)
@@ -47,5 +47,5 @@ class HospitalItemPriceViewSet(viewsets.ModelViewSet):
             return Response({'error': 'Invalid data', 'details': str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
     def destroy(self, request, *args, **kwargs):
-        HospitalItemPriceService.deactivate(price_id=kwargs["pk"], user=request.user)
+        HospitalItemPriceService.hospital_item_price_deactivate(price_id=kwargs["pk"], user=request.user)
         return Response(status=status.HTTP_204_NO_CONTENT)

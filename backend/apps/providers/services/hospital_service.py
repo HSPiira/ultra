@@ -28,7 +28,7 @@ class HospitalService(BaseService, CSVExportMixin):
     unique_fields = []
     allowed_fields = {
         'name', 'address', 'city', 'state', 'country', 'postal_code',
-        'phone', 'email', 'website', 'branch_of', 'status'
+        'contact_person', 'phone_number', 'email', 'website', 'branch_of', 'status'
     }
     validation_rules = [
         RequiredFieldsRule(["name"], "Hospital"),
@@ -55,12 +55,11 @@ class HospitalService(BaseService, CSVExportMixin):
         
         # Handle branch_of field using base method (self-referential FK)
         branch_of_id = hospital_data.pop('branch_of', None)
-        if branch_of_id:
-            temp_data = {'branch_of': branch_of_id}
-            cls._resolve_foreign_key(
-                temp_data, "branch_of", Hospital, "Hospital", validate_active=True
-            )
-            hospital_data['branch_of'] = temp_data['branch_of']
+        temp_data = {'branch_of': branch_of_id}
+        cls._resolve_foreign_key(
+            temp_data, "branch_of", Hospital, "Hospital", validate_active=True, allow_none=True
+        )
+        hospital_data['branch_of'] = temp_data['branch_of']
         
         return Hospital.objects.create(**hospital_data)
 

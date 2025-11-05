@@ -38,7 +38,7 @@ class SchemeService(BaseService, CSVExportMixin):
     unique_fields = ["scheme_name", "card_code"]
     allowed_fields = {
         'scheme_name', 'company', 'card_code', 'start_date', 'end_date',
-        'limit_amount', 'status', 'description'
+        'limit_amount', 'status', 'description', 'family_applicable', 'remark'
     }
     validation_rules = [
         RequiredFieldsRule(

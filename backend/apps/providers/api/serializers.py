@@ -126,6 +126,18 @@ class DoctorHospitalAffiliationSerializer(serializers.ModelSerializer):
             )
         return sanitized
 
+    def validate(self, data):
+        """Validate date relationships."""
+        start_date = data.get("start_date")
+        end_date = data.get("end_date")
+        
+        if start_date and end_date and start_date > end_date:
+            raise serializers.ValidationError({
+                "end_date": "End date must be on/after start date."
+            })
+        
+        return data
+
 
 class DoctorSerializer(BaseSerializer):
     hospitals = serializers.SerializerMethodField(read_only=True)
@@ -133,9 +145,7 @@ class DoctorSerializer(BaseSerializer):
         queryset=Hospital.objects.all(), write_only=True, required=False
     )
     hospital_detail = serializers.SerializerMethodField(read_only=True)
-    affiliations = DoctorHospitalAffiliationSerializer(
-        many=True, source="doctorhospitalaffiliation_set", read_only=True
-    )
+    affiliations = serializers.SerializerMethodField()
     affiliations_payload = DoctorHospitalAffiliationSerializer(
         many=True, write_only=True, required=False
     )
@@ -181,6 +191,14 @@ class DoctorSerializer(BaseSerializer):
     @extend_schema_field({"type": "array", "items": {"type": "string"}})
     def get_hospitals(self, obj):
         return list(obj.hospitals.values_list("id", flat=True))
+
+    @extend_schema_field({"type": "array", "items": {"type": "object"}})
+    def get_affiliations(self, obj):
+        """Get doctor hospital affiliations."""
+        # Query affiliations directly to ensure we get all active ones
+        from apps.providers.models import DoctorHospitalAffiliation
+        affiliations = DoctorHospitalAffiliation.objects.filter(doctor=obj).select_related("hospital")
+        return DoctorHospitalAffiliationSerializer(affiliations, many=True).data
 
     def validate_name(self, value):
         """Validate and sanitize doctor name."""
@@ -253,3 +271,4 @@ class DoctorSerializer(BaseSerializer):
                 "Enter a valid phone number (at least 10 digits)"
             )
         return sanitized
+
