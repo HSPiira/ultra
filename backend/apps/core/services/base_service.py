@@ -11,8 +11,8 @@ Addresses SOLID principles:
 - ISP: Implements IServiceProtocol for consistent interface
 - DIP: Uses repository abstraction instead of direct model access
 """
-from abc import ABC, abstractmethod
-from typing import Type, Optional, Dict, Any
+from abc import ABC
+from typing import Optional, Any
 
 from django.core.exceptions import ValidationError
 from django.db import transaction, IntegrityError

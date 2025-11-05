@@ -49,38 +49,26 @@ class SchemeItemViewSet(ThrottleAwareCacheMixin, viewsets.ModelViewSet):
 
     def create(self, request, *args, **kwargs):
         """Create a new scheme item using the service layer."""
-        user_id = request.user.id if request.user.is_authenticated else None
         scheme_item = SchemeItemService.scheme_item_create(
             scheme_item_data=request.data, user=request.user
         )
         serializer = self.get_serializer(scheme_item)
-        response = Response(serializer.data, status=status.HTTP_201_CREATED)
-        # Invalidate cache after successful create
-        self.invalidate_cache(user_id=user_id)
-        return response
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
 
     def update(self, request, *args, **kwargs):
         """Update a scheme item using the service layer."""
-        user_id = request.user.id if request.user.is_authenticated else None
         scheme_item = SchemeItemService.scheme_item_update(
             scheme_item_id=kwargs["pk"], update_data=request.data, user=request.user
         )
         serializer = self.get_serializer(scheme_item)
-        response = Response(serializer.data)
-        # Invalidate cache after successful update
-        self.invalidate_cache(user_id=user_id)
-        return response
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
     def destroy(self, request, *args, **kwargs):
         """Override delete → perform soft-delete via the service layer."""
-        user_id = request.user.id if request.user.is_authenticated else None
         SchemeItemService.scheme_item_deactivate(
             scheme_item_id=kwargs["pk"], user=request.user
         )
-        response = Response(status=status.HTTP_204_NO_CONTENT)
-        # Invalidate cache after successful delete
-        self.invalidate_cache(user_id=user_id)
-        return response
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
     @action(detail=False, methods=["post"], url_path="bulk")
     @throttle_classes([StrictRateThrottle])

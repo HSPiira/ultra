@@ -72,11 +72,14 @@ class HospitalItemPriceService(BaseService, CSVExportMixin):
             raise RequiredFieldError("content_type")
 
         try:
-            return HospitalItemPrice.objects.create(
+            instance = HospitalItemPrice(
                 hospital=hospital_instance,
                 content_type=content_type_instance,
                 **price_data
             )
+            instance.full_clean()
+            instance.save()
+            return instance
         except ValidationError as e:
             cls._handle_validation_error(e)
         except IntegrityError as e:
@@ -134,6 +137,7 @@ class HospitalItemPriceService(BaseService, CSVExportMixin):
             setattr(instance, field, value)
 
         try:
+            instance.full_clean()
             instance.save(update_fields=None)
             return instance
         except ValidationError as e:

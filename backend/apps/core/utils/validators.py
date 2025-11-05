@@ -273,7 +273,7 @@ def validate_email_field(value):
         validator = DjangoEmailValidator(message="Enter a valid email address")
         try:
             validator(sanitized)
-        except ValidationError:
+        except ValidationError as e:
             # Convert Django's ValidationError to DRF's ValidationError
-            raise serializers.ValidationError("Enter a valid email address")
+            raise serializers.ValidationError(e.message) from e
     return sanitized

@@ -172,7 +172,7 @@ class DoctorSerializer(BaseSerializer):
         # Don't rely on prefetched data as it might be stale after creation
         # The objects manager filters is_deleted=False automatically
         affiliations = DoctorHospitalAffiliation.objects.filter(
-            doctor_id=obj.id if hasattr(obj, 'id') else obj.pk
+            doctor_id=obj.pk
         ).select_related("hospital")
         return DoctorHospitalAffiliationSerializer(affiliations, many=True).data
 
