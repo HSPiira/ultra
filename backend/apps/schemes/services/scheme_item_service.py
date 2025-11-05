@@ -3,7 +3,11 @@ from django.db import transaction
 
 from apps.core.enums.choices import BusinessStatusChoices
 from apps.core.exceptions.service_errors import NotFoundError, InactiveEntityError, RequiredFieldError
-from apps.core.services import BaseService, CSVExportMixin
+from apps.core.services import (
+    BaseService,
+    CSVExportMixin,
+    RequiredFieldsRule,
+)
 from apps.core.utils.validation import validate_required_fields, validate_positive_amount, validate_percentage
 from apps.schemes.models import SchemeItem
 
@@ -13,17 +17,23 @@ class SchemeItemService(BaseService, CSVExportMixin):
     Scheme Item business logic for write operations.
     Handles all scheme item-related write operations including CRUD, validation,
     and business logic. Read operations are handled by selectors.
+    
+    Uses SOLID improvements:
+    - Validation rules for extensible validation (OCP)
+    - Standardized method signatures available (ISP)
     """
     
     # BaseService configuration
     entity_model = SchemeItem
     entity_name = "SchemeItem"
     unique_fields = []  # Composite unique constraint handled manually
-    """
-    Scheme Item business logic for write operations.
-    Handles all scheme item-related write operations including CRUD, validation,
-    and business logic. Read operations are handled by selectors.
-    """
+    allowed_fields = {
+        'scheme', 'content_type', 'object_id', 'limit_amount',
+        'copayment_percent', 'status'
+    }
+    validation_rules = [
+        RequiredFieldsRule(["scheme", "content_type", "object_id"], "SchemeItem"),
+    ]
 
     # ---------------------------------------------------------------------
     # Basic CRUD Operations

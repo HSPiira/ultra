@@ -9,7 +9,13 @@ from apps.core.exceptions.service_errors import (
     InvalidValueError,
     InactiveEntityError,
 )
-from apps.core.services import BaseService, CSVExportMixin
+from apps.core.services import (
+    BaseService,
+    CSVExportMixin,
+    RequiredFieldsRule,
+    StringLengthRule,
+    DateRangeRule,
+)
 from apps.core.utils.validation import validate_required_fields, validate_string_length, validate_date_range
 from apps.schemes.models import Scheme
 from apps.companies.models import Company
@@ -20,17 +26,28 @@ class SchemeService(BaseService, CSVExportMixin):
     Scheme business logic for write operations.
     Handles all scheme-related write operations including CRUD, validation,
     and business logic. Read operations are handled by selectors.
+    
+    Uses SOLID improvements:
+    - Validation rules for extensible validation (OCP)
+    - Standardized method signatures available (ISP)
     """
     
     # BaseService configuration
     entity_model = Scheme
     entity_name = "Scheme"
     unique_fields = ["scheme_name", "card_code"]
-    """
-    Scheme business logic for write operations.
-    Handles all scheme-related write operations including CRUD, validation,
-    and business logic. Read operations are handled by selectors.
-    """
+    allowed_fields = {
+        'scheme_name', 'company', 'card_code', 'start_date', 'end_date',
+        'limit_amount', 'status', 'description'
+    }
+    validation_rules = [
+        RequiredFieldsRule(
+            ["scheme_name", "company", "card_code", "start_date", "end_date"],
+            "Scheme"
+        ),
+        StringLengthRule("card_code", min_length=3, max_length=3),
+        DateRangeRule("start_date", "end_date"),
+    ]
 
     # ---------------------------------------------------------------------
     # Basic CRUD Operations

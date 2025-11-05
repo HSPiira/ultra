@@ -8,7 +8,12 @@ from apps.core.exceptions.service_errors import (
     DuplicateError,
     InvalidValueError,
 )
-from apps.core.services import BaseService, CSVExportMixin
+from apps.core.services import (
+    BaseService,
+    CSVExportMixin,
+    RequiredFieldsRule,
+    StringLengthRule,
+)
 from apps.core.utils.validation import (
     validate_required_fields,
     validate_string_length,
@@ -23,12 +28,25 @@ class BenefitService(BaseService, CSVExportMixin):
     Benefit business logic for write operations.
     Handles all benefit-related write operations including CRUD, validation,
     and business logic. Read operations are handled by selectors.
+    
+    Uses SOLID improvements:
+    - Validation rules for extensible validation (OCP)
+    - Standardized method signatures available (ISP)
     """
     
     # BaseService configuration
     entity_model = Benefit
     entity_name = "Benefit"
     unique_fields = ["benefit_name"]
+    allowed_fields = {
+        'benefit_name', 'description', 'in_or_out_patient', 'limit_amount',
+        'plan', 'status'
+    }
+    validation_rules = [
+        RequiredFieldsRule(["benefit_name", "in_or_out_patient"], "Benefit"),
+        StringLengthRule("benefit_name", min_length=2, max_length=255),
+        StringLengthRule("description", max_length=500, min_length=None),
+    ]
 
     # ---------------------------------------------------------------------
     # Basic CRUD Operations

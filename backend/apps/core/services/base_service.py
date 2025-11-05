@@ -3,9 +3,16 @@ Base service class for common service layer functionality.
 
 Provides abstract methods and utility functions to eliminate code duplication
 across service classes. All service classes should inherit from this base class.
+
+Addresses SOLID principles:
+- SRP: Separates concerns (validation, data access, business logic)
+- OCP: Extensible via validation rules and repository pattern
+- LSP: All services can be used interchangeably
+- ISP: Implements IServiceProtocol for consistent interface
+- DIP: Uses repository abstraction instead of direct model access
 """
 from abc import ABC, abstractmethod
-from typing import Type, Optional
+from typing import Type, Optional, Dict, Any
 
 from django.core.exceptions import ValidationError
 from django.db import transaction, IntegrityError
@@ -20,6 +27,7 @@ from apps.core.exceptions.service_errors import (
 )
 from apps.core.utils.integrity import is_unique_constraint_violation
 from apps.core.utils.validation import validate_required_fields
+from apps.core.services.repositories import DjangoRepository
 
 
 class BaseService(ABC):
@@ -42,6 +50,8 @@ class BaseService(ABC):
     entity_model: Type[Model] = None
     entity_name: str = "Entity"
     unique_fields: list = []  # Fields that should be checked for duplicates
+    allowed_fields: set = None  # Allowed fields for create/update (None = all fields)
+    validation_rules: list = None  # List of validation rule instances (IValidationRule)
     
     @classmethod
     def _validate_required_fields(cls, data: dict, fields: list):
@@ -114,6 +124,7 @@ class BaseService(ABC):
                     queryset = model_class.objects
                 else:
                     queryset = model_class.all_objects if hasattr(model_class, 'all_objects') else model_class.objects
+                
                 instance = queryset.get(id=value)
             except model_class.DoesNotExist:
                 raise NotFoundError(entity_name, value)
@@ -206,6 +217,116 @@ class BaseService(ABC):
             return queryset.get(id=entity_id, is_deleted=False)
         except cls.entity_model.DoesNotExist:
             raise NotFoundError(cls.entity_name, entity_id)
+    
+    @classmethod
+    def _get_repository(cls):
+        """
+        Get repository instance for data access.
+        
+        Returns:
+            DjangoRepository instance for this service's entity model
+        """
+        return DjangoRepository(cls.entity_model, cls.entity_name)
+    
+    # ---------------------------------------------------------------------
+    # Standardized CRUD Operations (ISP - Consistent Interface)
+    # ---------------------------------------------------------------------
+    
+    @classmethod
+    @transaction.atomic
+    def create(cls, *, data: Dict[str, Any], user=None) -> Model:
+        """
+        Create a new entity (standardized method signature).
+        
+        This method provides a consistent interface across all services,
+        addressing Interface Segregation Principle (ISP) violations.
+        
+        Args:
+            data: Dictionary containing entity data
+            user: Optional user performing the operation
+            
+        Returns:
+            Created entity instance
+            
+        Raises:
+            ValidationError: If validation fails
+            DuplicateError: If unique constraint violation
+        """
+        # Filter fields if allowed_fields is defined
+        if cls.allowed_fields is not None:
+            data = cls._filter_model_fields(data, cls.allowed_fields)
+        
+        # Apply validation rules if defined
+        if cls.validation_rules:
+            from apps.core.services.validation_rules import ValidationRuleSet
+            rule_set = ValidationRuleSet(cls.validation_rules)
+            rule_set.validate(data)
+        
+        try:
+            instance = cls.entity_model(**data)
+            instance.full_clean()
+            instance.save()
+            return instance
+        except ValidationError as e:
+            cls._handle_validation_error(e)
+        except IntegrityError as e:
+            cls._handle_integrity_error(e)
+    
+    @classmethod
+    @transaction.atomic
+    def update(cls, *, entity_id: str, data: Dict[str, Any], user=None) -> Model:
+        """
+        Update an existing entity (standardized method signature).
+        
+        This method provides a consistent interface across all services,
+        addressing Interface Segregation Principle (ISP) violations.
+        
+        Args:
+            entity_id: ID of entity to update
+            data: Dictionary containing fields to update
+            user: Optional user performing the operation
+            
+        Returns:
+            Updated entity instance
+            
+        Raises:
+            NotFoundError: If entity doesn't exist
+            ValidationError: If validation fails
+            DuplicateError: If unique constraint violation
+        """
+        instance = cls._get_entity(entity_id)
+        
+        # Filter fields if allowed_fields is defined
+        if cls.allowed_fields is not None:
+            data = cls._filter_model_fields(data, cls.allowed_fields)
+        
+        # Apply validation rules if defined (validation_rules should be a list of rule instances)
+        if cls.validation_rules:
+            from apps.core.services.validation_rules import ValidationRuleSet
+            # If validation_rules is a list of classes, instantiate them
+            rule_instances = []
+            for rule in cls.validation_rules:
+                if isinstance(rule, type):
+                    # It's a class, instantiate it
+                    rule_instances.append(rule())
+                else:
+                    # It's already an instance
+                    rule_instances.append(rule)
+            rule_set = ValidationRuleSet(rule_instances)
+            rule_set.validate(data, entity=instance)
+        
+        # Update fields
+        for field, value in data.items():
+            setattr(instance, field, value)
+        
+        try:
+            instance.full_clean()
+            instance.save(update_fields=None)
+            return instance
+        except ValidationError as e:
+            cls._handle_validation_error(e)
+        except IntegrityError as e:
+            cls._handle_integrity_error(e)
     
     @classmethod
     @transaction.atomic

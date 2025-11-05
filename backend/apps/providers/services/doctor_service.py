@@ -5,7 +5,12 @@ from django.db import transaction
 
 from apps.core.enums.choices import BusinessStatusChoices
 from apps.core.exceptions.service_errors import InactiveEntityError
-from apps.core.services import BaseService, CSVExportMixin
+from apps.core.services import (
+    BaseService,
+    CSVExportMixin,
+    RequiredFieldsRule,
+    StringLengthRule,
+)
 from apps.providers.models import Doctor, DoctorHospitalAffiliation, Hospital
 
 
@@ -14,12 +19,24 @@ class DoctorService(BaseService, CSVExportMixin):
     Doctor business logic for write operations.
     Handles all doctor-related write operations including CRUD, validation,
     and business logic. Read operations are handled by selectors.
+    
+    Uses SOLID improvements:
+    - Validation rules for extensible validation (OCP)
+    - Standardized method signatures available (ISP)
     """
     
     # BaseService configuration
     entity_model = Doctor
     entity_name = "Doctor"
     unique_fields = []
+    allowed_fields = {
+        'name', 'specialization', 'license_number', 'phone', 'email',
+        'address', 'status', 'hospitals'
+    }
+    validation_rules = [
+        RequiredFieldsRule(["name"], "Doctor"),
+        StringLengthRule("name", min_length=1, max_length=255),
+    ]
     @staticmethod
     def doctor_create(*, doctor_data: dict[str, Any], user=None) -> Doctor:
         hospital_id = doctor_data.pop("hospital", None)

@@ -3,7 +3,11 @@ from django.core.exceptions import ValidationError
 from django.db import IntegrityError
 
 from apps.core.exceptions.service_errors import NotFoundError
-from apps.core.services import BaseService, CSVExportMixin
+from apps.core.services import (
+    BaseService,
+    CSVExportMixin,
+    RequiredFieldsRule,
+)
 from apps.medical_catalog.models import HospitalItemPrice
 from apps.providers.models import Hospital
 
@@ -13,12 +17,20 @@ class HospitalItemPriceService(BaseService, CSVExportMixin):
     HospitalItemPrice business logic for write operations.
     Handles all hospital item price-related write operations including CRUD, validation,
     and business logic. Read operations are handled by selectors.
+    
+    Uses SOLID improvements:
+    - Validation rules for extensible validation (OCP)
+    - Allowed fields configuration
     """
     
     # BaseService configuration
     entity_model = HospitalItemPrice
     entity_name = "HospitalItemPrice"
     unique_fields = []  # Composite unique constraint handled manually
+    allowed_fields = {'hospital', 'content_type', 'object_id', 'amount', 'available'}
+    validation_rules = [
+        RequiredFieldsRule(["hospital", "content_type", "object_id"], "HospitalItemPrice"),
+    ]
     @staticmethod
     def create(*, data: dict, user=None) -> HospitalItemPrice:
         # Filter out non-model fields using base method

@@ -11,7 +11,12 @@ from apps.core.exceptions.service_errors import (
     DependencyError,
     InactiveEntityError,
 )
-from apps.core.services import BaseService, CSVExportMixin
+from apps.core.services import (
+    BaseService,
+    CSVExportMixin,
+    RequiredFieldsRule,
+    StringLengthRule,
+)
 from apps.core.utils.validation import validate_required_fields, validate_string_length
 
 
@@ -20,17 +25,22 @@ class IndustryService(BaseService, CSVExportMixin):
     Industry business logic for write operations.
     Handles all industry-related write operations including CRUD, validation,
     and business logic. Read operations are handled by selectors.
+    
+    Uses SOLID improvements:
+    - Validation rules for extensible validation (OCP)
+    - Standardized method signatures available (ISP)
     """
     
     # BaseService configuration
     entity_model = Industry
     entity_name = "Industry"
     unique_fields = ["industry_name"]
-    """
-    Industry business logic for write operations.
-    Handles all industry-related write operations including CRUD, validation,
-    and business logic. Read operations are handled by selectors.
-    """
+    allowed_fields = {'industry_name', 'description', 'status'}
+    validation_rules = [
+        RequiredFieldsRule(["industry_name"], "Industry"),
+        StringLengthRule("industry_name", min_length=2, max_length=100),
+        StringLengthRule("description", max_length=500, min_length=None),
+    ]
 
     # ---------------------------------------------------------------------
     # Basic CRUD Operations

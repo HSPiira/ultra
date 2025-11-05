@@ -10,7 +10,13 @@ from apps.core.exceptions.service_errors import (
     InvalidFormatError,
     InvalidValueError,
 )
-from apps.core.services import BaseService, CSVExportMixin
+from apps.core.services import (
+    BaseService,
+    CSVExportMixin,
+    RequiredFieldsRule,
+    EmailFormatRule,
+    StringLengthRule,
+)
 from apps.core.utils.validation import validate_required_fields, validate_email_format
 
 
@@ -25,11 +31,19 @@ class CompanyService(BaseService, CSVExportMixin):
     entity_model = Company
     entity_name = "Company"
     unique_fields = ["company_name", "email"]
-    """
-    Company business logic for write operations.
-    Handles all company-related write operations including CRUD, validation,
-    and business logic. Read operations are handled by selectors.
-    """
+    allowed_fields = {
+        'company_name', 'contact_person', 'email', 'phone_number', 'industry',
+        'address', 'city', 'state', 'country', 'postal_code', 'status'
+    }
+    validation_rules = [
+        RequiredFieldsRule(
+            ["company_name", "contact_person", "email", "phone_number", "industry"],
+            "Company"
+        ),
+        EmailFormatRule("email"),
+        StringLengthRule("company_name", min_length=1, max_length=255),
+        StringLengthRule("contact_person", min_length=1, max_length=255),
+    ]
 
     # ---------------------------------------------------------------------
     # Basic CRUD Operations
@@ -117,14 +131,8 @@ class CompanyService(BaseService, CSVExportMixin):
         # Get company using base method
         company = CompanyService._get_entity(company_id)
 
-        # Validate required fields if present in update
-        for field in ["company_name", "contact_person", "email", "phone_number", "industry"]:
-            if field in update_data and not update_data[field]:
-                raise RequiredFieldError(field)
-
-        # Email format validation using utility
-        if "email" in update_data and update_data["email"]:
-            validate_email_format(update_data["email"], "email")
+        # Validation is handled by validation_rules in BaseService.update()
+        # Additional business-specific validation can be added here if needed
 
         # Phone number validation is handled by model validators
 

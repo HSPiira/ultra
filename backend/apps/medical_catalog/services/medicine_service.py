@@ -1,7 +1,9 @@
-from django.core.exceptions import ValidationError
-from django.db import IntegrityError
-
-from apps.core.services import BaseService, CSVExportMixin
+from apps.core.services import (
+    BaseService,
+    CSVExportMixin,
+    RequiredFieldsRule,
+    StringLengthRule,
+)
 from apps.medical_catalog.models import Medicine
 
 
@@ -10,54 +12,39 @@ class MedicineService(BaseService, CSVExportMixin):
     Medicine business logic for write operations.
     Handles all medicine-related write operations including CRUD, validation,
     and business logic. Read operations are handled by selectors.
+    
+    Uses SOLID improvements:
+    - Validation rules for extensible validation (OCP)
+    - Standardized method signatures (ISP)
+    - Allowed fields configuration
     """
     
     # BaseService configuration
     entity_model = Medicine
     entity_name = "Medicine"
     unique_fields = ["name"]
-    @staticmethod
-    def create(*, data: dict, user=None) -> Medicine:
-        # Filter out non-model fields using base method
-        model_fields = {
-            'name', 'dosage_form', 'unit_price', 'route', 'duration'
-        }
-        filtered_data = MedicineService._filter_model_fields(data, model_fields)
-
-        # Create instance and validate
-        try:
-            instance = Medicine(**filtered_data)
-            instance.full_clean()
-            instance.save()
-            return instance
-        except ValidationError as e:
-            MedicineService._handle_validation_error(e)
-        except IntegrityError as e:
-            MedicineService._handle_integrity_error(e)
-
-    @staticmethod
-    def update(*, medicine_id: str, data: dict, user=None) -> Medicine:
-        # Get medicine using base method
-        instance = MedicineService._get_entity(medicine_id)
-
-        # Filter out non-model fields using base method
-        model_fields = {
-            'name', 'dosage_form', 'unit_price', 'route', 'duration'
-        }
-        filtered_data = MedicineService._filter_model_fields(data, model_fields)
+    allowed_fields = {'name', 'dosage_form', 'unit_price', 'route', 'duration'}
+    validation_rules = [
+        RequiredFieldsRule(["name"], "Medicine"),
+        StringLengthRule("name", min_length=1, max_length=255),
+    ]
+    @classmethod
+    def create(cls, *, data: dict, user=None) -> Medicine:
+        """
+        Create a new medicine using standardized base method.
         
-        # Update fields
-        for field, value in filtered_data.items():
-            setattr(instance, field, value)
+        Uses validation rules and allowed_fields from BaseService configuration.
+        """
+        return super().create(data=data, user=user)
 
-        try:
-            instance.full_clean()
-            instance.save(update_fields=None)
-            return instance
-        except ValidationError as e:
-            MedicineService._handle_validation_error(e)
-        except IntegrityError as e:
-            MedicineService._handle_integrity_error(e)
+    @classmethod
+    def update(cls, *, entity_id: str, data: dict, user=None) -> Medicine:
+        """
+        Update an existing medicine using standardized base method.
+        
+        Uses validation rules and allowed_fields from BaseService configuration.
+        """
+        return super().update(entity_id=entity_id, data=data, user=user)
 
     @staticmethod
     def deactivate(*, medicine_id: str, user=None) -> None:

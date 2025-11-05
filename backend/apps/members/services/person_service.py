@@ -12,7 +12,13 @@ from apps.core.exceptions.service_errors import (
     InvalidValueError,
     InactiveEntityError,
 )
-from apps.core.services import BaseService, CSVExportMixin
+from apps.core.services import (
+    BaseService,
+    CSVExportMixin,
+    RequiredFieldsRule,
+    StringLengthRule,
+    EmailFormatRule,
+)
 from apps.core.utils.validation import validate_required_fields, validate_string_length, validate_email_format
 from apps.members.models import Person
 
@@ -22,12 +28,30 @@ class PersonService(BaseService, CSVExportMixin):
     Business logic for Person write operations.
     Handles all person-related write operations including CRUD, validation,
     and business logic. Read operations are handled by selectors.
+    
+    Uses SOLID improvements:
+    - Validation rules for extensible validation (OCP)
+    - Standardized method signatures available (ISP)
+    Note: Complex business logic (card number generation, parent-child relationships)
+    remains in custom methods, but basic validation uses rules.
     """
     
     # BaseService configuration
     entity_model = Person
     entity_name = "Person"
     unique_fields = []  # Composite unique constraints handled manually
+    allowed_fields = {
+        'company', 'scheme', 'name', 'gender', 'date_of_birth', 'relationship',
+        'parent', 'card_number', 'email', 'phone', 'address', 'status'
+    }
+    validation_rules = [
+        RequiredFieldsRule(
+            ["company", "scheme", "name", "gender", "relationship"],
+            "Person"
+        ),
+        StringLengthRule("name", min_length=1, max_length=255),
+        EmailFormatRule("email"),
+    ]
 
     @staticmethod
     def _generate_card_number(*, scheme, relationship: str, parent=None, company=None) -> str:

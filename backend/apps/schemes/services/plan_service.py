@@ -8,7 +8,12 @@ from apps.core.exceptions.service_errors import (
     DuplicateError,
     InvalidValueError,
 )
-from apps.core.services import BaseService, CSVExportMixin
+from apps.core.services import (
+    BaseService,
+    CSVExportMixin,
+    RequiredFieldsRule,
+    StringLengthRule,
+)
 from apps.core.utils.validation import validate_required_fields, validate_string_length
 from apps.schemes.models import Plan
 
@@ -18,17 +23,22 @@ class PlanService(BaseService, CSVExportMixin):
     Plan business logic for write operations.
     Handles all plan-related write operations including CRUD, validation,
     and business logic. Read operations are handled by selectors.
+    
+    Uses SOLID improvements:
+    - Validation rules for extensible validation (OCP)
+    - Standardized method signatures available (ISP)
     """
     
     # BaseService configuration
     entity_model = Plan
     entity_name = "Plan"
     unique_fields = ["plan_name"]
-    """
-    Plan business logic for write operations.
-    Handles all plan-related write operations including CRUD, validation,
-    and business logic. Read operations are handled by selectors.
-    """
+    allowed_fields = {'plan_name', 'description', 'status'}
+    validation_rules = [
+        RequiredFieldsRule(["plan_name"], "Plan"),
+        StringLengthRule("plan_name", min_length=2, max_length=255),
+        StringLengthRule("description", max_length=500, min_length=None),
+    ]
 
     # ---------------------------------------------------------------------
     # Basic CRUD Operations

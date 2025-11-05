@@ -6,7 +6,11 @@ from django.db import transaction
 from apps.claims.models import Claim, ClaimDetail, ClaimPayment
 from apps.core.enums.choices import BusinessStatusChoices
 from apps.core.exceptions.service_errors import NotFoundError, InactiveEntityError, InvalidValueError
-from apps.core.services import BaseService, CSVExportMixin
+from apps.core.services import (
+    BaseService,
+    CSVExportMixin,
+    RequiredFieldsRule,
+)
 
 
 class ClaimService(BaseService, CSVExportMixin):
@@ -14,12 +18,25 @@ class ClaimService(BaseService, CSVExportMixin):
     Claim business logic for write operations.
     Handles all claim-related write operations including CRUD, validation,
     and business logic. Read operations are handled by selectors.
+    
+    Uses SOLID improvements:
+    - Validation rules for extensible validation (OCP)
+    - Standardized method signatures available (ISP)
+    Note: Complex business logic (nested details/payments) remains in custom methods,
+    but basic validation uses rules.
     """
     
     # BaseService configuration
     entity_model = Claim
     entity_name = "Claim"
     unique_fields = []
+    allowed_fields = {
+        'member', 'hospital', 'doctor', 'claim_date', 'claim_type',
+        'total_amount', 'status', 'notes'
+    }
+    validation_rules = [
+        RequiredFieldsRule(["member", "claim_date", "claim_type"], "Claim"),
+    ]
     @staticmethod
     @transaction.atomic
     def create_claim(*, data: dict[str, Any], user=None) -> Claim:

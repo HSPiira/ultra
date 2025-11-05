@@ -2,7 +2,12 @@ from django.core.exceptions import ValidationError
 
 from apps.core.enums.choices import BusinessStatusChoices
 from apps.core.exceptions.service_errors import NotFoundError, InactiveEntityError
-from apps.core.services import BaseService, CSVExportMixin
+from apps.core.services import (
+    BaseService,
+    CSVExportMixin,
+    RequiredFieldsRule,
+    StringLengthRule,
+)
 from apps.providers.models import Hospital
 
 
@@ -11,12 +16,24 @@ class HospitalService(BaseService, CSVExportMixin):
     Hospital business logic for write operations.
     Handles all hospital-related write operations including CRUD, validation,
     and business logic. Read operations are handled by selectors.
+    
+    Uses SOLID improvements:
+    - Validation rules for extensible validation (OCP)
+    - Standardized method signatures available (ISP)
     """
     
     # BaseService configuration
     entity_model = Hospital
     entity_name = "Hospital"
     unique_fields = []
+    allowed_fields = {
+        'name', 'address', 'city', 'state', 'country', 'postal_code',
+        'phone', 'email', 'website', 'branch_of', 'status'
+    }
+    validation_rules = [
+        RequiredFieldsRule(["name"], "Hospital"),
+        StringLengthRule("name", min_length=1, max_length=255),
+    ]
     @staticmethod
     def hospital_create(*, hospital_data: dict, user=None) -> Hospital:
         # Convert to mutable dict if needed (DRF request.data might be QueryDict)
