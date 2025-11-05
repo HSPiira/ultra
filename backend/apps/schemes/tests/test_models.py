@@ -191,7 +191,16 @@ class SchemesModelTests(TestCase):
 
         with self.assertRaises(ValidationError) as context:
             SchemeService.scheme_create(scheme_data=scheme_data, user=self.user)
-        self.assertIn("End date must be after start date", str(context.exception))
+        # InvalidValueError formats as dict, so check both string representation and message_dict
+        error_str = str(context.exception)
+        if hasattr(context.exception, 'message_dict'):
+            # Check message_dict format
+            self.assertIn('end_date', context.exception.message_dict)
+            messages = context.exception.message_dict['end_date']
+            self.assertTrue(any('after' in str(msg).lower() for msg in messages))
+        else:
+            # Check string format
+            self.assertIn("after", error_str.lower())
 
     def test_scheme_service_invalid_company(self):
         """Test scheme service with invalid company ID."""

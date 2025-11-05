@@ -241,14 +241,7 @@ class SchemeItemService(BaseService, CSVExportMixin):
         Returns:
             int: Number of scheme items updated
         """
-        if new_status not in [choice[0] for choice in BusinessStatusChoices.choices]:
-            raise ValidationError("Invalid status")
-
-        updated_count = SchemeItem.objects.filter(
-            id__in=scheme_item_ids, is_deleted=False
-        ).update(status=new_status)
-
-        return updated_count
+        return SchemeItemService.bulk_status_update(entity_ids=scheme_item_ids, new_status=new_status, user=user)
 
     @staticmethod
     @transaction.atomic

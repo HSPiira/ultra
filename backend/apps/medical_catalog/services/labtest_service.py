@@ -1,7 +1,6 @@
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError
 
-from apps.core.exceptions.service_errors import NotFoundError, DuplicateError
 from apps.core.services import BaseService, CSVExportMixin
 from apps.medical_catalog.models import LabTest
 
@@ -19,11 +18,11 @@ class LabTestService(BaseService, CSVExportMixin):
     unique_fields = ["name"]
     @staticmethod
     def create(*, data: dict, user=None) -> LabTest:
-        # Filter out non-model fields
+        # Filter out non-model fields using base method
         model_fields = {
             'name', 'category', 'description', 'base_amount', 'normal_range', 'units'
         }
-        filtered_data = {k: v for k, v in data.items() if k in model_fields}
+        filtered_data = LabTestService._filter_model_fields(data, model_fields)
 
         # Create instance and validate
         try:
@@ -41,13 +40,15 @@ class LabTestService(BaseService, CSVExportMixin):
         # Get labtest using base method
         instance = LabTestService._get_entity(labtest_id)
 
-        # Filter out non-model fields
+        # Filter out non-model fields using base method
         model_fields = {
             'name', 'category', 'description', 'base_amount', 'normal_range', 'units'
         }
-        for field, value in data.items():
-            if field in model_fields:
-                setattr(instance, field, value)
+        filtered_data = LabTestService._filter_model_fields(data, model_fields)
+        
+        # Update fields
+        for field, value in filtered_data.items():
+            setattr(instance, field, value)
 
         try:
             instance.full_clean()
@@ -60,10 +61,13 @@ class LabTestService(BaseService, CSVExportMixin):
 
     @staticmethod
     def deactivate(*, labtest_id: str, user=None) -> None:
-        try:
-            instance = LabTest.objects.get(pk=labtest_id, is_deleted=False)
-        except LabTest.DoesNotExist:
-            raise NotFoundError("LabTest", labtest_id)
-
-        instance.soft_delete(user=user)
-        instance.save(update_fields=["is_deleted", "deleted_at", "deleted_by"])
+        """Deactivate labtest using base method."""
+        instance = LabTestService._get_entity(labtest_id)
+        # Use model's soft_delete if available (handles deleted_at, deleted_by)
+        if hasattr(instance, 'soft_delete'):
+            instance.soft_delete(user=user)
+            instance.save(update_fields=["is_deleted", "deleted_at", "deleted_by"])
+        else:
+            # Fallback to base deactivate (call via class to avoid recursion)
+            from apps.core.services.base_service import BaseService
+            BaseService.deactivate(entity_id=labtest_id, soft_delete=True, user=user)

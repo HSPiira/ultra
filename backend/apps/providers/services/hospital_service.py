@@ -19,40 +19,54 @@ class HospitalService(BaseService, CSVExportMixin):
     unique_fields = []
     @staticmethod
     def hospital_create(*, hospital_data: dict, user=None) -> Hospital:
-        # Handle branch_of field using base method (self-referential FK)
-        branch_of_id = hospital_data.pop('branch_of', None)
-        if branch_of_id:
-            HospitalService._resolve_foreign_key(
-                {'branch_of': branch_of_id}, "branch_of", Hospital, "Hospital", validate_active=True, allow_none=True
-            )
-            hospital_data['branch_of'] = {'branch_of': branch_of_id}.get('branch_of')
+        # Convert to mutable dict if needed (DRF request.data might be QueryDict)
+        data = dict(hospital_data)
         
-        return Hospital.objects.create(**hospital_data)
+        # Handle branch_of field using base method (self-referential FK)
+        branch_of_id = data.pop('branch_of', None)
+        if branch_of_id:
+            temp_data = {'branch_of': branch_of_id}
+            HospitalService._resolve_foreign_key(
+                temp_data, "branch_of", Hospital, "Hospital", validate_active=True
+            )
+            data['branch_of'] = temp_data['branch_of']
+        
+        return Hospital.objects.create(**data)
 
     @staticmethod
     def hospital_update(*, hospital_id: str, update_data: dict, user=None) -> Hospital:
         # Get hospital using base method
         hospital = HospitalService._get_entity(hospital_id)
         
+        # Convert to mutable dict if needed (DRF request.data might be QueryDict)
+        data = dict(update_data)
+        
         # Handle branch_of field using base method (self-referential FK)
-        branch_of_id = update_data.pop('branch_of', None)
+        branch_of_id = data.pop('branch_of', None)
         if branch_of_id is not None:
             if branch_of_id:
                 temp_data = {'branch_of': branch_of_id}
                 HospitalService._resolve_foreign_key(
-                    temp_data, "branch_of", Hospital, "Hospital", validate_active=True, allow_none=True
+                    temp_data, "branch_of", Hospital, "Hospital", validate_active=True
                 )
                 hospital.branch_of = temp_data['branch_of']
             else:
                 hospital.branch_of = None
         
-        for field, value in update_data.items():
+        for field, value in data.items():
             setattr(hospital, field, value)
         hospital.save(update_fields=None)
         return hospital
 
     @staticmethod
     def hospital_deactivate(*, hospital_id: str, user=None) -> None:
-        hospital = Hospital.objects.get(pk=hospital_id)
-        hospital.soft_delete(user=user)
-        hospital.save(update_fields=["is_deleted", "deleted_at", "deleted_by"])
+        """Deactivate hospital using base method."""
+        instance = HospitalService._get_entity(hospital_id)
+        # Use model's soft_delete if available (handles deleted_at, deleted_by)
+        if hasattr(instance, 'soft_delete'):
+            instance.soft_delete(user=user)
+            instance.save(update_fields=["is_deleted", "deleted_at", "deleted_by"])
+        else:
+            # Fallback to base deactivate
+            from apps.core.services.base_service import BaseService
+            BaseService.deactivate(entity_id=hospital_id, soft_delete=True, user=user)

@@ -9,7 +9,12 @@ from apps.core.exceptions.service_errors import (
     InvalidValueError,
 )
 from apps.core.services import BaseService, CSVExportMixin
-from apps.core.utils.validation import validate_required_fields, validate_string_length, validate_choice_value
+from apps.core.utils.validation import (
+    validate_required_fields,
+    validate_string_length,
+    validate_choice_value,
+    validate_positive_amount,
+)
 from apps.schemes.models import Benefit
 
 
@@ -24,11 +29,6 @@ class BenefitService(BaseService, CSVExportMixin):
     entity_model = Benefit
     entity_name = "Benefit"
     unique_fields = ["benefit_name"]
-    """
-    Benefit business logic for write operations.
-    Handles all benefit-related write operations including CRUD, validation,
-    and business logic. Read operations are handled by selectors.
-    """
 
     # ---------------------------------------------------------------------
     # Basic CRUD Operations
@@ -203,14 +203,7 @@ class BenefitService(BaseService, CSVExportMixin):
         Returns:
             Benefit: The suspended benefit instance
         """
-        try:
-            benefit = Benefit.objects.get(id=benefit_id, is_deleted=False)
-        except Benefit.DoesNotExist as exc:
-            raise NotFoundError("Benefit", benefit_id) from exc
-
-        benefit.status = BusinessStatusChoices.SUSPENDED
-        benefit.save(update_fields=["status"])
-        return benefit
+        return BenefitService.suspend(entity_id=benefit_id, reason=reason, user=user)
 
     # ---------------------------------------------------------------------
     # Bulk Operations
@@ -230,15 +223,34 @@ class BenefitService(BaseService, CSVExportMixin):
         Returns:
             int: Number of benefits updated
         """
-        if new_status not in [choice[0] for choice in BusinessStatusChoices.choices]:
-            raise InvalidValueError("status", "Invalid status value")
+        return BenefitService.bulk_status_update(entity_ids=benefit_ids, new_status=new_status, user=user)
 
-        updated_count = Benefit.objects.filter(
-            id__in=benefit_ids, is_deleted=False
-        ).update(status=new_status)
-
-        return updated_count
-
+    # CSV Export configuration
+    csv_headers = [
+        "ID",
+        "Benefit Name",
+        "Description",
+        "Patient Type",
+        "Limit Amount",
+        "Status",
+        "Created At",
+        "Updated At",
+    ]
+    
+    @staticmethod
+    def get_csv_row_data(benefit):
+        """Get CSV row data for a benefit."""
+        return [
+            benefit.id,
+            benefit.benefit_name,
+            benefit.description or "",
+            benefit.in_or_out_patient,
+            benefit.limit_amount or "",
+            benefit.status,
+            benefit.created_at.strftime("%Y-%m-%d %H:%M:%S"),
+            benefit.updated_at.strftime("%Y-%m-%d %H:%M:%S"),
+        ]
+    
     @staticmethod
     def benefits_export_csv(*, filters: dict = None):
         """
@@ -253,40 +265,12 @@ class BenefitService(BaseService, CSVExportMixin):
         from apps.schemes.selectors import benefit_list
 
         if filters:
-            benefits = benefit_list(filters=filters)
+            benefits = list(benefit_list(filters=filters))
         else:
-            benefits = Benefit.objects.filter(is_deleted=False)
+            benefits = list(Benefit.objects.filter(is_deleted=False))
 
-        output = StringIO()
-        writer = csv.writer(output)
-
-        # Write header
-        writer.writerow(
-            [
-                "ID",
-                "Benefit Name",
-                "Description",
-                "Patient Type",
-                "Limit Amount",
-                "Status",
-                "Created At",
-                "Updated At",
-            ]
+        return BenefitService.export_to_csv(
+            queryset=benefits,
+            headers=BenefitService.csv_headers,
+            row_extractor=BenefitService.get_csv_row_data
         )
-
-        # Write data
-        for benefit in benefits:
-            writer.writerow(
-                [
-                    benefit.id,
-                    benefit.benefit_name,
-                    benefit.description or "",
-                    benefit.in_or_out_patient,
-                    benefit.limit_amount or "",
-                    benefit.status,
-                    benefit.created_at.strftime("%Y-%m-%d %H:%M:%S"),
-                    benefit.updated_at.strftime("%Y-%m-%d %H:%M:%S"),
-                ]
-            )
-
-        return output.getvalue()

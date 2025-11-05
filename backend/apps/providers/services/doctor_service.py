@@ -135,6 +135,13 @@ class DoctorService(BaseService, CSVExportMixin):
 
     @staticmethod
     def doctor_deactivate(*, doctor_id: str, user=None) -> None:
-        doctor = Doctor.objects.get(pk=doctor_id)
-        doctor.soft_delete(user=user)
-        doctor.save(update_fields=["is_deleted", "deleted_at", "deleted_by"])
+        """Deactivate doctor using base method."""
+        instance = DoctorService._get_entity(doctor_id)
+        # Use model's soft_delete if available (handles deleted_at, deleted_by)
+        if hasattr(instance, 'soft_delete'):
+            instance.soft_delete(user=user)
+            instance.save(update_fields=["is_deleted", "deleted_at", "deleted_by"])
+        else:
+            # Fallback to base deactivate
+            from apps.core.services.base_service import BaseService
+            BaseService.deactivate(entity_id=doctor_id, soft_delete=True, user=user)

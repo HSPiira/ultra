@@ -134,9 +134,12 @@ def validate_date_range(start_date, end_date, start_field: str = "start_date", e
         return  # Let required field validation handle missing dates
     
     if end_date <= start_date:
+        # Use capitalized field names for better error messages
+        end_field_display = end_field.replace('_', ' ').title()
+        start_field_display = start_field.replace('_', ' ').title()
         raise InvalidValueError(
             end_field,
-            f"{end_field} must be after {start_field}"
+            f"{end_field_display} must be after {start_field_display}"
         )
 
 

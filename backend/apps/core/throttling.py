@@ -73,6 +73,13 @@ def check_throttle_for_view(request, throttle_class):
         tuple: (allowed: bool, wait_time: int or None)
     """
     throttle = throttle_class()
+    
+    # Ensure request has user attribute (DRF middleware adds this)
+    # If not present, add anonymous user
+    if not hasattr(request, 'user'):
+        from django.contrib.auth.models import AnonymousUser
+        request.user = AnonymousUser()
+    
     # Create a minimal view-like object for throttling
     # DRF throttling needs a view with request attribute
     class MinimalView:
@@ -82,9 +89,13 @@ def check_throttle_for_view(request, throttle_class):
     view.request = request
     
     # Get the throttle key for this request
-    throttle_key = throttle.get_cache_key(request, view)
-    if throttle_key is None:
-        # No throttling applied (e.g., for authenticated users on AnonRateThrottle)
+    try:
+        throttle_key = throttle.get_cache_key(request, view)
+        if throttle_key is None:
+            # No throttling applied (e.g., for authenticated users on AnonRateThrottle)
+            return True, None
+    except Exception:
+        # If get_cache_key fails, allow the request (fail open)
         return True, None
     
     allowed = throttle.allow_request(request, view)

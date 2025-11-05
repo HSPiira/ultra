@@ -55,6 +55,23 @@ class BaseService(ABC):
         validate_required_fields(data, fields, cls.entity_name)
     
     @classmethod
+    def _filter_model_fields(cls, data: dict, allowed_fields: set) -> dict:
+        """
+        Filter data dictionary to only include allowed model fields.
+        
+        Useful for services that receive extra fields from API requests
+        that shouldn't be passed to model constructors.
+        
+        Args:
+            data: Dictionary containing data to filter
+            allowed_fields: Set of allowed field names
+            
+        Returns:
+            Filtered dictionary with only allowed fields
+        """
+        return {k: v for k, v in data.items() if k in allowed_fields}
+    
+    @classmethod
     def _resolve_foreign_key(
         cls,
         data: dict,
@@ -91,13 +108,19 @@ class BaseService(ABC):
         else:
             # Resolve by ID
             try:
-                queryset = model_class.all_objects if hasattr(model_class, 'all_objects') else model_class.objects
+                # If validate_active, use objects manager (filters deleted/inactive)
+                # Otherwise use all_objects if available (for soft-deleted entities)
+                if validate_active:
+                    queryset = model_class.objects
+                else:
+                    queryset = model_class.all_objects if hasattr(model_class, 'all_objects') else model_class.objects
                 instance = queryset.get(id=value)
             except model_class.DoesNotExist:
                 raise NotFoundError(entity_name, value)
         
-        # Validate active status if requested
+        # Additional validation if validate_active and we used all_objects
         if validate_active:
+            # Double-check status (in case objects manager doesn't filter by status)
             if hasattr(instance, 'is_deleted') and instance.is_deleted:
                 raise InactiveEntityError(entity_name, f"{entity_name} is deleted")
             if hasattr(instance, 'status') and instance.status != BusinessStatusChoices.ACTIVE:
