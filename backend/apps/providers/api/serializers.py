@@ -2,6 +2,14 @@ from rest_framework import serializers
 from drf_spectacular.utils import extend_schema_field
 
 from apps.core.utils.serializers import BaseSerializer
+from apps.core.utils.sanitizers import (
+    sanitize_text,
+    sanitize_name,
+    sanitize_identifier,
+    sanitize_email,
+    sanitize_url,
+)
+from apps.core.utils.validators import validate_name_field, validate_phone_number_field, validate_email_field
 from apps.providers.models import Doctor, DoctorHospitalAffiliation, Hospital
 
 
@@ -17,6 +25,49 @@ class HospitalSerializer(BaseSerializer):
             "email",
             "website",
         ]
+
+    def validate_name(self, value):
+        """Validate and sanitize hospital name."""
+        return validate_name_field(value, field_name="Hospital name")
+
+    def validate_address(self, value):
+        """Validate and sanitize address."""
+        if not value:
+            return value
+        sanitized = sanitize_text(value, max_length=500)
+        if sanitized and len(sanitized) < 5:
+            raise serializers.ValidationError(
+                "Address must be at least 5 characters long"
+            )
+        return sanitized
+
+    def validate_contact_person(self, value):
+        """Validate and sanitize contact person name."""
+        if not value:
+            return value
+        sanitized = sanitize_name(value)
+        if sanitized and len(sanitized) < 2:
+            raise serializers.ValidationError(
+                "Contact person name must be at least 2 characters long"
+            )
+        return sanitized
+
+    def validate_email(self, value):
+        """Validate and sanitize email format."""
+        return validate_email_field(value)
+
+    def validate_phone_number(self, value):
+        """Validate and sanitize phone number."""
+        return validate_phone_number_field(value)
+
+    def validate_website(self, value):
+        """Validate and sanitize website URL."""
+        if not value:
+            return value
+        sanitized = sanitize_url(value)
+        if sanitized and not sanitized.startswith(("http://", "https://")):
+            sanitized = "https://" + sanitized
+        return sanitized
 
 
 class DoctorHospitalAffiliationSerializer(serializers.ModelSerializer):
@@ -37,6 +88,29 @@ class DoctorHospitalAffiliationSerializer(serializers.ModelSerializer):
             "hospital": {"required": True},
         }
 
+    def validate_role(self, value):
+        """Validate and sanitize role description."""
+        if not value:
+            return value
+        sanitized = sanitize_text(value, max_length=255)
+        if sanitized and len(sanitized) < 2:
+            raise serializers.ValidationError(
+                "Role must be at least 2 characters long"
+            )
+        return sanitized
+
+    def validate(self, data):
+        """Validate date relationships."""
+        start_date = data.get("start_date")
+        end_date = data.get("end_date")
+        
+        if start_date and end_date and end_date < start_date:
+            raise serializers.ValidationError({
+                "end_date": "End date must be on/after start date."
+            })
+        
+        return data
+
 
 class DoctorSerializer(BaseSerializer):
     hospitals = serializers.SerializerMethodField(read_only=True)
@@ -44,9 +118,7 @@ class DoctorSerializer(BaseSerializer):
         queryset=Hospital.objects.all(), write_only=True, required=False
     )
     hospital_detail = serializers.SerializerMethodField(read_only=True)
-    affiliations = DoctorHospitalAffiliationSerializer(
-        many=True, source="doctorhospitalaffiliation_set", read_only=True
-    )
+    affiliations = serializers.SerializerMethodField()
     affiliations_payload = DoctorHospitalAffiliationSerializer(
         many=True, write_only=True, required=False
     )
@@ -92,3 +164,60 @@ class DoctorSerializer(BaseSerializer):
     @extend_schema_field({"type": "array", "items": {"type": "string"}})
     def get_hospitals(self, obj):
         return list(obj.hospitals.values_list("id", flat=True))
+
+    @extend_schema_field({"type": "array", "items": {"type": "object"}})
+    def get_affiliations(self, obj):
+        """Get doctor hospital affiliations."""
+        # Always query directly to ensure we get fresh data
+        # Don't rely on prefetched data as it might be stale after creation
+        # The objects manager filters is_deleted=False automatically
+        affiliations = DoctorHospitalAffiliation.objects.filter(
+            doctor_id=obj.pk
+        ).select_related("hospital")
+        return DoctorHospitalAffiliationSerializer(affiliations, many=True).data
+
+    def validate_name(self, value):
+        """Validate and sanitize doctor name."""
+        return validate_name_field(value, field_name="Doctor name")
+
+    def validate_specialization(self, value):
+        """Validate and sanitize specialization."""
+        if not value:
+            return value
+        sanitized = sanitize_text(value, max_length=255)
+        if sanitized and len(sanitized) < 2:
+            raise serializers.ValidationError(
+                "Specialization must be at least 2 characters long"
+            )
+        return sanitized
+
+    def validate_license_number(self, value):
+        """Validate and sanitize license number."""
+        if not value:
+            return value
+        sanitized = sanitize_identifier(value)
+        if sanitized and len(sanitized) < 3:
+            raise serializers.ValidationError(
+                "License number must be at least 3 characters long"
+            )
+        return sanitized
+
+    def validate_qualification(self, value):
+        """Validate and sanitize qualification."""
+        if not value:
+            return value
+        sanitized = sanitize_text(value, max_length=500)
+        if sanitized and len(sanitized) < 2:
+            raise serializers.ValidationError(
+                "Qualification must be at least 2 characters long"
+            )
+        return sanitized
+
+    def validate_email(self, value):
+        """Validate and sanitize email format."""
+        return validate_email_field(value)
+
+    def validate_phone_number(self, value):
+        """Validate and sanitize phone number."""
+        return validate_phone_number_field(value)
+

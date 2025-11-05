@@ -9,26 +9,93 @@ interface ApiResponse<T = any> {
 
 class ApiClient {
   private baseURL: string;
+  private csrfTokenPromise: Promise<string | null> | null = null;
 
   constructor(baseURL: string) {
     this.baseURL = baseURL;
+  }
+
+  /**
+   * Ensures CSRF token is available by fetching it if needed
+   * This should be called before making authenticated requests
+   */
+  async ensureCsrfToken(): Promise<string | null> {
+    // If we already have a token in cookie, return it
+    const existingToken = this.getCsrfTokenFromCookie();
+    if (existingToken) {
+      return existingToken;
+    }
+
+    // If we're already fetching, wait for that
+    if (this.csrfTokenPromise) {
+      return this.csrfTokenPromise;
+    }
+
+    // Fetch CSRF token from backend
+    this.csrfTokenPromise = (async () => {
+      try {
+        const response = await fetch(`${this.baseURL}/api/v1/auth/csrf/`, {
+          method: 'GET',
+          credentials: 'include',
+        });
+        if (response.ok) {
+          const data = await response.json();
+          // Token should now be in cookie from the response
+          return this.getCsrfTokenFromCookie() || data.csrfToken || null;
+        }
+      } catch (error) {
+        console.error('Failed to fetch CSRF token:', error);
+      } finally {
+        this.csrfTokenPromise = null;
+      }
+      return null;
+    })();
+
+    return this.csrfTokenPromise;
+  }
+
+  private getCsrfTokenFromCookie(): string | null {
+    const cookies = document.cookie.split(';');
+    for (let cookie of cookies) {
+      const [name, value] = cookie.trim().split('=');
+      if (name === 'csrftoken') {
+        return decodeURIComponent(value);
+      }
+    }
+    return null;
   }
 
   private async request<T>(
     endpoint: string,
     options: RequestInit = {}
   ): Promise<ApiResponse<T>> {
-    const url = `${this.baseURL}${endpoint}`;
+    // Prepend /api/v1 to all endpoints for versioning
+    // Ensure endpoint starts with / and add /api/v1 prefix
+    const normalizedEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
+    const versionedEndpoint = normalizedEndpoint.startsWith('/api/v1/') 
+      ? normalizedEndpoint 
+      : `/api/v1${normalizedEndpoint}`;
+    const url = `${this.baseURL}${versionedEndpoint}`;
     
-    // Get auth token if available
-    const token = localStorage.getItem('authToken');
+    // Get CSRF token from cookie (for session-based authentication)
+    // For state-changing operations, ensure we have a token
+    const needsCsrf = ['POST', 'PUT', 'PATCH', 'DELETE'].includes(options.method || 'GET');
+    let csrfToken = this.getCsrfTokenFromCookie();
     
-    const defaultHeaders: HeadersInit = {
+    // If we need CSRF and don't have it, try to fetch it (for first request)
+    if (needsCsrf && !csrfToken) {
+      // Note: This is async, but we'll proceed anyway
+      // The token should be available in subsequent requests after first auth call
+      csrfToken = await this.ensureCsrfToken();
+    }
+    
+    const defaultHeaders: Record<string, string> = {
       'Content-Type': 'application/json',
     };
 
-    if (token) {
-      defaultHeaders.Authorization = `Bearer ${token}`;
+    // Add CSRF token for state-changing operations (required by Django SessionAuthentication)
+    if (csrfToken && ['POST', 'PUT', 'PATCH', 'DELETE'].includes(options.method || 'GET')) {
+      defaultHeaders['X-CSRFToken'] = csrfToken;
     }
 
     const config: RequestInit = {
@@ -43,23 +110,50 @@ class ApiClient {
     try {
       const response = await fetch(url, config);
       
-      // Handle 401 unauthorized
-      if (response.status === 401) {
-        localStorage.removeItem('authToken');
-        // Could redirect to login here
+      // Handle 401/403 unauthorized/forbidden - user needs to authenticate
+      // But don't redirect if this is the login endpoint itself (allow login errors to be shown)
+      if ((response.status === 401 || response.status === 403) && !url.includes('/auth/login/')) {
+        // Clear any stored auth data
+        localStorage.removeItem('user');
+        localStorage.removeItem('isAuthenticated');
+        // Redirect to login if not already there
+        if (window.location.pathname !== '/login') {
+          window.location.href = '/login';
+        }
+        console.warn('Authentication required. Please log in to access this resource.');
       }
 
       let data: T;
       const contentType = response.headers.get('content-type');
       
-      if (contentType && contentType.includes('application/json')) {
-        data = await response.json();
-      } else {
-        data = await response.text() as unknown as T;
+      // Try to parse response body
+      try {
+        if (contentType && contentType.includes('application/json')) {
+          data = await response.json();
+        } else {
+          const textData = await response.text();
+          data = (textData ? textData : '{}') as unknown as T;
+        }
+      } catch (parseError) {
+        // If parsing fails, set empty data
+        data = {} as T;
       }
 
+      // Check response status after parsing
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+        // Include error details from response if available
+        const errorMessage = typeof data === 'object' && data !== null && 'error' in data
+          ? String((data as any).error)
+          : `HTTP error! status: ${response.status}`;
+        const errorDetails = typeof data === 'object' && data !== null && 'details' in data
+          ? (data as any).details
+          : undefined;
+        
+        const error = new Error(errorMessage) as Error & { status?: number; details?: any; response?: any };
+        error.status = response.status;
+        error.details = errorDetails;
+        error.response = data;
+        throw error;
       }
 
       return {
@@ -69,6 +163,12 @@ class ApiClient {
       };
     } catch (error) {
       console.error('API request failed:', error);
+      // Re-throw with more context if it's not already our custom error
+      if (error instanceof Error && !('status' in error)) {
+        const enhancedError = error as Error & { url?: string };
+        enhancedError.url = url;
+        throw enhancedError;
+      }
       throw error;
     }
   }

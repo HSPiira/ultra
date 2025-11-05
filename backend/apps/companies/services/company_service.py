@@ -1,30 +1,62 @@
-import csv
-from io import StringIO
-
 from django.core.exceptions import ValidationError
-from django.db import transaction
-from django.db.models import Q
+from django.db import transaction, IntegrityError
 
 from apps.companies.models import Company
 from apps.core.enums.choices import BusinessStatusChoices
+from apps.core.exceptions.service_errors import (
+    RequiredFieldError,
+    NotFoundError,
+    DuplicateError,
+    InvalidFormatError,
+    InvalidValueError,
+)
+from apps.core.services import (
+    BaseService,
+    CSVExportMixin,
+    RequiredFieldsRule,
+    EmailFormatRule,
+    StringLengthRule,
+)
+from apps.core.utils.validation import validate_required_fields, validate_email_format
 
 
-class CompanyService:
+class CompanyService(BaseService, CSVExportMixin):
     """
     Company business logic for write operations.
     Handles all company-related write operations including CRUD, validation,
     and business logic. Read operations are handled by selectors.
     """
+    
+    # BaseService configuration
+    entity_model = Company
+    entity_name = "Company"
+    unique_fields = ["company_name", "email"]
+    allowed_fields = {
+        'company_name', 'contact_person', 'email', 'phone_number', 'industry',
+        'company_address', 'website', 'status', 'remark'
+    }
+    validation_rules = [
+        RequiredFieldsRule(
+            ["company_name", "contact_person", "email", "phone_number", "industry"],
+            "Company"
+        ),
+        EmailFormatRule("email"),
+        StringLengthRule("company_name", min_length=1, max_length=255),
+        StringLengthRule("contact_person", min_length=1, max_length=255),
+    ]
 
     # ---------------------------------------------------------------------
     # Basic CRUD Operations
     # ---------------------------------------------------------------------
 
-    @staticmethod
+    @classmethod
     @transaction.atomic
-    def company_create(*, company_data: dict, user=None):
+    def company_create(cls, *, company_data: dict, user=None):
         """
-        Create a new company with validation and duplicate checking.
+        Create a new company with validation.
+
+        Uses database constraints to prevent duplicates, eliminating race conditions.
+        The @transaction.atomic decorator ensures rollback on any error.
 
         Args:
             company_data: Dictionary containing company information
@@ -34,64 +66,41 @@ class CompanyService:
             Company: The created company instance
 
         Raises:
-            ValidationError: If data is invalid or duplicates exist
+            RequiredFieldError: If required field is missing
+            NotFoundError: If referenced industry doesn't exist
+            InvalidFormatError: If email or phone format is invalid
+            DuplicateError: If company name or email already exists
         """
-        # Validate data
-        required_fields = [
-            "company_name",
-            "contact_person",
-            "email",
-            "phone_number",
-            "industry",
-        ]
-        for field in required_fields:
-            if not company_data.get(field):
-                raise ValidationError(f"{field} is required")
-
-        # Email format validation
-        if company_data.get("email") and "@" not in company_data["email"]:
-            raise ValidationError("Invalid email format")
-
-        # Phone number basic validation
-        if company_data.get("phone_number"):
-            phone = (
-                company_data["phone_number"]
-                .replace("+", "")
-                .replace("-", "")
-                .replace(" ", "")
-            )
-            if not phone.isdigit() or len(phone) < 10:
-                raise ValidationError("Invalid phone number format")
-
-        # Check for duplicates
-        qs = Company.objects.filter(is_deleted=False)
-        if qs.filter(
-            Q(company_name__iexact=company_data.get("company_name"))
-            | Q(email__iexact=company_data.get("email"))
-        ).exists():
-            raise ValidationError("Company with this name or email already exists")
-
-        # Create a mutable copy of the data
-        data = dict(company_data)
+        # Filter fields if allowed_fields is defined
+        if cls.allowed_fields is not None:
+            company_data = cls._filter_model_fields(company_data, cls.allowed_fields)
         
-        # Handle industry ID - convert to Industry instance if needed
-        if "industry" in data and isinstance(data["industry"], str):
+        # Apply validation rules (configured in BaseService)
+        cls._apply_validation_rules(company_data)
+
+        # Resolve industry FK using base method
+        if "industry" in company_data:
             from apps.companies.models import Industry
-            try:
-                industry = Industry.objects.get(id=data["industry"], is_deleted=False)
-                data["industry"] = industry
-            except Industry.DoesNotExist:
-                raise ValidationError("Invalid industry ID")
+            cls._resolve_foreign_key(
+                company_data, "industry", Industry, "Industry", validate_active=True
+            )
 
-        # Create company
-        company = Company.objects.create(**data)
-        return company
+        # Create company - database unique constraints prevent duplicates atomically
+        try:
+            company = Company.objects.create(**company_data)
+            return company
+        except ValidationError as e:
+            cls._handle_validation_error(e)
+        except IntegrityError as e:
+            cls._handle_integrity_error(e)
 
-    @staticmethod
+    @classmethod
     @transaction.atomic
-    def company_update(*, company_id: str, update_data: dict, user=None):
+    def company_update(cls, *, company_id: str, update_data: dict, user=None):
         """
-        Update company with validation and duplicate checking.
+        Update company with validation.
+
+        Uses database constraints to prevent duplicates, eliminating race conditions.
 
         Args:
             company_id: ID of the company to update
@@ -102,82 +111,55 @@ class CompanyService:
             Company: The updated company instance
 
         Raises:
-            ValidationError: If data is invalid or duplicates exist
+            NotFoundError: If company doesn't exist
+            RequiredFieldError: If required field set to empty
+            InvalidFormatError: If email format is invalid
+            DuplicateError: If company name or email conflicts
         """
-        try:
-            company = Company.objects.get(id=company_id, is_deleted=False)
-        except Company.DoesNotExist as e:
-            raise ValidationError("Company not found") from e
+        # Get company using base method
+        company = cls._get_entity(company_id)
 
-        # Validate data
-        if "company_name" in update_data and not update_data["company_name"]:
-            raise ValidationError("company_name is required")
-        if "contact_person" in update_data and not update_data["contact_person"]:
-            raise ValidationError("contact_person is required")
-        if "email" in update_data and not update_data["email"]:
-            raise ValidationError("email is required")
-        if "phone_number" in update_data and not update_data["phone_number"]:
-            raise ValidationError("phone_number is required")
-        if "industry" in update_data and not update_data["industry"]:
-            raise ValidationError("industry is required")
-
-        # Email format validation
-        if (
-            "email" in update_data
-            and update_data["email"]
-            and "@" not in update_data["email"]
-        ):
-            raise ValidationError("Invalid email format")
-
-        # Phone number basic validation
-        if "phone_number" in update_data and update_data["phone_number"]:
-            phone = (
-                update_data["phone_number"]
-                .replace("+", "")
-                .replace("-", "")
-                .replace(" ", "")
-            )
-            if not phone.isdigit() or len(phone) < 10:
-                raise ValidationError("Invalid phone number format")
-
-        # Create a mutable copy of the data
-        data = dict(update_data)
+        # Filter fields if allowed_fields is defined
+        if cls.allowed_fields is not None:
+            update_data = cls._filter_model_fields(update_data, cls.allowed_fields)
         
-        # Handle industry ID - convert to Industry instance if needed
-        if "industry" in data and isinstance(data["industry"], str):
-            from apps.companies.models import Industry
-            try:
-                industry = Industry.objects.get(id=data["industry"], is_deleted=False)
-                data["industry"] = industry
-            except Industry.DoesNotExist:
-                raise ValidationError("Invalid industry ID")
+        # Merge with existing data for validation (required fields must be present)
+        merged_data = {}
+        for field in cls.allowed_fields:
+            if hasattr(company, field):
+                merged_data[field] = getattr(company, field)
+        merged_data.update(update_data)
+        
+        # Apply validation rules (configured in BaseService)
+        cls._apply_validation_rules(merged_data, entity=company)
 
-        # Check for duplicates (excluding current company)
-        if "company_name" in data or "email" in data:
-            qs = Company.objects.filter(is_deleted=False).exclude(id=company_id)
-            company_name = data.get("company_name", company.company_name)
-            email = data.get("email", company.email)
-            if qs.filter(
-                Q(company_name__iexact=company_name) | Q(email__iexact=email)
-            ).exists():
-                raise ValidationError(
-                    "Another company with this name or email already exists"
-                )
+        # Resolve industry FK using base method
+        if "industry" in update_data:
+            from apps.companies.models import Industry
+            cls._resolve_foreign_key(
+                update_data, "industry", Industry, "Industry", validate_active=True
+            )
 
         # Update fields
-        for field, value in data.items():
+        for field, value in update_data.items():
             setattr(company, field, value)
 
-        company.save()
-        return company
+        # Save - database constraints will prevent duplicates atomically
+        try:
+            company.save()
+            return company
+        except ValidationError as e:
+            cls._handle_validation_error(e)
+        except IntegrityError as e:
+            cls._handle_integrity_error(e)
 
     # ---------------------------------------------------------------------
     # Status Management
     # ---------------------------------------------------------------------
 
-    @staticmethod
+    @classmethod
     @transaction.atomic
-    def company_activate(*, company_id: str, user=None):
+    def company_activate(cls, *, company_id: str, user=None):
         """
         Reactivate a previously deactivated company.
 
@@ -188,21 +170,11 @@ class CompanyService:
         Returns:
             Company: The activated company instance
         """
-        try:
-            company = Company.objects.get(id=company_id, is_deleted=False)
-        except Company.DoesNotExist as e:
-            raise ValidationError("Company not found") from e
+        return cls.activate(entity_id=company_id, user=user)
 
-        company.status = BusinessStatusChoices.ACTIVE
-        company.is_deleted = False
-        company.deleted_at = None
-        company.deleted_by = None
-        company.save(update_fields=["status", "is_deleted", "deleted_at", "deleted_by"])
-        return company
-
-    @staticmethod
+    @classmethod
     @transaction.atomic
-    def company_deactivate(*, company_id: str, user=None):
+    def company_deactivate(cls, *, company_id: str, user=None):
         """
         Deactivate company (change status to INACTIVE without soft-deleting).
 
@@ -213,15 +185,7 @@ class CompanyService:
         Returns:
             Company: The deactivated company instance
         """
-        try:
-            company = Company.objects.get(id=company_id, is_deleted=False)
-        except Company.DoesNotExist as e:
-            raise ValidationError("Company not found") from e
-
-        # Only change status to INACTIVE, don't soft-delete the record
-        company.status = BusinessStatusChoices.INACTIVE
-        company.save(update_fields=["status"])
-        return company
+        return cls.deactivate(entity_id=company_id, user=user, soft_delete=False)
 
     @staticmethod
     @transaction.atomic
@@ -238,8 +202,8 @@ class CompanyService:
         """
         try:
             company = Company.objects.get(id=company_id, is_deleted=False)
-        except Company.DoesNotExist as e:
-            raise ValidationError("Company not found") from e
+        except Company.DoesNotExist as err:
+            raise NotFoundError("Company", company_id) from err
 
         # Use the model's soft_delete method which handles all the soft delete fields
         # Only pass user if it's authenticated (not AnonymousUser)
@@ -249,9 +213,9 @@ class CompanyService:
             company.soft_delete(user=None)
         return company
 
-    @staticmethod
+    @classmethod
     @transaction.atomic
-    def company_suspend(*, company_id: str, reason: str, user=None):
+    def company_suspend(cls, *, company_id: str, reason: str, user=None):
         """
         Suspend a company with reason tracking.
 
@@ -263,20 +227,23 @@ class CompanyService:
         Returns:
             Company: The suspended company instance
         """
-        try:
-            company = Company.objects.get(id=company_id, is_deleted=False)
-        except Company.DoesNotExist as e:
-            raise ValidationError("Company not found") from e
-
-        company.status = BusinessStatusChoices.SUSPENDED
-        suspension_note = f"\nSuspended: {reason}"
-        company.remark = (
-            f"{company.remark}{suspension_note}"
-            if company.remark
-            else f"Suspended: {reason}"
-        )
-        company.save(update_fields=["status", "remark"])
-        return company
+        instance = cls._get_entity(company_id)
+        
+        instance.status = BusinessStatusChoices.SUSPENDED
+        update_fields = ["status"]
+        
+        # Use remark field for suspension note
+        if reason and hasattr(instance, 'remark'):
+            suspension_note = f"\nSuspended: {reason}"
+            instance.remark = (
+                f"{instance.remark}{suspension_note}"
+                if instance.remark
+                else f"Suspended: {reason}"
+            )
+            update_fields.append("remark")
+        
+        instance.save(update_fields=update_fields)
+        return instance
 
     # ---------------------------------------------------------------------
     # Bulk Operations
@@ -296,14 +263,11 @@ class CompanyService:
         Returns:
             int: Number of companies updated
         """
-        if new_status not in [choice[0] for choice in BusinessStatusChoices.choices]:
-            raise ValidationError("Invalid status")
-
-        updated_count = Company.objects.filter(
-            id__in=company_ids, is_deleted=False
-        ).update(status=new_status)
-
-        return updated_count
+        return CompanyService.bulk_status_update(
+            entity_ids=company_ids,
+            new_status=new_status,
+            user=user
+        )
 
     @staticmethod
     def companies_export_csv(*, filters: dict = None):
@@ -323,42 +287,33 @@ class CompanyService:
         else:
             companies = Company.objects.filter(is_deleted=False)
 
-        output = StringIO()
-        writer = csv.writer(output)
+        headers = [
+            "ID",
+            "Company Name",
+            "Contact Person",
+            "Email",
+            "Phone Number",
+            "Website",
+            "Address",
+            "Industry",
+            "Status",
+            "Created At",
+            "Updated At",
+        ]
 
-        # Write header
-        writer.writerow(
-            [
-                "ID",
-                "Company Name",
-                "Contact Person",
-                "Email",
-                "Phone Number",
-                "Website",
-                "Address",
-                "Industry",
-                "Status",
-                "Created At",
-                "Updated At",
+        def row_extractor(company):
+            return [
+                company.id,
+                company.company_name,
+                company.contact_person,
+                company.email,
+                company.phone_number,
+                company.website or "",
+                company.company_address,
+                company.industry.industry_name if company.industry else "",
+                company.status,
+                company.created_at.strftime("%Y-%m-%d %H:%M:%S"),
+                company.updated_at.strftime("%Y-%m-%d %H:%M:%S"),
             ]
-        )
 
-        # Write data
-        for company in companies:
-            writer.writerow(
-                [
-                    company.id,
-                    company.company_name,
-                    company.contact_person,
-                    company.email,
-                    company.phone_number,
-                    company.website or "",
-                    company.company_address,
-                    company.industry.industry_name if company.industry else "",
-                    company.status,
-                    company.created_at.strftime("%Y-%m-%d %H:%M:%S"),
-                    company.updated_at.strftime("%Y-%m-%d %H:%M:%S"),
-                ]
-            )
-
-        return output.getvalue()
+        return CompanyService.export_to_csv(companies, headers, row_extractor)

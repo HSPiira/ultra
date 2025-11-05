@@ -1,20 +1,68 @@
 from typing import Any
+from datetime import datetime
 
 from django.core.exceptions import ValidationError
 from django.db import transaction
 
 from apps.core.enums.choices import BusinessStatusChoices
+from apps.core.exceptions.service_errors import InactiveEntityError
+from apps.core.services import (
+    BaseService,
+    CSVExportMixin,
+    RequiredFieldsRule,
+    StringLengthRule,
+)
 from apps.providers.models import Doctor, DoctorHospitalAffiliation, Hospital
 
 
-class DoctorService:
-    @staticmethod
-    def doctor_create(*, doctor_data: dict[str, Any], user=None) -> Doctor:
+class DoctorService(BaseService, CSVExportMixin):
+    """
+    Doctor business logic for write operations.
+    Handles all doctor-related write operations including CRUD, validation,
+    and business logic. Read operations are handled by selectors.
+    
+    Uses SOLID improvements:
+    - Validation rules for extensible validation (OCP)
+    - Standardized method signatures available (ISP)
+    """
+    
+    # BaseService configuration
+    entity_model = Doctor
+    entity_name = "Doctor"
+    unique_fields = []
+    allowed_fields = {
+        'name', 'specialization', 'license_number', 'phone', 'email',
+        'address', 'status', 'hospital', 'hospitals'
+    }
+    validation_rules = [
+        RequiredFieldsRule(["name"], "Doctor"),
+        StringLengthRule("name", min_length=1, max_length=255),
+    ]
+    @classmethod
+    def doctor_create(cls, *, doctor_data: dict[str, Any], user=None) -> Doctor:
+        """
+        Create a new doctor with validation.
+        
+        Args:
+            doctor_data: Dictionary containing doctor information
+            user: User creating the doctor (for audit trail)
+            
+        Returns:
+            Doctor: The created doctor instance
+        """
+        # Extract special fields before filtering (they're not model fields)
         hospital_id = doctor_data.pop("hospital", None)
         hospitals_ids = doctor_data.pop("hospitals", None)
         affiliations_payload: list[dict[str, Any]] | None = doctor_data.pop(
             "affiliations_payload", None
         )
+        
+        # Filter fields if allowed_fields is defined
+        if cls.allowed_fields is not None:
+            doctor_data = cls._filter_model_fields(doctor_data, cls.allowed_fields)
+        
+        # Apply validation rules (configured in BaseService)
+        cls._apply_validation_rules(doctor_data)
 
         with transaction.atomic():
             doctor = Doctor.objects.create(**doctor_data)
@@ -29,17 +77,43 @@ class DoctorService:
 
             # Process affiliations payload if provided
             if affiliations_payload:
-                DoctorService._replace_affiliations(
+                cls._replace_affiliations(
                     doctor=doctor, affiliations_payload=affiliations_payload
                 )
 
             return doctor
 
-    @staticmethod
+    @classmethod
     def doctor_update(
-        *, doctor_id: str, update_data: dict[str, Any], user=None
+        cls, *, doctor_id: str, update_data: dict[str, Any], user=None
     ) -> Doctor:
-        doctor = Doctor.objects.get(pk=doctor_id)
+        """
+        Update an existing doctor with validation.
+        
+        Args:
+            doctor_id: ID of the doctor to update
+            update_data: Dictionary containing fields to update
+            user: User performing the update (for audit trail)
+            
+        Returns:
+            Doctor: The updated doctor instance
+        """
+        # Get doctor using base method
+        doctor = cls._get_entity(doctor_id)
+        
+        # Filter fields if allowed_fields is defined
+        if cls.allowed_fields is not None:
+            update_data = cls._filter_model_fields(update_data, cls.allowed_fields)
+        
+        # Merge with existing data for validation
+        merged_data = {}
+        for field in cls.allowed_fields:
+            if hasattr(doctor, field):
+                merged_data[field] = getattr(doctor, field)
+        merged_data.update(update_data)
+        
+        # Apply validation rules (configured in BaseService)
+        cls._apply_validation_rules(merged_data, entity=doctor)
 
         hospital_id = update_data.pop("hospital", None)
         hospitals_ids = update_data.pop("hospitals", None)
@@ -63,7 +137,7 @@ class DoctorService:
                 doctor.hospitals.set(Hospital.objects.filter(pk__in=hospitals_ids))
 
             if affiliations_payload is not None:
-                DoctorService._replace_affiliations(
+                cls._replace_affiliations(
                     doctor=doctor, affiliations_payload=affiliations_payload
                 )
 
@@ -74,7 +148,10 @@ class DoctorService:
         *, doctor: Doctor, affiliations_payload: list[dict[str, Any]]
     ) -> None:
         # Replace all existing affiliations for simplicity and deterministic updates
-        DoctorHospitalAffiliation.objects.filter(doctor=doctor).delete()
+        # Use soft delete by iterating and calling delete on each instance
+        existing_affiliations = DoctorHospitalAffiliation.all_objects.filter(doctor=doctor)
+        for affiliation in existing_affiliations:
+            affiliation.delete()  # This calls the model's delete() which performs soft delete
 
         primary_set = False
         for payload in affiliations_payload:
@@ -87,11 +164,11 @@ class DoctorService:
 
             # Validate hospital is active
             if hospital.status != BusinessStatusChoices.ACTIVE or hospital.is_deleted:
-                raise ValidationError(f"Hospital '{hospital.name}' must be active to create an affiliation")
+                raise InactiveEntityError("Hospital", f"Hospital '{hospital.name}' must be active to create an affiliation")
 
             # Validate doctor is active
             if doctor.status != BusinessStatusChoices.ACTIVE or doctor.is_deleted:
-                raise ValidationError(f"Doctor '{doctor.name}' must be active to create an affiliation")
+                raise InactiveEntityError("Doctor", f"Doctor '{doctor.name}' must be active to create an affiliation")
 
             is_primary = bool(payload.get("is_primary", False))
             # Ensure at most one primary - keep first encountered as primary
@@ -100,12 +177,20 @@ class DoctorService:
             if is_primary:
                 primary_set = True
 
+            # Parse dates if they're strings
+            start_date = payload.get("start_date")
+            end_date = payload.get("end_date")
+            if start_date and isinstance(start_date, str):
+                start_date = datetime.strptime(start_date, "%Y-%m-%d").date()
+            if end_date and isinstance(end_date, str):
+                end_date = datetime.strptime(end_date, "%Y-%m-%d").date()
+            
             affiliation = DoctorHospitalAffiliation(
                 doctor=doctor,
                 hospital=hospital,
                 role=payload.get("role", ""),
-                start_date=payload.get("start_date"),
-                end_date=payload.get("end_date"),
+                start_date=start_date,
+                end_date=end_date,
                 is_primary=is_primary,
             )
             affiliation.full_clean()  # Run model validation including clean() method
@@ -120,8 +205,7 @@ class DoctorService:
         if hospitals.exists():
             doctor.hospitals.set(hospitals)
 
-    @staticmethod
-    def doctor_deactivate(*, doctor_id: str, user=None) -> None:
-        doctor = Doctor.objects.get(pk=doctor_id)
-        doctor.soft_delete(user=user)
-        doctor.save(update_fields=["is_deleted", "deleted_at", "deleted_by"])
+    @classmethod
+    def doctor_deactivate(cls, *, doctor_id: str, user=None) -> None:
+        """Deactivate doctor using base method."""
+        return cls.deactivate(entity_id=doctor_id, user=user, soft_delete=True)

@@ -5,62 +5,67 @@ from django.db import transaction
 
 from apps.claims.models import Claim, ClaimDetail, ClaimPayment
 from apps.core.enums.choices import BusinessStatusChoices
+from apps.core.exceptions.service_errors import NotFoundError, InactiveEntityError, InvalidValueError
+from apps.core.services import (
+    BaseService,
+    CSVExportMixin,
+    RequiredFieldsRule,
+)
 
 
-class ClaimService:
+class ClaimService(BaseService, CSVExportMixin):
+    """
+    Claim business logic for write operations.
+    Handles all claim-related write operations including CRUD, validation,
+    and business logic. Read operations are handled by selectors.
+    
+    Uses SOLID improvements:
+    - Validation rules for extensible validation (OCP)
+    - Standardized method signatures available (ISP)
+    Note: Complex business logic (nested details/payments) remains in custom methods,
+    but basic validation uses rules.
+    """
+    
+    # BaseService configuration
+    entity_model = Claim
+    entity_name = "Claim"
+    unique_fields = []
+    allowed_fields = {
+        'member', 'hospital', 'doctor', 'claim_date', 'claim_type',
+        'total_amount', 'status', 'notes'
+    }
+    validation_rules = [
+        RequiredFieldsRule(["member", "claim_date", "claim_type"], "Claim"),
+    ]
     @staticmethod
     @transaction.atomic
     def create_claim(*, data: dict[str, Any], user=None) -> Claim:
         details: list[dict[str, Any]] = data.pop("details", [])
         payments: list[dict[str, Any]] = data.pop("payments", [])
 
-        # Validate member is active
-        member_id = data.get("member")
-        if member_id:
+        # Apply validation rules (configured in BaseService)
+        ClaimService._apply_validation_rules(data)
+
+        # Resolve member FK using base method
+        if data.get("member"):
             from apps.members.models import Person
-            if isinstance(member_id, str):
-                try:
-                    member = Person.objects.get(id=member_id)
-                    data["member"] = member
-                except Person.DoesNotExist:
-                    raise ValidationError("Invalid member ID")
-            else:
-                member = member_id
-            
-            if member.status != BusinessStatusChoices.ACTIVE or member.is_deleted:
-                raise ValidationError("Member must be active to create a claim")
+            ClaimService._resolve_foreign_key(
+                data, "member", Person, "Person", validate_active=True, allow_none=True
+            )
 
-        # Validate hospital is active
-        hospital_id = data.get("hospital")
-        if hospital_id:
+        # Resolve hospital FK using base method
+        if data.get("hospital"):
             from apps.providers.models import Hospital
-            if isinstance(hospital_id, str):
-                try:
-                    hospital = Hospital.objects.get(id=hospital_id)
-                    data["hospital"] = hospital
-                except Hospital.DoesNotExist:
-                    raise ValidationError("Invalid hospital ID")
-            else:
-                hospital = hospital_id
-            
-            if hospital.status != BusinessStatusChoices.ACTIVE or hospital.is_deleted:
-                raise ValidationError("Hospital must be active to create a claim")
+            ClaimService._resolve_foreign_key(
+                data, "hospital", Hospital, "Hospital", validate_active=True, allow_none=True
+            )
 
-        # Validate doctor is active (if provided)
-        doctor_id = data.get("doctor")
-        if doctor_id:
+        # Resolve doctor FK using base method (if provided)
+        if data.get("doctor"):
             from apps.providers.models import Doctor
-            if isinstance(doctor_id, str):
-                try:
-                    doctor = Doctor.objects.get(id=doctor_id)
-                    data["doctor"] = doctor
-                except Doctor.DoesNotExist:
-                    raise ValidationError("Invalid doctor ID")
-            else:
-                doctor = doctor_id
-            
-            if doctor.status != BusinessStatusChoices.ACTIVE or doctor.is_deleted:
-                raise ValidationError("Doctor must be active to create a claim")
+            ClaimService._resolve_foreign_key(
+                data, "doctor", Doctor, "Doctor", validate_active=True
+            )
 
         claim = Claim.objects.create(**data)
 
@@ -68,9 +73,7 @@ class ClaimService:
             claim.doctor
             and not claim.doctor.hospitals.filter(pk=claim.hospital_id).exists()
         ):
-            raise ValidationError(
-                {"doctor": "Doctor must be affiliated with the selected hospital."}
-            )
+            raise InvalidValueError("doctor", "Doctor must be affiliated with the selected hospital.")
 
         for d in details:
             ClaimDetail.objects.create(claim=claim, **d)
@@ -97,9 +100,7 @@ class ClaimService:
             claim.doctor
             and not claim.doctor.hospitals.filter(pk=claim.hospital_id).exists()
         ):
-            raise ValidationError(
-                {"doctor": "Doctor must be affiliated with the selected hospital."}
-            )
+            raise InvalidValueError("doctor", "Doctor must be affiliated with the selected hospital.")
 
         if details is not None:
             claim.details.all().delete()

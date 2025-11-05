@@ -1,13 +1,31 @@
 from rest_framework import serializers
 
 from apps.core.utils.serializers import BaseSerializer
+from apps.core.utils.sanitizers import (
+    sanitize_text,
+    sanitize_name,
+    sanitize_identifier,
+    sanitize_email,
+    sanitize_phone_number,
+)
 from apps.members.models import Person
+from apps.companies.models import Company
+from apps.schemes.models import Scheme
+from apps.companies.api.serializers import CompanySerializer
+from apps.schemes.api.serializers import SchemeSerializer
 
 
 class PersonSerializer(BaseSerializer):
-    company_detail = serializers.SerializerMethodField()
-    scheme_detail = serializers.SerializerMethodField()
-    parent_detail = serializers.SerializerMethodField()
+    company = serializers.PrimaryKeyRelatedField(queryset=Company.objects.all())
+    company_detail = CompanySerializer(source="company", read_only=True)
+
+    scheme = serializers.PrimaryKeyRelatedField(queryset=Scheme.objects.all())
+    scheme_detail = SchemeSerializer(source="scheme", read_only=True)
+
+    parent = serializers.PrimaryKeyRelatedField(
+        queryset=Person.objects.all(), required=False, allow_null=True
+    )
+    parent_detail = serializers.SerializerMethodField(read_only=True)
 
     class Meta(BaseSerializer.Meta):
         model = Person
@@ -29,29 +47,76 @@ class PersonSerializer(BaseSerializer):
             "parent_detail",
         ]
 
-    def get_company_detail(self, obj) -> dict | None:
-        if obj.company:
-            return {
-                "id": str(obj.company.id),
-                "company_name": obj.company.company_name,
-            }
-        return None
-
-    def get_scheme_detail(self, obj) -> dict | None:
-        if obj.scheme:
-            return {
-                "id": str(obj.scheme.id),
-                "scheme_name": obj.scheme.scheme_name,
-            }
-        return None
-
     def get_parent_detail(self, obj) -> dict | None:
+        """Get parent detail (can't use nested PersonSerializer to avoid circular reference)."""
         if obj.parent:
             return {
                 "id": str(obj.parent.id),
                 "name": obj.parent.name,
+                "card_number": obj.parent.card_number,
             }
         return None
+
+    def validate_name(self, value):
+        """Validate and sanitize person name."""
+        sanitized = sanitize_name(value)
+        if len(sanitized) < 2:
+            raise serializers.ValidationError(
+                "Name must be at least 2 characters long"
+            )
+        if len(sanitized) > 255:
+            raise serializers.ValidationError("Name cannot exceed 255 characters")
+        return sanitized
+
+    def validate_national_id(self, value):
+        """Validate and sanitize national ID."""
+        if not value:
+            return value
+        sanitized = sanitize_identifier(value)
+        if len(sanitized) < 5:
+            raise serializers.ValidationError(
+                "National ID must be at least 5 characters long"
+            )
+        return sanitized
+
+    def validate_address(self, value):
+        """Validate and sanitize address."""
+        if not value:
+            return value
+        sanitized = sanitize_text(value, max_length=500)
+        if sanitized and len(sanitized) < 5:
+            raise serializers.ValidationError(
+                "Address must be at least 5 characters long"
+            )
+        return sanitized
+
+    def validate_email(self, value):
+        """Validate and sanitize email format."""
+        if not value:
+            return value
+        sanitized = sanitize_email(value)
+        if sanitized and ("@" not in sanitized or "." not in sanitized.split("@")[-1]):
+            raise serializers.ValidationError("Enter a valid email address")
+        return sanitized
+
+    def validate_phone_number(self, value):
+        """Validate and sanitize phone number."""
+        if not value:
+            return value
+        sanitized = sanitize_phone_number(value)
+        # Remove formatting to check digit count
+        clean_phone = (
+            sanitized.replace("+", "")
+            .replace("-", "")
+            .replace(" ", "")
+            .replace("(", "")
+            .replace(")", "")
+        )
+        if sanitized and (not clean_phone.isdigit() or len(clean_phone) < 10):
+            raise serializers.ValidationError(
+                "Enter a valid phone number (at least 10 digits)"
+            )
+        return sanitized
 
     def validate(self, attrs):
         relationship = attrs.get(
@@ -96,3 +161,64 @@ class BulkPersonRowSerializer(serializers.Serializer):
     email = serializers.EmailField(required=False, allow_blank=True)
     phone_number = serializers.CharField(required=False, allow_blank=True)
     address = serializers.CharField(required=False, allow_blank=True)
+
+    def validate_name(self, value):
+        """Validate and sanitize person name."""
+        sanitized = sanitize_name(value)
+        if len(sanitized) < 2:
+            raise serializers.ValidationError(
+                "Name must be at least 2 characters long"
+            )
+        if len(sanitized) > 255:
+            raise serializers.ValidationError("Name cannot exceed 255 characters")
+        return sanitized
+
+    def validate_national_id(self, value):
+        """Validate and sanitize national ID."""
+        if not value:
+            return value
+        sanitized = sanitize_identifier(value)
+        if len(sanitized) < 5:
+            raise serializers.ValidationError(
+                "National ID must be at least 5 characters long"
+            )
+        return sanitized
+
+    def validate_address(self, value):
+        """Validate and sanitize address."""
+        if not value:
+            return value
+        sanitized = sanitize_text(value, max_length=500)
+        if sanitized and len(sanitized) < 5:
+            raise serializers.ValidationError(
+                "Address must be at least 5 characters long"
+            )
+        return sanitized
+
+    def validate_email(self, value):
+        """Validate and sanitize email format."""
+        if not value:
+            return value
+        sanitized = sanitize_email(value)
+        if sanitized and ("@" not in sanitized or "." not in sanitized.split("@")[-1]):
+            raise serializers.ValidationError("Enter a valid email address")
+        return sanitized
+
+    def validate_phone_number(self, value):
+        """Validate and sanitize phone number."""
+        if not value:
+            return value
+        sanitized = sanitize_phone_number(value)
+        # Remove formatting to check digit count
+        clean_phone = (
+            sanitized.replace("+", "")
+            .replace("-", "")
+            .replace(" ", "")
+            .replace("(", "")
+            .replace(")", "")
+        )
+        if sanitized and (not clean_phone.isdigit() or len(clean_phone) < 10):
+            raise serializers.ValidationError(
+                "Enter a valid phone number (at least 10 digits)"
+            )
+        return sanitized

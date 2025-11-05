@@ -1,38 +1,63 @@
-
+from apps.core.services import (
+    BaseService,
+    CSVExportMixin,
+    RequiredFieldsRule,
+    StringLengthRule,
+)
 from apps.medical_catalog.models import Medicine
 
 
-class MedicineService:
-    @staticmethod
-    def create(*, data: dict, user=None) -> Medicine:
-        # Filter out non-model fields
-        model_fields = {
-            'name', 'dosage_form', 'unit_price', 'route', 'duration'
-        }
-        filtered_data = {k: v for k, v in data.items() if k in model_fields}
+class MedicineService(BaseService, CSVExportMixin):
+    """
+    Medicine business logic for write operations.
+    Handles all medicine-related write operations including CRUD, validation,
+    and business logic. Read operations are handled by selectors.
+    
+    Uses SOLID improvements:
+    - Validation rules for extensible validation (OCP)
+    - Standardized method signatures (ISP)
+    - Allowed fields configuration
+    """
+    
+    # BaseService configuration
+    entity_model = Medicine
+    entity_name = "Medicine"
+    unique_fields = ["name"]
+    allowed_fields = {'name', 'dosage_form', 'unit_price', 'route', 'duration'}
+    validation_rules = [
+        RequiredFieldsRule(["name"], "Medicine"),
+        StringLengthRule("name", min_length=1, max_length=255),
+    ]
+    @classmethod
+    def medicine_create(cls, *, medicine_data: dict, user=None) -> Medicine:
+        """
+        Create a new medicine with validation.
         
-        # Create instance and validate
-        instance = Medicine(**filtered_data)
-        instance.full_clean()
-        instance.save()
-        return instance
+        Args:
+            medicine_data: Dictionary containing medicine information
+            user: User creating the medicine (for audit trail)
+            
+        Returns:
+            Medicine: The created medicine instance
+        """
+        return super().create(data=medicine_data, user=user)
 
-    @staticmethod
-    def update(*, medicine_id: str, data: dict, user=None) -> Medicine:
-        instance = Medicine.objects.get(pk=medicine_id)
-        # Filter out non-model fields
-        model_fields = {
-            'name', 'dosage_form', 'unit_price', 'route', 'duration'
-        }
-        for field, value in data.items():
-            if field in model_fields:
-                setattr(instance, field, value)
-        instance.full_clean()
-        instance.save(update_fields=None)
-        return instance
+    @classmethod
+    def medicine_update(cls, *, medicine_id: str, update_data: dict, user=None) -> Medicine:
+        """
+        Update an existing medicine with validation.
+        
+        Args:
+            medicine_id: ID of the medicine to update
+            update_data: Dictionary containing fields to update
+            user: User performing the update (for audit trail)
+            
+        Returns:
+            Medicine: The updated medicine instance
+        """
+        return super().update(entity_id=medicine_id, data=update_data, user=user)
 
-    @staticmethod
-    def deactivate(*, medicine_id: str, user=None) -> None:
-        instance = Medicine.objects.get(pk=medicine_id)
-        instance.soft_delete(user=user)
-        instance.save(update_fields=["is_deleted", "deleted_at", "deleted_by"])
+    @classmethod
+    def medicine_deactivate(cls, *, medicine_id: str, user=None) -> None:
+        """Deactivate medicine using base method."""
+        return cls.deactivate(entity_id=medicine_id, user=user, soft_delete=True)

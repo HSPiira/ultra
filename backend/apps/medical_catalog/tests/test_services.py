@@ -29,7 +29,7 @@ class ServiceServiceTests(TestCase):
             "service_type": "GENERAL"
         }
         
-        service = ServiceService.create(data=data, user=self.user)
+        service = ServiceService.service_create(service_data=data, user=self.user)
         
         self.assertEqual(service.name, "General Consultation")
         self.assertEqual(service.category, "Consultation")
@@ -51,7 +51,7 @@ class ServiceServiceTests(TestCase):
             "form_data": "should_be_ignored"
         }
         
-        service = ServiceService.create(data=data, user=self.user)
+        service = ServiceService.service_create(service_data=data, user=self.user)
         
         # Verify valid fields were saved
         self.assertEqual(service.name, "General Consultation")
@@ -76,9 +76,9 @@ class ServiceServiceTests(TestCase):
             "service_type": "SPECIALIST"
         }
         
-        updated_service = ServiceService.update(
+        updated_service = ServiceService.service_update(
             service_id=str(service.id),
-            data=update_data,
+            update_data=update_data,
             user=self.user
         )
         
@@ -101,9 +101,9 @@ class ServiceServiceTests(TestCase):
             "extra_field": "should_be_ignored"
         }
         
-        updated_service = ServiceService.update(
+        updated_service = ServiceService.service_update(
             service_id=str(service.id),
-            data=update_data,
+            update_data=update_data,
             user=self.user
         )
         
@@ -125,7 +125,7 @@ class ServiceServiceTests(TestCase):
         
         self.assertEqual(Service.objects.count(), 1)
         
-        ServiceService.deactivate(service_id=str(service.id), user=self.user)
+        ServiceService.service_deactivate(service_id=str(service.id), user=self.user)
         
         # Should be soft deleted
         self.assertEqual(Service.objects.count(), 0)
@@ -154,7 +154,7 @@ class MedicineServiceTests(TestCase):
             "duration": "7 days"
         }
         
-        medicine = MedicineService.create(data=data, user=self.user)
+        medicine = MedicineService.medicine_create(medicine_data=data, user=self.user)
         
         self.assertEqual(medicine.name, "Paracetamol")
         self.assertEqual(medicine.dosage_form, "Tablet")
@@ -175,7 +175,7 @@ class MedicineServiceTests(TestCase):
             "extra_field": "should_be_ignored"
         }
         
-        medicine = MedicineService.create(data=data, user=self.user)
+        medicine = MedicineService.medicine_create(medicine_data=data, user=self.user)
         
         # Verify valid fields were saved
         self.assertEqual(medicine.name, "Paracetamol")
@@ -200,9 +200,9 @@ class MedicineServiceTests(TestCase):
             "route": "Intravenous"
         }
         
-        updated_medicine = MedicineService.update(
+        updated_medicine = MedicineService.medicine_update(
             medicine_id=str(medicine.id),
-            data=update_data,
+            update_data=update_data,
             user=self.user
         )
         
@@ -221,7 +221,7 @@ class MedicineServiceTests(TestCase):
         
         self.assertEqual(Medicine.objects.count(), 1)
         
-        MedicineService.deactivate(medicine_id=str(medicine.id), user=self.user)
+        MedicineService.medicine_deactivate(medicine_id=str(medicine.id), user=self.user)
         
         # Should be soft deleted
         self.assertEqual(Medicine.objects.count(), 0)
@@ -245,7 +245,7 @@ class LabTestServiceTests(TestCase):
             "units": "million/μL"
         }
         
-        labtest = LabTestService.create(data=data, user=self.user)
+        labtest = LabTestService.labtest_create(labtest_data=data, user=self.user)
         
         self.assertEqual(labtest.name, "Complete Blood Count")
         self.assertEqual(labtest.category, "Blood Test")
@@ -268,7 +268,7 @@ class LabTestServiceTests(TestCase):
             "extra_field": "should_be_ignored"
         }
         
-        labtest = LabTestService.create(data=data, user=self.user)
+        labtest = LabTestService.labtest_create(labtest_data=data, user=self.user)
         
         # Verify valid fields were saved
         self.assertEqual(labtest.name, "Complete Blood Count")
@@ -293,9 +293,9 @@ class LabTestServiceTests(TestCase):
             "normal_range": "4.0-6.0"
         }
         
-        updated_labtest = LabTestService.update(
+        updated_labtest = LabTestService.labtest_update(
             labtest_id=str(labtest.id),
-            data=update_data,
+            update_data=update_data,
             user=self.user
         )
         
@@ -314,7 +314,7 @@ class LabTestServiceTests(TestCase):
         
         self.assertEqual(LabTest.objects.count(), 1)
         
-        LabTestService.deactivate(labtest_id=str(labtest.id), user=self.user)
+        LabTestService.labtest_deactivate(labtest_id=str(labtest.id), user=self.user)
         
         # Should be soft deleted
         self.assertEqual(LabTest.objects.count(), 0)
@@ -350,7 +350,7 @@ class HospitalItemPriceServiceTests(TestCase):
             "available": True
         }
         
-        price = HospitalItemPriceService.create(data=data, user=self.user)
+        price = HospitalItemPriceService.hospital_item_price_create(price_data=data, user=self.user)
         
         self.assertEqual(price.hospital, self.hospital)
         self.assertEqual(price.content_type, self.service_content_type)
@@ -371,7 +371,7 @@ class HospitalItemPriceServiceTests(TestCase):
             "extra_field": "should_be_ignored"
         }
         
-        price = HospitalItemPriceService.create(data=data, user=self.user)
+        price = HospitalItemPriceService.hospital_item_price_create(price_data=data, user=self.user)
         
         # Verify valid fields were saved
         self.assertEqual(price.hospital, self.hospital)
@@ -396,9 +396,9 @@ class HospitalItemPriceServiceTests(TestCase):
             "available": False
         }
         
-        updated_price = HospitalItemPriceService.update(
+        updated_price = HospitalItemPriceService.hospital_item_price_update(
             price_id=str(price.id),
-            data=update_data,
+            update_data=update_data,
             user=self.user
         )
         
@@ -428,9 +428,9 @@ class HospitalItemPriceServiceTests(TestCase):
             "amount": 50.00
         }
         
-        updated_price = HospitalItemPriceService.update(
+        updated_price = HospitalItemPriceService.hospital_item_price_update(
             price_id=str(price.id),
-            data=update_data,
+            update_data=update_data,
             user=self.user
         )
         
@@ -461,9 +461,9 @@ class HospitalItemPriceServiceTests(TestCase):
             "amount": 3.00
         }
         
-        updated_price = HospitalItemPriceService.update(
+        updated_price = HospitalItemPriceService.hospital_item_price_update(
             price_id=str(price.id),
-            data=update_data,
+            update_data=update_data,
             user=self.user
         )
         
@@ -483,7 +483,7 @@ class HospitalItemPriceServiceTests(TestCase):
         
         self.assertEqual(HospitalItemPrice.objects.count(), 1)
         
-        HospitalItemPriceService.deactivate(price_id=str(price.id), user=self.user)
+        HospitalItemPriceService.hospital_item_price_deactivate(price_id=str(price.id), user=self.user)
         
         # Should be soft deleted
         self.assertEqual(HospitalItemPrice.objects.count(), 0)
@@ -507,7 +507,7 @@ class HospitalItemPriceServiceTests(TestCase):
             "available": True
         }
         
-        price = HospitalItemPriceService.create(data=data, user=self.user)
+        price = HospitalItemPriceService.hospital_item_price_create(price_data=data, user=self.user)
         
         self.assertEqual(price.hospital, self.hospital)
         self.assertEqual(price.content_type, medicine_content_type)
@@ -533,7 +533,7 @@ class HospitalItemPriceServiceTests(TestCase):
             "available": True
         }
         
-        price = HospitalItemPriceService.create(data=data, user=self.user)
+        price = HospitalItemPriceService.hospital_item_price_create(price_data=data, user=self.user)
         
         self.assertEqual(price.hospital, self.hospital)
         self.assertEqual(price.content_type, labtest_content_type)

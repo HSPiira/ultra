@@ -2,12 +2,15 @@ from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
 from apps.core.utils.serializers import BaseSerializer
+from apps.core.utils.sanitizers import sanitize_text, sanitize_card_code
 from apps.schemes.models import Benefit, Plan, Scheme, SchemeItem
 from apps.companies.models import Company
+from apps.companies.api.serializers import CompanySerializer
 
 
 class SchemeSerializer(BaseSerializer):
-    company_detail = serializers.SerializerMethodField()
+    company = serializers.PrimaryKeyRelatedField(queryset=Company.objects.all())
+    company_detail = CompanySerializer(source="company", read_only=True)
 
     class Meta(BaseSerializer.Meta):
         model = Scheme
@@ -24,42 +27,29 @@ class SchemeSerializer(BaseSerializer):
             "family_applicable",
             "remark",
         ]
-        
-    def get_company_detail(self, obj) -> dict | None:
-        if obj.company:
-            return {
-                "id": obj.company.id,
-                "company_name": obj.company.company_name,
-                "contact_person": obj.company.contact_person,
-                "email": obj.company.email,
-            }
-        return None
 
     def validate_scheme_name(self, value):
-        """Validate scheme name."""
-        if not value or len(value.strip()) < 2:
+        """Validate and sanitize scheme name."""
+        sanitized = sanitize_text(value, max_length=255)
+        if len(sanitized) < 2:
             raise serializers.ValidationError(
                 "Scheme name must be at least 2 characters long"
             )
-        if len(value) > 255:
-            raise serializers.ValidationError(
-                "Scheme name cannot exceed 255 characters"
-            )
-        return value.strip()
+        return sanitized
 
     def validate_card_code(self, value):
-        """Validate card code."""
-        if not value or len(value.strip()) != 3:
+        """Validate and sanitize card code."""
+        sanitized = sanitize_card_code(value)
+        if len(sanitized) != 3:
             raise serializers.ValidationError("Card code must be exactly 3 characters")
-        return value.strip().upper()
+        return sanitized
 
     def validate_description(self, value):
-        """Validate description."""
-        if value and len(value) > 500:
-            raise serializers.ValidationError(
-                "Description cannot exceed 500 characters"
-            )
-        return value
+        """Validate and sanitize description."""
+        if not value:
+            return value
+        sanitized = sanitize_text(value, max_length=500, allow_newlines=True)
+        return sanitized
 
     def validate_limit_amount(self, value):
         """Validate limit amount."""
@@ -68,27 +58,13 @@ class SchemeSerializer(BaseSerializer):
         return value
 
     def validate_company(self, value):
-        """Validate company field."""
-        if not value:
-            raise serializers.ValidationError("Company is required")
-        
-        try:
-            # Try to get the company by ID
-            if isinstance(value, str):
-                company = Company.objects.get(id=value)
-            else:
-                company = value
-            
-            # Validate company is active
-            from apps.core.enums.choices import BusinessStatusChoices
-            if company.status != BusinessStatusChoices.ACTIVE or company.is_deleted:
-                raise serializers.ValidationError("Company must be active to create or update a scheme")
-            
-            return company
-        except Company.DoesNotExist:
-            raise serializers.ValidationError("Invalid company ID")
-        except (ValueError, TypeError):
-            raise serializers.ValidationError("Company must be a valid ID")
+        """Validate company is active."""
+        from apps.core.enums.choices import BusinessStatusChoices
+
+        if value.status != BusinessStatusChoices.ACTIVE or value.is_deleted:
+            raise serializers.ValidationError("Company must be active to create or update a scheme")
+
+        return value
 
     def validate(self, data):
         """Cross-field validation."""
@@ -104,16 +80,6 @@ class SchemeSerializer(BaseSerializer):
 
         return data
 
-    def create(self, validated_data):
-        """Create a new scheme instance."""
-        # The company field is already validated and converted to a Company instance
-        return super().create(validated_data)
-
-    def update(self, instance, validated_data):
-        """Update a scheme instance."""
-        # The company field is already validated and converted to a Company instance
-        return super().update(instance, validated_data)
-
 
 class PlanSerializer(BaseSerializer):
     class Meta(BaseSerializer.Meta):
@@ -121,44 +87,28 @@ class PlanSerializer(BaseSerializer):
         fields = BaseSerializer.Meta.fields + ["plan_name", "description"]
 
     def validate_plan_name(self, value):
-        """Validate plan name."""
-        if not value or len(value.strip()) < 2:
+        """Validate and sanitize plan name."""
+        sanitized = sanitize_text(value, max_length=255)
+        if len(sanitized) < 2:
             raise serializers.ValidationError(
                 "Plan name must be at least 2 characters long"
             )
-        if len(value) > 255:
-            raise serializers.ValidationError("Plan name cannot exceed 255 characters")
-        return value.strip()
+        return sanitized
 
     def validate_description(self, value):
-        """Validate description."""
-        if value and len(value) > 500:
-            raise serializers.ValidationError(
-                "Description cannot exceed 500 characters"
-            )
-        return value
+        """Validate and sanitize description."""
+        if not value:
+            return value
+        sanitized = sanitize_text(value, max_length=500, allow_newlines=True)
+        return sanitized
 
-
-class PlanField(serializers.Field):
-    """Custom field to handle plan ID to Plan instance conversion."""
-    
-    def to_internal_value(self, data):
-        if data is None or data == '':
-            return None
-        try:
-            return Plan.objects.get(id=data)
-        except Plan.DoesNotExist as e:
-            raise serializers.ValidationError(f'Plan with id {data} does not exist.') from e
-    
-    def to_representation(self, value):
-        if value is None:
-            return None
-        return value.id
 
 class BenefitSerializer(BaseSerializer):
-    plan_detail = serializers.SerializerMethodField()
-    plan = PlanField(required=False, allow_null=True)
-    
+    plan = serializers.PrimaryKeyRelatedField(
+        queryset=Plan.objects.all(), required=False, allow_null=True
+    )
+    plan_detail = PlanSerializer(source="plan", read_only=True)
+
     class Meta(BaseSerializer.Meta):
         model = Benefit
         fields = BaseSerializer.Meta.fields + [
@@ -169,34 +119,22 @@ class BenefitSerializer(BaseSerializer):
             "plan",
             "plan_detail",
         ]
-    
-    def get_plan_detail(self, obj) -> dict | None:
-        if obj.plan:
-            return {
-                "id": obj.plan.id,
-                "plan_name": obj.plan.plan_name,
-            }
-        return None
 
     def validate_benefit_name(self, value):
-        """Validate benefit name."""
-        if not value or len(value.strip()) < 2:
+        """Validate and sanitize benefit name."""
+        sanitized = sanitize_text(value, max_length=255)
+        if len(sanitized) < 2:
             raise serializers.ValidationError(
                 "Benefit name must be at least 2 characters long"
             )
-        if len(value) > 255:
-            raise serializers.ValidationError(
-                "Benefit name cannot exceed 255 characters"
-            )
-        return value.strip()
+        return sanitized
 
     def validate_description(self, value):
-        """Validate description."""
-        if value and len(value) > 500:
-            raise serializers.ValidationError(
-                "Description cannot exceed 500 characters"
-            )
-        return value
+        """Validate and sanitize description."""
+        if not value:
+            return value
+        sanitized = sanitize_text(value, max_length=500, allow_newlines=True)
+        return sanitized
 
     def validate_in_or_out_patient(self, value):
         """Validate patient type."""
@@ -215,8 +153,9 @@ class BenefitSerializer(BaseSerializer):
 
 
 class SchemeItemSerializer(BaseSerializer):
-    scheme_detail = serializers.SerializerMethodField()
-    item_detail = serializers.SerializerMethodField()
+    scheme = serializers.PrimaryKeyRelatedField(queryset=Scheme.objects.all())
+    scheme_detail = SchemeSerializer(source="scheme", read_only=True)
+    item_detail = serializers.SerializerMethodField(read_only=True)
 
     class Meta(BaseSerializer.Meta):
         model = SchemeItem
@@ -230,17 +169,8 @@ class SchemeItemSerializer(BaseSerializer):
             "copayment_percent",
         ]
 
-    
-    def get_scheme_detail(self, obj) -> dict | None:
-        if obj.scheme:
-            return {
-                "id": obj.scheme.id,
-                "scheme_name": obj.scheme.scheme_name,
-                "card_code": obj.scheme.card_code,
-            }
-        return None
-
     def get_item_detail(self, obj) -> dict | None:
+        """Get generic item detail (can't use nested serializer for generic FK)."""
         if obj.item:
             return {
                 "id": obj.item.id,

@@ -1,27 +1,52 @@
-import csv
-from io import StringIO
-
 from django.core.exceptions import ValidationError
-from django.db import transaction
+from django.db import transaction, IntegrityError
 
 from apps.core.enums.choices import BusinessStatusChoices
+from apps.core.exceptions.service_errors import (
+    RequiredFieldError,
+    NotFoundError,
+    DuplicateError,
+    InvalidValueError,
+)
+from apps.core.services import (
+    BaseService,
+    CSVExportMixin,
+    RequiredFieldsRule,
+    StringLengthRule,
+)
+from apps.core.utils.validation import validate_required_fields, validate_string_length
 from apps.schemes.models import Plan
 
 
-class PlanService:
+class PlanService(BaseService, CSVExportMixin):
     """
     Plan business logic for write operations.
     Handles all plan-related write operations including CRUD, validation,
     and business logic. Read operations are handled by selectors.
+    
+    Uses SOLID improvements:
+    - Validation rules for extensible validation (OCP)
+    - Standardized method signatures available (ISP)
     """
+    
+    # BaseService configuration
+    entity_model = Plan
+    entity_name = "Plan"
+    unique_fields = ["plan_name"]
+    allowed_fields = {'plan_name', 'description', 'status'}
+    validation_rules = [
+        RequiredFieldsRule(["plan_name"], "Plan"),
+        StringLengthRule("plan_name", min_length=2, max_length=255),
+        StringLengthRule("description", max_length=500, min_length=None),
+    ]
 
     # ---------------------------------------------------------------------
     # Basic CRUD Operations
     # ---------------------------------------------------------------------
 
-    @staticmethod
+    @classmethod
     @transaction.atomic
-    def plan_create(*, plan_data: dict, user=None):
+    def plan_create(cls, *, plan_data: dict, user=None):
         """
         Create a new plan with validation and duplicate checking.
 
@@ -35,35 +60,29 @@ class PlanService:
         Raises:
             ValidationError: If data is invalid or duplicates exist
         """
-        # Validate data
-        required_fields = ["plan_name"]
-        for field in required_fields:
-            if not plan_data.get(field):
-                raise ValidationError(f"{field} is required")
+        # Filter fields if allowed_fields is defined
+        if cls.allowed_fields is not None:
+            plan_data = cls._filter_model_fields(plan_data, cls.allowed_fields)
+        
+        # Apply validation rules (configured in BaseService)
+        cls._apply_validation_rules(plan_data)
+        
+        # Trim plan name
+        if "plan_name" in plan_data:
+            plan_data["plan_name"] = plan_data.get("plan_name", "").strip()
 
-        # Plan name validation
-        plan_name = plan_data.get("plan_name", "").strip()
-        if len(plan_name) < 2:
-            raise ValidationError("Plan name must be at least 2 characters long")
-        if len(plan_name) > 255:
-            raise ValidationError("Plan name cannot exceed 255 characters")
+        # Create plan - database unique constraints prevent duplicates atomically
+        try:
+            plan = Plan.objects.create(**plan_data)
+            return plan
+        except ValidationError as e:
+            cls._handle_validation_error(e)
+        except IntegrityError as e:
+            cls._handle_integrity_error(e)
 
-        # Description validation
-        if plan_data.get("description") and len(plan_data["description"]) > 500:
-            raise ValidationError("Description cannot exceed 500 characters")
-
-        # Check for duplicates
-        qs = Plan.objects.filter(is_deleted=False)
-        if qs.filter(plan_name__iexact=plan_name).exists():
-            raise ValidationError("Plan with this name already exists")
-
-        # Create plan
-        plan = Plan.objects.create(**plan_data)
-        return plan
-
-    @staticmethod
+    @classmethod
     @transaction.atomic
-    def plan_update(*, plan_id: str, update_data: dict, user=None):
+    def plan_update(cls, *, plan_id: str, update_data: dict, user=None):
         """
         Update plan with validation and duplicate checking.
 
@@ -78,46 +97,48 @@ class PlanService:
         Raises:
             ValidationError: If data is invalid or duplicates exist
         """
-        try:
-            plan = Plan.objects.get(id=plan_id, is_deleted=False)
-        except Plan.DoesNotExist as e:
-            raise ValidationError("Plan not found") from e
-
-        # Validate data
+        # Get plan using base method
+        plan = cls._get_entity(plan_id)
+        
+        # Filter fields if allowed_fields is defined
+        if cls.allowed_fields is not None:
+            update_data = cls._filter_model_fields(update_data, cls.allowed_fields)
+        
+        # Merge with existing data for validation (required fields must be present)
+        merged_data = {}
+        for field in cls.allowed_fields:
+            if hasattr(plan, field):
+                merged_data[field] = getattr(plan, field)
+        merged_data.update(update_data)
+        
+        # Apply validation rules (configured in BaseService)
+        cls._apply_validation_rules(merged_data, entity=plan)
+        
+        # Trim plan name if being updated
         if "plan_name" in update_data:
-            plan_name = update_data["plan_name"].strip()
-            if len(plan_name) < 2:
-                raise ValidationError("Plan name must be at least 2 characters long")
-            if len(plan_name) > 255:
-                raise ValidationError("Plan name cannot exceed 255 characters")
-
-        if (
-            "description" in update_data
-            and update_data["description"]
-            and len(update_data["description"]) > 500
-        ):
-            raise ValidationError("Description cannot exceed 500 characters")
-
-        # Check for duplicates (excluding current plan)
-        if "plan_name" in update_data:
-            qs = Plan.objects.filter(is_deleted=False).exclude(id=plan_id)
-            if qs.filter(plan_name__iexact=update_data["plan_name"]).exists():
-                raise ValidationError("Another plan with this name already exists")
+            merged_data["plan_name"] = merged_data.get("plan_name", "").strip()
+            update_data["plan_name"] = merged_data["plan_name"]
 
         # Update fields
         for field, value in update_data.items():
             setattr(plan, field, value)
 
-        plan.save()
-        return plan
+        # Save - database constraints will prevent duplicates atomically
+        try:
+            plan.save()
+            return plan
+        except ValidationError as e:
+            cls._handle_validation_error(e)
+        except IntegrityError as e:
+            cls._handle_integrity_error(e)
 
     # ---------------------------------------------------------------------
     # Status Management
     # ---------------------------------------------------------------------
 
-    @staticmethod
+    @classmethod
     @transaction.atomic
-    def plan_activate(*, plan_id: str, user=None):
+    def plan_activate(cls, *, plan_id: str, user=None):
         """
         Reactivate a previously deactivated plan.
 
@@ -128,21 +149,11 @@ class PlanService:
         Returns:
             Plan: The activated plan instance
         """
-        try:
-            plan = Plan.objects.get(id=plan_id, is_deleted=False)
-        except Plan.DoesNotExist as e:
-            raise ValidationError("Plan not found") from e
+        return cls.activate(entity_id=plan_id, user=user)
 
-        plan.status = BusinessStatusChoices.ACTIVE
-        plan.is_deleted = False
-        plan.deleted_at = None
-        plan.deleted_by = None
-        plan.save(update_fields=["status", "is_deleted", "deleted_at", "deleted_by"])
-        return plan
-
-    @staticmethod
+    @classmethod
     @transaction.atomic
-    def plan_deactivate(*, plan_id: str, user=None):
+    def plan_deactivate(cls, *, plan_id: str, user=None):
         """
         Soft delete / deactivate plan.
 
@@ -153,19 +164,11 @@ class PlanService:
         Returns:
             Plan: The deactivated plan instance
         """
-        try:
-            plan = Plan.objects.get(id=plan_id, is_deleted=False)
-        except Plan.DoesNotExist as e:
-            raise ValidationError("Plan not found") from e
+        return cls.deactivate(entity_id=plan_id, user=user, soft_delete=True)
 
-        plan.status = BusinessStatusChoices.INACTIVE
-        plan.is_deleted = True
-        plan.save(update_fields=["status", "is_deleted"])
-        return plan
-
-    @staticmethod
+    @classmethod
     @transaction.atomic
-    def plan_suspend(*, plan_id: str, reason: str, user=None):
+    def plan_suspend(cls, *, plan_id: str, reason: str, user=None):
         """
         Suspend a plan with reason tracking.
 
@@ -177,14 +180,7 @@ class PlanService:
         Returns:
             Plan: The suspended plan instance
         """
-        try:
-            plan = Plan.objects.get(id=plan_id, is_deleted=False)
-        except Plan.DoesNotExist as e:
-            raise ValidationError("Plan not found") from e
-
-        plan.status = BusinessStatusChoices.SUSPENDED
-        plan.save(update_fields=["status"])
-        return plan
+        return cls.suspend(entity_id=plan_id, reason=reason, user=user)
 
     # ---------------------------------------------------------------------
     # Bulk Operations
@@ -204,14 +200,11 @@ class PlanService:
         Returns:
             int: Number of plans updated
         """
-        if new_status not in [choice[0] for choice in BusinessStatusChoices.choices]:
-            raise ValidationError("Invalid status")
-
-        updated_count = Plan.objects.filter(id__in=plan_ids, is_deleted=False).update(
-            status=new_status
+        return PlanService.bulk_status_update(
+            entity_ids=plan_ids,
+            new_status=new_status,
+            user=user
         )
-
-        return updated_count
 
     @staticmethod
     def plans_export_csv(*, filters: dict = None):
@@ -231,25 +224,16 @@ class PlanService:
         else:
             plans = Plan.objects.filter(is_deleted=False)
 
-        output = StringIO()
-        writer = csv.writer(output)
+        headers = ["ID", "Plan Name", "Description", "Status", "Created At", "Updated At"]
 
-        # Write header
-        writer.writerow(
-            ["ID", "Plan Name", "Description", "Status", "Created At", "Updated At"]
-        )
+        def row_extractor(plan):
+            return [
+                plan.id,
+                plan.plan_name,
+                plan.description or "",
+                plan.status,
+                plan.created_at.strftime("%Y-%m-%d %H:%M:%S"),
+                plan.updated_at.strftime("%Y-%m-%d %H:%M:%S"),
+            ]
 
-        # Write data
-        for plan in plans:
-            writer.writerow(
-                [
-                    plan.id,
-                    plan.plan_name,
-                    plan.description or "",
-                    plan.status,
-                    plan.created_at.strftime("%Y-%m-%d %H:%M:%S"),
-                    plan.updated_at.strftime("%Y-%m-%d %H:%M:%S"),
-                ]
-            )
-
-        return output.getvalue()
+        return PlanService.export_to_csv(plans, headers, row_extractor)

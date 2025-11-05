@@ -1,27 +1,54 @@
-import csv
-from io import StringIO
-
 from django.core.exceptions import ValidationError
-from django.db import transaction
+from django.db import transaction, IntegrityError
 
 from apps.companies.models import Company, Industry
 from apps.core.enums.choices import BusinessStatusChoices
+from apps.core.exceptions.service_errors import (
+    RequiredFieldError,
+    NotFoundError,
+    DuplicateError,
+    InvalidValueError,
+    DependencyError,
+    InactiveEntityError,
+)
+from apps.core.services import (
+    BaseService,
+    CSVExportMixin,
+    RequiredFieldsRule,
+    StringLengthRule,
+)
+from apps.core.utils.validation import validate_required_fields, validate_string_length
 
 
-class IndustryService:
+class IndustryService(BaseService, CSVExportMixin):
     """
     Industry business logic for write operations.
     Handles all industry-related write operations including CRUD, validation,
     and business logic. Read operations are handled by selectors.
+    
+    Uses SOLID improvements:
+    - Validation rules for extensible validation (OCP)
+    - Standardized method signatures available (ISP)
     """
+    
+    # BaseService configuration
+    entity_model = Industry
+    entity_name = "Industry"
+    unique_fields = ["industry_name"]
+    allowed_fields = {'industry_name', 'description', 'status'}
+    validation_rules = [
+        RequiredFieldsRule(["industry_name"], "Industry"),
+        StringLengthRule("industry_name", min_length=2, max_length=100),
+        StringLengthRule("description", max_length=500, min_length=None),
+    ]
 
     # ---------------------------------------------------------------------
     # Basic CRUD Operations
     # ---------------------------------------------------------------------
 
-    @staticmethod
+    @classmethod
     @transaction.atomic
-    def industry_create(*, industry_data: dict, user=None):
+    def industry_create(cls, *, industry_data: dict, user=None):
         """
         Create a new industry with validation and duplicate checking.
 
@@ -35,36 +62,29 @@ class IndustryService:
         Raises:
             ValidationError: If data is invalid or duplicates exist
         """
-        # Validate data
-        required_fields = ["industry_name"]
-        for field in required_fields:
-            if not industry_data.get(field):
-                raise ValidationError(f"{field} is required")
+        # Filter fields if allowed_fields is defined
+        if cls.allowed_fields is not None:
+            industry_data = cls._filter_model_fields(industry_data, cls.allowed_fields)
+        
+        # Apply validation rules (configured in BaseService)
+        cls._apply_validation_rules(industry_data)
+        
+        # Trim industry name
+        if "industry_name" in industry_data:
+            industry_data["industry_name"] = industry_data.get("industry_name", "").strip()
 
-        # Industry name validation
-        industry_name = industry_data.get("industry_name", "").strip()
-        if len(industry_name) < 2:
-            raise ValidationError("Industry name must be at least 2 characters long")
+        # Create industry - database unique constraints prevent duplicates atomically
+        try:
+            industry = Industry.objects.create(**industry_data)
+            return industry
+        except ValidationError as e:
+            cls._handle_validation_error(e)
+        except IntegrityError as e:
+            cls._handle_integrity_error(e)
 
-        if len(industry_name) > 100:
-            raise ValidationError("Industry name cannot exceed 100 characters")
-
-        # Description validation
-        if industry_data.get("description") and len(industry_data["description"]) > 500:
-            raise ValidationError("Description cannot exceed 500 characters")
-
-        # Check for duplicates
-        qs = Industry.objects.filter(is_deleted=False)
-        if qs.filter(industry_name__iexact=industry_name).exists():
-            raise ValidationError("Industry with this name already exists")
-
-        # Create industry
-        industry = Industry.objects.create(**industry_data)
-        return industry
-
-    @staticmethod
+    @classmethod
     @transaction.atomic
-    def industry_update(*, industry_id: str, update_data: dict, user=None):
+    def industry_update(cls, *, industry_id: str, update_data: dict, user=None):
         """
         Update industry with validation and duplicate checking.
 
@@ -79,48 +99,48 @@ class IndustryService:
         Raises:
             ValidationError: If data is invalid or duplicates exist
         """
-        try:
-            industry = Industry.objects.get(id=industry_id, is_deleted=False)
-        except Industry.DoesNotExist as e:
-            raise ValidationError("Industry not found") from e
+        # Get industry using base method
+        industry = cls._get_entity(industry_id)
 
-        # Validate data
+        # Filter fields if allowed_fields is defined
+        if cls.allowed_fields is not None:
+            update_data = cls._filter_model_fields(update_data, cls.allowed_fields)
+        
+        # Merge with existing data for validation (required fields must be present)
+        merged_data = {}
+        for field in cls.allowed_fields:
+            if hasattr(industry, field):
+                merged_data[field] = getattr(industry, field)
+        merged_data.update(update_data)
+        
+        # Apply validation rules (configured in BaseService)
+        cls._apply_validation_rules(merged_data, entity=industry)
+        
+        # Trim industry name if being updated
         if "industry_name" in update_data:
-            industry_name = update_data["industry_name"].strip()
-            if len(industry_name) < 2:
-                raise ValidationError(
-                    "Industry name must be at least 2 characters long"
-                )
-            if len(industry_name) > 100:
-                raise ValidationError("Industry name cannot exceed 100 characters")
-
-        if (
-            "description" in update_data
-            and update_data["description"]
-            and len(update_data["description"]) > 500
-        ):
-            raise ValidationError("Description cannot exceed 500 characters")
-
-        # Check for duplicates (excluding current industry)
-        if "industry_name" in update_data:
-            qs = Industry.objects.filter(is_deleted=False).exclude(id=industry_id)
-            if qs.filter(industry_name__iexact=update_data["industry_name"]).exists():
-                raise ValidationError("Another industry with this name already exists")
+            merged_data["industry_name"] = merged_data.get("industry_name", "").strip()
+            update_data["industry_name"] = merged_data["industry_name"]
 
         # Update fields
         for field, value in update_data.items():
             setattr(industry, field, value)
 
-        industry.save()
-        return industry
+        # Save - database constraints will prevent duplicates atomically
+        try:
+            industry.save()
+            return industry
+        except ValidationError as e:
+            cls._handle_validation_error(e)
+        except IntegrityError as e:
+            cls._handle_integrity_error(e)
 
     # ---------------------------------------------------------------------
     # Status Management
     # ---------------------------------------------------------------------
 
-    @staticmethod
+    @classmethod
     @transaction.atomic
-    def industry_activate(*, industry_id: str, user=None):
+    def industry_activate(cls, *, industry_id: str, user=None):
         """
         Reactivate a previously deactivated industry.
 
@@ -131,23 +151,11 @@ class IndustryService:
         Returns:
             Industry: The activated industry instance
         """
-        try:
-            industry = Industry.objects.get(id=industry_id, is_deleted=False)
-        except Industry.DoesNotExist as e:
-            raise ValidationError("Industry not found") from e
+        return cls.activate(entity_id=industry_id, user=user)
 
-        industry.status = BusinessStatusChoices.ACTIVE
-        industry.is_deleted = False
-        industry.deleted_at = None
-        industry.deleted_by = None
-        industry.save(
-            update_fields=["status", "is_deleted", "deleted_at", "deleted_by"]
-        )
-        return industry
-
-    @staticmethod
+    @classmethod
     @transaction.atomic
-    def industry_deactivate(*, industry_id: str, user=None):
+    def industry_deactivate(cls, *, industry_id: str, user=None):
         """
         Soft delete / deactivate industry.
         Checks if industry has associated companies before deactivation.
@@ -162,29 +170,23 @@ class IndustryService:
         Raises:
             ValidationError: If industry has associated companies
         """
-        try:
-            industry = Industry.objects.get(id=industry_id, is_deleted=False)
-        except Industry.DoesNotExist as e:
-            raise ValidationError("Industry not found") from e
+        industry = cls._get_entity(industry_id)
 
         # Check if industry has associated companies
         company_count = Company.objects.filter(
             industry=industry, is_deleted=False
         ).count()
         if company_count > 0:
-            raise ValidationError(
-                f"Cannot deactivate industry '{industry.industry_name}' because it has {company_count} associated companies. "
-                "Please reassign or deactivate the companies first."
-            )
+            raise DependencyError("Industry", ["companies"])
 
         industry.status = BusinessStatusChoices.INACTIVE
         industry.is_deleted = True
         industry.save(update_fields=["status", "is_deleted"])
         return industry
 
-    @staticmethod
+    @classmethod
     @transaction.atomic
-    def industry_suspend(*, industry_id: str, reason: str, user=None):
+    def industry_suspend(cls, *, industry_id: str, reason: str, user=None):
         """
         Suspend an industry with reason tracking.
 
@@ -196,20 +198,7 @@ class IndustryService:
         Returns:
             Industry: The suspended industry instance
         """
-        try:
-            industry = Industry.objects.get(id=industry_id, is_deleted=False)
-        except Industry.DoesNotExist as e:
-            raise ValidationError("Industry not found") from e
-
-        industry.status = BusinessStatusChoices.SUSPENDED
-        suspension_note = f"\nSuspended: {reason}"
-        industry.description = (
-            f"{industry.description}{suspension_note}"
-            if industry.description
-            else f"Suspended: {reason}"
-        )
-        industry.save(update_fields=["status", "description"])
-        return industry
+        return cls.suspend(entity_id=industry_id, reason=reason, user=user)
 
     # ---------------------------------------------------------------------
     # Bulk Operations
@@ -231,9 +220,6 @@ class IndustryService:
         Returns:
             int: Number of industries updated
         """
-        if new_status not in [choice[0] for choice in BusinessStatusChoices.choices]:
-            raise ValidationError("Invalid status")
-
         # Check if any industries have companies (for deactivation)
         if new_status == BusinessStatusChoices.INACTIVE:
             industries_with_companies = Industry.objects.filter(
@@ -241,18 +227,13 @@ class IndustryService:
             ).distinct()
 
             if industries_with_companies.exists():
-                industry_names = list(
-                    industries_with_companies.values_list("industry_name", flat=True)
-                )
-                raise ValidationError(
-                    f"Cannot deactivate industries with companies: {', '.join(industry_names)}"
-                )
+                raise DependencyError("Industry", ["companies"])
 
-        updated_count = Industry.objects.filter(
-            id__in=industry_ids, is_deleted=False
-        ).update(status=new_status)
-
-        return updated_count
+        return IndustryService.bulk_status_update(
+            entity_ids=industry_ids,
+            new_status=new_status,
+            user=user
+        )
 
     @staticmethod
     @transaction.atomic
@@ -275,10 +256,10 @@ class IndustryService:
                 id=target_industry_id, is_deleted=False
             )
         except Industry.DoesNotExist:
-            raise ValidationError("Target industry not found")
+            raise NotFoundError("Industry", target_industry_id)
 
         if target_industry.status != BusinessStatusChoices.ACTIVE:
-            raise ValidationError("Cannot transfer companies to inactive industry")
+            raise InactiveEntityError("Industry", "Cannot transfer companies to inactive industry")
 
         updated_count = Company.objects.filter(
             id__in=company_ids, is_deleted=False
@@ -306,14 +287,18 @@ class IndustryService:
             source_industry = Industry.objects.get(
                 id=source_industry_id, is_deleted=False
             )
+        except Industry.DoesNotExist:
+            raise NotFoundError("Industry", source_industry_id)
+
+        try:
             target_industry = Industry.objects.get(
                 id=target_industry_id, is_deleted=False
             )
-        except Industry.DoesNotExist as e:
-            raise ValidationError("One or both industries not found") from e
+        except Industry.DoesNotExist:
+            raise NotFoundError("Industry", target_industry_id)
 
         if source_industry.id == target_industry.id:
-            raise ValidationError("Cannot merge industry with itself")
+            raise InvalidValueError("target_industry_id", "Cannot merge industry with itself")
 
         # Get companies to transfer
         companies_to_transfer = Company.objects.filter(
@@ -355,37 +340,28 @@ class IndustryService:
         else:
             industries = Industry.objects.filter(is_deleted=False)
 
-        output = StringIO()
-        writer = csv.writer(output)
+        headers = [
+            "ID",
+            "Industry Name",
+            "Description",
+            "Status",
+            "Company Count",
+            "Created At",
+            "Updated At",
+        ]
 
-        # Write header
-        writer.writerow(
-            [
-                "ID",
-                "Industry Name",
-                "Description",
-                "Status",
-                "Company Count",
-                "Created At",
-                "Updated At",
-            ]
-        )
-
-        # Write data
-        for industry in industries:
+        def row_extractor(industry):
             company_count = Company.objects.filter(
                 industry_id=industry.id, is_deleted=False
             ).count()
-            writer.writerow(
-                [
-                    industry.id,
-                    industry.industry_name,
-                    industry.description or "",
-                    industry.status,
-                    company_count,
-                    industry.created_at.strftime("%Y-%m-%d %H:%M:%S"),
-                    industry.updated_at.strftime("%Y-%m-%d %H:%M:%S"),
-                ]
-            )
+            return [
+                industry.id,
+                industry.industry_name,
+                industry.description or "",
+                industry.status,
+                company_count,
+                industry.created_at.strftime("%Y-%m-%d %H:%M:%S"),
+                industry.updated_at.strftime("%Y-%m-%d %H:%M:%S"),
+            ]
 
-        return output.getvalue()
+        return IndustryService.export_to_csv(industries, headers, row_extractor)

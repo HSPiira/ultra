@@ -12,6 +12,8 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 
 from pathlib import Path
 import sys
+import os
+from django.core.exceptions import ImproperlyConfigured
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -23,13 +25,46 @@ IS_TESTING = 'test' in sys.argv or 'pytest' in sys.modules
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
-# SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = "django-insecure-bo-cm(8%s0lu^$5snvv)!guhe00lyh&!qx7xil5%c8bs3_c7gd"
-
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+# Parse DEBUG from environment with support for common truthy tokens
+# Default to True for development convenience
+_debug_value = os.environ.get('DEBUG', 'True').strip().lower()
+DEBUG = _debug_value in ('1', 'true', 'yes', 'y', 't')
 
-ALLOWED_HOSTS = ['localhost', '127.0.0.1', '0.0.0.0', 'testserver']
+# Check for production environment flag
+IS_PRODUCTION = os.environ.get('ENVIRONMENT', '').lower() in ('production', 'prod')
+
+# SECURITY WARNING: keep the secret key used in production secret!
+# Read SECRET_KEY from environment - no default for security
+secret_key = os.environ.get('SECRET_KEY', '').strip()
+
+# In production, SECRET_KEY must be set and non-empty
+if IS_PRODUCTION and not secret_key:
+    raise ImproperlyConfigured(
+        "SECRET_KEY must be set as an environment variable when running in production. "
+        "Set ENVIRONMENT=production requires a valid SECRET_KEY."
+    )
+
+# Use development default only when DEBUG is true
+if not secret_key:
+    if DEBUG:
+        secret_key = 'django-insecure-bo-cm(8%s0lu^$5snvv)!guhe00lyh&!qx7xil5%c8bs3_c7gd'  # Development default only
+    else:
+        raise ImproperlyConfigured(
+            "SECRET_KEY must be set whenever DEBUG=False. "
+            "Generate one with: python -c \"from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())\""
+        )
+
+SECRET_KEY = secret_key
+
+# Parse ALLOWED_HOSTS from environment variable (comma-separated)
+ALLOWED_HOSTS = [
+    host.strip() for host in os.environ.get(
+        'ALLOWED_HOSTS',
+        'localhost,127.0.0.1,0.0.0.0,testserver'
+    ).split(',')
+    if host.strip()
+]
 
 
 # Application definition
@@ -55,6 +90,7 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
+    "apps.core.middleware.RequestIDMiddleware",  # Request ID tracking - must be early
     "corsheaders.middleware.CorsMiddleware",
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
@@ -162,14 +198,43 @@ MEDIA_ROOT = BASE_DIR / "media"
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 # CORS Configuration
-CORS_ALLOW_ALL_ORIGINS = True  # Only for development
+# In development, CORS_ALLOW_ALL_ORIGINS can be True for convenience
+# In production, ALWAYS set to False and specify CORS_ALLOWED_ORIGINS
+_cors_allow_all_origins_value = os.environ.get('CORS_ALLOW_ALL_ORIGINS', 'False').strip().lower()
+CORS_ALLOW_ALL_ORIGINS = _cors_allow_all_origins_value in ('1', 'true', 'yes', 'y', 't')
 CORS_ALLOW_CREDENTIALS = True
 
-# Specific origins for production (uncomment and modify as needed)
-# CORS_ALLOWED_ORIGINS = [
-#     "http://localhost:5173",  # Vite dev server
-#     "http://127.0.0.1:5173",
-# ]
+# Specific origins for production (set via CORS_ALLOWED_ORIGINS environment variable)
+# If CORS_ALLOW_ALL_ORIGINS is False, this list will be used
+if not CORS_ALLOW_ALL_ORIGINS:
+    CORS_ALLOWED_ORIGINS = [
+        origin.strip() for origin in os.environ.get(
+            'CORS_ALLOWED_ORIGINS',
+            'http://localhost:5173,http://127.0.0.1:5173'
+        ).split(',')
+        if origin.strip()
+    ]
+
+# CSRF Trusted Origins - Required for CSRF protection to accept requests from these origins
+# This is separate from CORS and is needed for Django's CSRF middleware
+CSRF_TRUSTED_ORIGINS = [
+    origin.strip() for origin in os.environ.get(
+        'CSRF_TRUSTED_ORIGINS',
+        'http://localhost:5173,http://127.0.0.1:5173,http://localhost:8000,http://127.0.0.1:8000'
+    ).split(',')
+    if origin.strip()
+]
+
+# Session and CSRF Cookie Settings
+# In development (DEBUG=True), cookies don't need to be secure (HTTP is OK)
+# In production (DEBUG=False), cookies must be secure (HTTPS only)
+SESSION_COOKIE_SECURE = not DEBUG  # Secure cookies only in production
+SESSION_COOKIE_HTTPONLY = True  # Prevent JavaScript access to session cookies
+SESSION_COOKIE_SAMESITE = 'Lax'  # CSRF protection while allowing cross-site navigation
+
+CSRF_COOKIE_SECURE = not DEBUG  # Secure cookies only in production
+CSRF_COOKIE_HTTPONLY = False  # Allow JavaScript to read CSRF token (needed for X-CSRFToken header)
+CSRF_COOKIE_SAMESITE = 'Lax'  # CSRF protection while allowing cross-site navigation
 
 # CORS headers to allow
 CORS_ALLOW_HEADERS = [
@@ -200,9 +265,14 @@ TEST_RUNNER = 'django.test.runner.DiscoverRunner'
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
+    'filters': {
+        'request_id': {
+            '()': 'apps.core.utils.logging_filters.RequestIDFilter',
+        },
+    },
     'formatters': {
         'verbose': {
-            'format': '{levelname} {name} {message}',
+            'format': '{levelname} [{request_id}] {name} {message}',
             'style': '{',
         },
     },
@@ -210,6 +280,7 @@ LOGGING = {
         'console': {
             'class': 'logging.StreamHandler',
             'formatter': 'verbose',
+            'filters': ['request_id'],
         },
     },
     'root': {
@@ -239,6 +310,15 @@ if IS_TESTING:
         'propagate': False,
     }
 
+# Determine default permission class from environment
+# For development: set DEFAULT_PERMISSION_CLASS=AllowAny
+# For production: set DEFAULT_PERMISSION_CLASS=IsAuthenticated (default)
+_permission_class = os.environ.get('DEFAULT_PERMISSION_CLASS', 'IsAuthenticated')
+_permission_mapping = {
+    'AllowAny': 'rest_framework.permissions.AllowAny',
+    'IsAuthenticated': 'rest_framework.permissions.IsAuthenticated',
+}
+
 REST_FRAMEWORK = {
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
     "PAGE_SIZE": 20,
@@ -253,17 +333,56 @@ REST_FRAMEWORK = {
         "rest_framework.authentication.BasicAuthentication",
     ],
     "DEFAULT_PERMISSION_CLASSES": [
-        "rest_framework.permissions.AllowAny",  # Temporarily allow all for testing
+        _permission_mapping.get(_permission_class, 'rest_framework.permissions.IsAuthenticated'),
     ],
-    # Rate limiting / throttling (disabled for development)
-    # "DEFAULT_THROTTLE_CLASSES": [
-    #     "rest_framework.throttling.AnonRateThrottle",
-    #     "rest_framework.throttling.UserRateThrottle",
-    # ],
-    # "DEFAULT_THROTTLE_RATES": {
-    #     "anon": "100/day",
-    #     "user": "1000/day",
-    # },
+    # Rate limiting / throttling
+    "DEFAULT_THROTTLE_CLASSES": [
+        "rest_framework.throttling.AnonRateThrottle",
+        "rest_framework.throttling.UserRateThrottle",
+    ],
+    "DEFAULT_THROTTLE_RATES": {
+        "anon": "100/day",
+        "user": "1000/day",
+        "burst": "10/minute",
+        "strict": "20/hour",
+        "anon_burst": "10/minute",
+        "export": "5/hour",
+    },
     # OpenAPI schema generation
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
+}
+
+# OpenAPI/Swagger schema customization
+SPECTACULAR_SETTINGS = {
+    "TITLE": "Ultra Health Insurance API",
+    "DESCRIPTION": (
+        "Comprehensive health insurance management system providing "
+        "APIs for companies, insurance schemes, members, healthcare providers, "
+        "medical catalogs, and claims processing."
+    ),
+    "VERSION": "1.0.0",
+    "SERVE_INCLUDE_SCHEMA": False,
+    "CONTACT": {
+        "name": "API Support",
+        "email": "api-support@ultra-insurance.example",
+    },
+    "LICENSE": {
+        "name": "Proprietary",
+    },
+    "TAGS": [
+        {"name": "Authentication", "description": "Login, logout, CSRF token operations"},
+        {"name": "Companies", "description": "Company and industry management"},
+        {"name": "Schemes", "description": "Insurance schemes, plans, and benefits"},
+        {"name": "Members", "description": "Member enrollment and management"},
+        {"name": "Providers", "description": "Healthcare providers (hospitals, doctors)"},
+        {"name": "Medical Catalog", "description": "Medical services, medicines, and lab tests"},
+        {"name": "Claims", "description": "Insurance claim submission and processing"},
+        {"name": "Health", "description": "System health check endpoints"},
+    ],
+    "SWAGGER_UI_SETTINGS": {
+        "deepLinking": True,
+        "persistAuthorization": True,
+        "displayOperationId": False,
+    },
+    "COMPONENT_SPLIT_REQUEST": True,
 }

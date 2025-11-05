@@ -1,31 +1,66 @@
-import csv
-from io import StringIO
-
 from django.core.exceptions import ValidationError
-from django.db import transaction
-from django.db.models import Q
+from django.db import transaction, IntegrityError
 
 from apps.core.enums.choices import BusinessStatusChoices
+from apps.core.exceptions.service_errors import (
+    RequiredFieldError,
+    NotFoundError,
+    DuplicateError,
+    InvalidValueError,
+    InactiveEntityError,
+)
+from apps.core.services import (
+    BaseService,
+    CSVExportMixin,
+    RequiredFieldsRule,
+    StringLengthRule,
+    DateRangeRule,
+)
+from apps.core.utils.validation import validate_required_fields, validate_string_length, validate_date_range
 from apps.schemes.models import Scheme
 from apps.companies.models import Company
 
 
-class SchemeService:
+class SchemeService(BaseService, CSVExportMixin):
     """
     Scheme business logic for write operations.
     Handles all scheme-related write operations including CRUD, validation,
     and business logic. Read operations are handled by selectors.
+    
+    Uses SOLID improvements:
+    - Validation rules for extensible validation (OCP)
+    - Standardized method signatures available (ISP)
     """
+    
+    # BaseService configuration
+    entity_model = Scheme
+    entity_name = "Scheme"
+    unique_fields = ["scheme_name", "card_code"]
+    allowed_fields = {
+        'scheme_name', 'company', 'card_code', 'start_date', 'end_date',
+        'limit_amount', 'status', 'description', 'family_applicable', 'remark'
+    }
+    validation_rules = [
+        RequiredFieldsRule(
+            ["scheme_name", "company", "card_code", "start_date", "end_date"],
+            "Scheme"
+        ),
+        StringLengthRule("card_code", min_length=3, max_length=3),
+        DateRangeRule("start_date", "end_date"),
+    ]
 
     # ---------------------------------------------------------------------
     # Basic CRUD Operations
     # ---------------------------------------------------------------------
 
-    @staticmethod
+    @classmethod
     @transaction.atomic
-    def scheme_create(*, scheme_data: dict, user=None):
+    def scheme_create(cls, *, scheme_data: dict, user=None):
         """
-        Create a new scheme with validation and duplicate checking.
+        Create a new scheme with validation.
+
+        Uses database constraints to prevent duplicates, eliminating race conditions.
+        The @transaction.atomic decorator ensures rollback on any error.
 
         Args:
             scheme_data: Dictionary containing scheme information
@@ -35,65 +70,45 @@ class SchemeService:
             Scheme: The created scheme instance
 
         Raises:
-            ValidationError: If data is invalid or duplicates exist
+            RequiredFieldError: If required field is missing
+            NotFoundError: If referenced company doesn't exist
+            InvalidValueError: If field value is invalid
+            InactiveEntityError: If company is not active
+            DuplicateError: If scheme name or card code already exists
         """
-        # Validate data
-        required_fields = [
-            "scheme_name",
-            "company",
-            "card_code",
-            "start_date",
-            "end_date",
-        ]
-        for field in required_fields:
-            if not scheme_data.get(field):
-                raise ValidationError(f"{field} is required")
+        # Filter fields if allowed_fields is defined
+        if cls.allowed_fields is not None:
+            scheme_data = cls._filter_model_fields(scheme_data, cls.allowed_fields)
+        
+        # Apply validation rules (configured in BaseService)
+        cls._apply_validation_rules(scheme_data)
 
-        # Handle company field - convert ID to Company instance if needed
-        company = scheme_data.get("company")
-        if isinstance(company, str):
-            try:
-                company = Company.objects.get(id=company)
-                scheme_data["company"] = company
-            except Company.DoesNotExist:
-                raise ValidationError("Invalid company ID")
-        elif not isinstance(company, Company):
-            raise ValidationError("Company must be a valid Company instance or ID")
+        # Resolve company FK using base method
+        cls._resolve_foreign_key(
+            scheme_data, "company", Company, "Company", validate_active=True
+        )
 
-        # Validate company is active
-        if company.status != BusinessStatusChoices.ACTIVE or company.is_deleted:
-            raise ValidationError("Company must be active to create a scheme")
-
-        # Date validation
-        if (
-            scheme_data.get("start_date")
-            and scheme_data.get("end_date")
-            and scheme_data["start_date"] >= scheme_data["end_date"]
-        ):
-            raise ValidationError("End date must be after start date")
-
-        # Card code validation
+        # Card code validation (length check - format handled by model)
         card_code = scheme_data.get("card_code", "").strip()
-        if len(card_code) != 3:
-            raise ValidationError("Card code must be exactly 3 characters")
+        if card_code:
+            scheme_data["card_code"] = card_code  # Persist trimmed value
 
-        # Check for duplicates
-        qs = Scheme.objects.filter(is_deleted=False)
-        if qs.filter(
-            Q(scheme_name__iexact=scheme_data.get("scheme_name"))
-            | Q(card_code__iexact=card_code)
-        ).exists():
-            raise ValidationError("Scheme with this name or card code already exists")
+        # Create scheme - database unique constraints prevent duplicates atomically
+        try:
+            scheme = Scheme.objects.create(**scheme_data)
+            return scheme
+        except ValidationError as e:
+            cls._handle_validation_error(e)
+        except IntegrityError as e:
+            cls._handle_integrity_error(e)
 
-        # Create scheme
-        scheme = Scheme.objects.create(**scheme_data)
-        return scheme
-
-    @staticmethod
+    @classmethod
     @transaction.atomic
-    def scheme_update(*, scheme_id: str, update_data: dict, user=None):
+    def scheme_update(cls, *, scheme_id: str, update_data: dict, user=None):
         """
-        Update scheme with validation and duplicate checking.
+        Update scheme with validation.
+
+        Uses database constraints to prevent duplicates, eliminating race conditions.
 
         Args:
             scheme_id: ID of the scheme to update
@@ -104,75 +119,61 @@ class SchemeService:
             Scheme: The updated scheme instance
 
         Raises:
-            ValidationError: If data is invalid or duplicates exist
+            NotFoundError: If scheme doesn't exist
+            RequiredFieldError: If required field set to empty
+            InvalidValueError: If field value is invalid
+            InactiveEntityError: If company is not active
+            DuplicateError: If scheme name or card code conflicts
         """
-        try:
-            scheme = Scheme.objects.get(id=scheme_id, is_deleted=False)
-        except Scheme.DoesNotExist as e:
-            raise ValidationError("Scheme not found") from e
+        # Get scheme using base method
+        scheme = cls._get_entity(scheme_id)
 
-        # Validate data
-        if "scheme_name" in update_data and not update_data["scheme_name"]:
-            raise ValidationError("scheme_name is required")
-        if "company" in update_data and not update_data["company"]:
-            raise ValidationError("company is required")
-        if "card_code" in update_data and not update_data["card_code"]:
-            raise ValidationError("card_code is required")
+        # Filter fields if allowed_fields is defined
+        if cls.allowed_fields is not None:
+            update_data = cls._filter_model_fields(update_data, cls.allowed_fields)
+        
+        # Merge with existing data for validation (required fields must be present)
+        merged_data = {}
+        for field in cls.allowed_fields:
+            if hasattr(scheme, field):
+                merged_data[field] = getattr(scheme, field)
+        merged_data.update(update_data)
+        
+        # Apply validation rules (configured in BaseService)
+        cls._apply_validation_rules(merged_data, entity=scheme)
 
-        # Handle company field - convert ID to Company instance if needed
+        # Resolve company FK using base method
         if "company" in update_data:
-            company = update_data["company"]
-            if isinstance(company, str):
-                try:
-                    company = Company.objects.get(id=company)
-                    update_data["company"] = company
-                except Company.DoesNotExist:
-                    raise ValidationError("Invalid company ID")
-            elif not isinstance(company, Company):
-                raise ValidationError("Company must be a valid Company instance or ID")
-
-            # Validate company is active
-            if company.status != BusinessStatusChoices.ACTIVE or company.is_deleted:
-                raise ValidationError("Company must be active to update a scheme")
-
-        # Date validation
-        start_date = update_data.get("start_date", scheme.start_date)
-        end_date = update_data.get("end_date", scheme.end_date)
-        if start_date and end_date and start_date >= end_date:
-            raise ValidationError("End date must be after start date")
+            cls._resolve_foreign_key(
+                update_data, "company", Company, "Company", validate_active=True
+            )
 
         # Card code validation
         if "card_code" in update_data:
             card_code = update_data["card_code"].strip()
-            if len(card_code) != 3:
-                raise ValidationError("Card code must be exactly 3 characters")
-
-        # Check for duplicates (excluding current scheme)
-        if "scheme_name" in update_data or "card_code" in update_data:
-            qs = Scheme.objects.filter(is_deleted=False).exclude(id=scheme_id)
-            scheme_name = update_data.get("scheme_name", scheme.scheme_name)
-            card_code = update_data.get("card_code", scheme.card_code)
-            if qs.filter(
-                Q(scheme_name__iexact=scheme_name) | Q(card_code__iexact=card_code)
-            ).exists():
-                raise ValidationError(
-                    "Another scheme with this name or card code already exists"
-                )
+            validate_string_length(card_code, "card_code", min_length=3, max_length=3)
+            update_data["card_code"] = card_code  # Persist trimmed value
 
         # Update fields
         for field, value in update_data.items():
             setattr(scheme, field, value)
 
-        scheme.save()
-        return scheme
+        # Save - database constraints will prevent duplicates atomically
+        try:
+            scheme.save()
+            return scheme
+        except ValidationError as e:
+            cls._handle_validation_error(e)
+        except IntegrityError as e:
+            cls._handle_integrity_error(e)
 
     # ---------------------------------------------------------------------
     # Status Management
     # ---------------------------------------------------------------------
 
-    @staticmethod
+    @classmethod
     @transaction.atomic
-    def scheme_activate(*, scheme_id: str, user=None):
+    def scheme_activate(cls, *, scheme_id: str, user=None):
         """
         Reactivate a previously deactivated scheme.
 
@@ -183,23 +184,16 @@ class SchemeService:
         Returns:
             Scheme: The activated scheme instance
         """
-        try:
-            scheme = Scheme.objects.get(id=scheme_id, is_deleted=False)
-        except Scheme.DoesNotExist as e:
-            raise ValidationError("Scheme not found") from e
+        return cls.activate(entity_id=scheme_id, user=user)
 
-        scheme.status = BusinessStatusChoices.ACTIVE
-        scheme.is_deleted = False
-        scheme.deleted_at = None
-        scheme.deleted_by = None
-        scheme.save(update_fields=["status", "is_deleted", "deleted_at", "deleted_by"])
-        return scheme
-
-    @staticmethod
+    @classmethod
     @transaction.atomic
-    def scheme_deactivate(*, scheme_id: str, user=None):
+    def scheme_deactivate(cls, *, scheme_id: str, user=None):
         """
         Soft delete / deactivate scheme.
+
+        Uses the model's soft_delete method which enforces referential checks
+        to prevent deletion when related scheme items or members exist.
 
         Args:
             scheme_id: ID of the scheme to deactivate
@@ -207,20 +201,31 @@ class SchemeService:
 
         Returns:
             Scheme: The deactivated scheme instance
+
+        Raises:
+            NotFoundError: If scheme doesn't exist
+            ValidationError: If scheme has related scheme items or members
         """
         try:
-            scheme = Scheme.objects.get(id=scheme_id, is_deleted=False)
-        except Scheme.DoesNotExist as e:
-            raise ValidationError("Scheme not found") from e
+            # Lock the row to ensure atomic checks and update
+            scheme = Scheme.objects.select_for_update().get(id=scheme_id, is_deleted=False)
+        except Scheme.DoesNotExist as exc:
+            raise NotFoundError("Scheme", scheme_id) from exc
 
+        # Call model's soft_delete which enforces referential checks
+        # This will raise ValidationError if scheme has related items or members
+        scheme.soft_delete(user=user)
+
+        # Set status to INACTIVE after successful soft delete
+        # Note: BaseService.deactivate handles status change, but scheme_deactivate
+        # uses model's soft_delete for referential checks, so we set status explicitly
         scheme.status = BusinessStatusChoices.INACTIVE
-        scheme.is_deleted = True
-        scheme.save(update_fields=["status", "is_deleted"])
+        scheme.save(update_fields=["status"])
         return scheme
 
-    @staticmethod
+    @classmethod
     @transaction.atomic
-    def scheme_suspend(*, scheme_id: str, reason: str, user=None):
+    def scheme_suspend(cls, *, scheme_id: str, reason: str, user=None):
         """
         Suspend a scheme with reason tracking.
 
@@ -232,20 +237,23 @@ class SchemeService:
         Returns:
             Scheme: The suspended scheme instance
         """
-        try:
-            scheme = Scheme.objects.get(id=scheme_id, is_deleted=False)
-        except Scheme.DoesNotExist as e:
-            raise ValidationError("Scheme not found") from e
-
-        scheme.status = BusinessStatusChoices.SUSPENDED
-        suspension_note = f"\nSuspended: {reason}"
-        scheme.remark = (
-            f"{scheme.remark}{suspension_note}"
-            if scheme.remark
-            else f"Suspended: {reason}"
-        )
-        scheme.save(update_fields=["status", "remark"])
-        return scheme
+        instance = cls._get_entity(scheme_id)
+        
+        instance.status = BusinessStatusChoices.SUSPENDED
+        update_fields = ["status"]
+        
+        # Use remark field for suspension note
+        if reason and hasattr(instance, 'remark'):
+            suspension_note = f"\nSuspended: {reason}"
+            instance.remark = (
+                f"{instance.remark}{suspension_note}"
+                if instance.remark
+                else f"Suspended: {reason}"
+            )
+            update_fields.append("remark")
+        
+        instance.save(update_fields=update_fields)
+        return instance
 
     # ---------------------------------------------------------------------
     # Bulk Operations
@@ -265,14 +273,11 @@ class SchemeService:
         Returns:
             int: Number of schemes updated
         """
-        if new_status not in [choice[0] for choice in BusinessStatusChoices.choices]:
-            raise ValidationError("Invalid status")
-
-        updated_count = Scheme.objects.filter(
-            id__in=scheme_ids, is_deleted=False
-        ).update(status=new_status)
-
-        return updated_count
+        return SchemeService.bulk_status_update(
+            entity_ids=scheme_ids,
+            new_status=new_status,
+            user=user
+        )
 
     @staticmethod
     def schemes_export_csv(*, filters: dict = None):
@@ -292,50 +297,41 @@ class SchemeService:
         else:
             schemes = Scheme.objects.filter(is_deleted=False)
 
-        output = StringIO()
-        writer = csv.writer(output)
+        headers = [
+            "ID",
+            "Scheme Name",
+            "Company",
+            "Card Code",
+            "Description",
+            "Start Date",
+            "End Date",
+            "Termination Date",
+            "Limit Amount",
+            "Family Applicable",
+            "Status",
+            "Created At",
+            "Updated At",
+        ]
 
-        # Write header
-        writer.writerow(
-            [
-                "ID",
-                "Scheme Name",
-                "Company",
-                "Card Code",
-                "Description",
-                "Start Date",
-                "End Date",
-                "Termination Date",
-                "Limit Amount",
-                "Family Applicable",
-                "Status",
-                "Created At",
-                "Updated At",
+        def row_extractor(scheme):
+            return [
+                scheme.id,
+                scheme.scheme_name,
+                scheme.company.company_name if scheme.company else "",
+                scheme.card_code,
+                scheme.description or "",
+                scheme.start_date.strftime("%Y-%m-%d"),
+                scheme.end_date.strftime("%Y-%m-%d"),
+                (
+                    scheme.termination_date.strftime("%Y-%m-%d")
+                    if scheme.termination_date
+                    else ""
+                ),
+                scheme.limit_amount,
+                scheme.family_applicable,
+                scheme.status,
+                scheme.created_at.strftime("%Y-%m-%d %H:%M:%S"),
+                scheme.updated_at.strftime("%Y-%m-%d %H:%M:%S"),
             ]
-        )
 
-        # Write data
-        for scheme in schemes:
-            writer.writerow(
-                [
-                    scheme.id,
-                    scheme.scheme_name,
-                    scheme.company.company_name if scheme.company else "",
-                    scheme.card_code,
-                    scheme.description or "",
-                    scheme.start_date.strftime("%Y-%m-%d"),
-                    scheme.end_date.strftime("%Y-%m-%d"),
-                    (
-                        scheme.termination_date.strftime("%Y-%m-%d")
-                        if scheme.termination_date
-                        else ""
-                    ),
-                    scheme.limit_amount,
-                    scheme.family_applicable,
-                    scheme.status,
-                    scheme.created_at.strftime("%Y-%m-%d %H:%M:%S"),
-                    scheme.updated_at.strftime("%Y-%m-%d %H:%M:%S"),
-                ]
-            )
-
-        return output.getvalue()
+        return SchemeService.export_to_csv(schemes, headers, row_extractor)

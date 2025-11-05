@@ -2,9 +2,11 @@ from django.http import HttpResponse
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework import status, viewsets
-from rest_framework.decorators import action
+from rest_framework.decorators import action, throttle_classes
 from rest_framework.response import Response
 
+from apps.core.utils.throttling import ExportRateThrottle, StrictRateThrottle
+from apps.core.utils.caching import ThrottleAwareCacheMixin
 from apps.companies.api.serializers import IndustrySerializer
 from apps.companies.selectors import (
     industry_choices_get,
@@ -22,13 +24,14 @@ from apps.companies.selectors import (
 from apps.companies.services.industry_service import IndustryService
 
 
-class IndustryAnalyticsViewSet(viewsets.ViewSet):
+class IndustryAnalyticsViewSet(ThrottleAwareCacheMixin, viewsets.ViewSet):
     """
     Industry analytics and advanced operations.
     """
 
     # Using global authentication settings from REST_FRAMEWORK
     serializer_class = IndustrySerializer
+    # Throttling applied selectively to resource-intensive operations only
 
     @action(detail=False, methods=["get"])
     def statistics(self, request):
@@ -72,8 +75,9 @@ class IndustryAnalyticsViewSet(viewsets.ViewSet):
         return Response(choices)
 
     @action(detail=False, methods=["post"])
+    @throttle_classes([StrictRateThrottle])
     def bulk_update_status(self, request):
-        """Bulk update industry status."""
+        """Bulk update industry status. Rate limited to 20/hour."""
         industry_ids = request.data.get("industry_ids", [])
         new_status = request.data.get("status")
 
@@ -95,8 +99,9 @@ class IndustryAnalyticsViewSet(viewsets.ViewSet):
         )
 
     @action(detail=False, methods=["post"])
+    @throttle_classes([StrictRateThrottle])
     def transfer_companies(self, request):
-        """Transfer companies from one industry to another."""
+        """Transfer companies from one industry to another. Rate limited to 20/hour."""
         company_ids = request.data.get("company_ids", [])
         target_industry_id = request.data.get("target_industry_id")
 
@@ -120,8 +125,9 @@ class IndustryAnalyticsViewSet(viewsets.ViewSet):
         )
 
     @action(detail=False, methods=["post"])
+    @throttle_classes([StrictRateThrottle])
     def merge_industries(self, request):
-        """Merge two industries."""
+        """Merge two industries. Rate limited to 20/hour."""
         source_industry_id = request.data.get("source_industry_id")
         target_industry_id = request.data.get("target_industry_id")
 
@@ -140,8 +146,9 @@ class IndustryAnalyticsViewSet(viewsets.ViewSet):
         return Response(result)
 
     @action(detail=False, methods=["get"])
+    @throttle_classes([ExportRateThrottle])
     def export_csv(self, request):
-        """Export industries to CSV."""
+        """Export industries to CSV. Rate limited to 5/hour."""
         # Get filters from query parameters
         filters = {}
         if request.query_params.get("status"):

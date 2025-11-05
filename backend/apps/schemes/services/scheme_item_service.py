@@ -1,33 +1,56 @@
-import csv
-from io import StringIO
+from typing import Any, Optional
 
 from django.core.exceptions import ValidationError
 from django.db import transaction
 
 from apps.core.enums.choices import BusinessStatusChoices
+from apps.core.exceptions.service_errors import NotFoundError, InactiveEntityError, RequiredFieldError
+from apps.core.services import (
+    BaseService,
+    CSVExportMixin,
+    RequiredFieldsRule,
+)
+from apps.core.utils.validation import validate_required_fields, validate_positive_amount, validate_percentage
 from apps.schemes.models import SchemeItem
 
 
-class SchemeItemService:
+class SchemeItemService(BaseService, CSVExportMixin):
     """
     Scheme Item business logic for write operations.
     Handles all scheme item-related write operations including CRUD, validation,
     and business logic. Read operations are handled by selectors.
+    
+    Uses SOLID improvements:
+    - Validation rules for extensible validation (OCP)
+    - Standardized method signatures available (ISP)
     """
+    
+    # BaseService configuration
+    entity_model = SchemeItem
+    entity_name = "SchemeItem"
+    unique_fields = []  # Composite unique constraint handled manually
+    allowed_fields = {
+        'scheme', 'content_type', 'object_id', 'limit_amount',
+        'copayment_percent', 'status'
+    }
+    validation_rules = [
+        RequiredFieldsRule(["scheme", "content_type", "object_id"], "SchemeItem"),
+    ]
 
     # ---------------------------------------------------------------------
     # Basic CRUD Operations
     # ---------------------------------------------------------------------
 
-    @staticmethod
+    @classmethod
     @transaction.atomic
-    def scheme_item_create(*, scheme_item_data: dict, user=None):
+    def scheme_item_create(cls, *, scheme_item_data: dict, user: Optional[Any] = None):
         """
         Create a new scheme item with validation and duplicate checking.
 
         Args:
             scheme_item_data: Dictionary containing scheme item information
-            user: User creating the scheme item (for audit trail)
+            user: User creating the scheme item (reserved for future audit trail implementation)
+                TODO: Implement audit trail logging when user is provided (e.g., created_by field)
 
         Returns:
             SchemeItem: The created scheme item instance
@@ -35,25 +58,18 @@ class SchemeItemService:
         Raises:
             ValidationError: If data is invalid or duplicates exist
         """
-        # Validate data
-        required_fields = ["scheme", "content_type", "object_id"]
-        for field in required_fields:
-            if not scheme_item_data.get(field):
-                raise ValidationError(f"{field} is required")
-
-        # Validate scheme is active
-        scheme = scheme_item_data.get("scheme")
-        if isinstance(scheme, str):
-            from apps.schemes.models import Scheme
-            try:
-                scheme = Scheme.objects.get(id=scheme)
-                scheme_item_data["scheme"] = scheme
-            except Scheme.DoesNotExist:
-                raise ValidationError("Invalid scheme ID")
+        # Filter fields if allowed_fields is defined
+        if cls.allowed_fields is not None:
+            scheme_item_data = cls._filter_model_fields(scheme_item_data, cls.allowed_fields)
         
-        if scheme:
-            if scheme.status != BusinessStatusChoices.ACTIVE or scheme.is_deleted:
-                raise ValidationError("Scheme must be active to create a scheme item")
+        # Apply validation rules (configured in BaseService)
+        cls._apply_validation_rules(scheme_item_data)
+
+        # Resolve scheme FK using base method
+        from apps.schemes.models import Scheme
+        cls._resolve_foreign_key(
+            scheme_item_data, "scheme", Scheme, "Scheme", validate_active=True
+        )
 
         # Validate content object is active
         content_type = scheme_item_data.get("content_type")
@@ -70,20 +86,17 @@ class SchemeItemService:
                 except model_class.DoesNotExist:
                     raise ValidationError(f"Content object with id '{object_id}' does not exist")
 
-        # Limit amount validation
-        if (
-            scheme_item_data.get("limit_amount") is not None
-            and scheme_item_data["limit_amount"] < 0
-        ):
-            raise ValidationError("Limit amount cannot be negative")
+        # Limit amount validation using utility
+        if scheme_item_data.get("limit_amount") is not None:
+            validate_positive_amount(
+                scheme_item_data["limit_amount"], "limit_amount", allow_none=True, allow_zero=True
+            )
 
-        # Copayment validation
-        copayment = scheme_item_data.get("copayment_percent")
-        if copayment is not None:
-            if copayment < 0:
-                raise ValidationError("Copayment percentage cannot be negative")
-            if copayment > 100:
-                raise ValidationError("Copayment percentage cannot exceed 100")
+        # Copayment validation using utility
+        if scheme_item_data.get("copayment_percent") is not None:
+            validate_percentage(
+                scheme_item_data["copayment_percent"], "copayment_percent", allow_none=True
+            )
 
         # Check for duplicates (unique together: scheme, content_type, object_id)
         qs = SchemeItem.objects.filter(is_deleted=False)
@@ -98,9 +111,9 @@ class SchemeItemService:
         scheme_item = SchemeItem.objects.create(**scheme_item_data)
         return scheme_item
 
-    @staticmethod
+    @classmethod
     @transaction.atomic
-    def scheme_item_update(*, scheme_item_id: str, update_data: dict, user=None):
+    def scheme_item_update(cls, *, scheme_item_id: str, update_data: dict, user=None):
         """
         Update scheme item with validation and duplicate checking.
 
@@ -115,42 +128,40 @@ class SchemeItemService:
         Raises:
             ValidationError: If data is invalid or duplicates exist
         """
-        try:
-            scheme_item = SchemeItem.objects.get(id=scheme_item_id, is_deleted=False)
-        except SchemeItem.DoesNotExist as e:
-            raise ValidationError("Scheme item not found") from e
+        # Get scheme item using base method
+        scheme_item = cls._get_entity(scheme_item_id)
+        
+        # Filter fields if allowed_fields is defined
+        if cls.allowed_fields is not None:
+            update_data = cls._filter_model_fields(update_data, cls.allowed_fields)
+        
+        # Merge with existing data for validation
+        merged_data = {}
+        for field in cls.allowed_fields:
+            if hasattr(scheme_item, field):
+                merged_data[field] = getattr(scheme_item, field)
+        merged_data.update(update_data)
+        
+        # Apply validation rules (configured in BaseService)
+        cls._apply_validation_rules(merged_data, entity=scheme_item)
 
-        # Validate data
-        if (
-            "limit_amount" in update_data
-            and update_data["limit_amount"] is not None
-            and update_data["limit_amount"] < 0
-        ):
-            raise ValidationError("Limit amount cannot be negative")
+        # Validate data using utilities
+        if "limit_amount" in update_data and update_data["limit_amount"] is not None:
+            validate_positive_amount(
+                update_data["limit_amount"], "limit_amount", allow_none=True, allow_zero=True
+            )
 
-        if (
-            "copayment_percent" in update_data
-            and update_data["copayment_percent"] is not None
-        ):
-            copayment = update_data["copayment_percent"]
-            if copayment < 0:
-                raise ValidationError("Copayment percentage cannot be negative")
-            if copayment > 100:
-                raise ValidationError("Copayment percentage cannot exceed 100")
+        if "copayment_percent" in update_data and update_data["copayment_percent"] is not None:
+            validate_percentage(
+                update_data["copayment_percent"], "copayment_percent", allow_none=True
+            )
 
-        # Validate scheme is active if being updated
+        # Resolve scheme FK using base method if being updated
         if "scheme" in update_data:
-            scheme = update_data["scheme"]
-            if isinstance(scheme, str):
-                from apps.schemes.models import Scheme
-                try:
-                    scheme = Scheme.objects.get(id=scheme)
-                    update_data["scheme"] = scheme
-                except Scheme.DoesNotExist:
-                    raise ValidationError("Invalid scheme ID")
-            
-            if scheme and (scheme.status != BusinessStatusChoices.ACTIVE or scheme.is_deleted):
-                raise ValidationError("Scheme must be active to update a scheme item")
+            from apps.schemes.models import Scheme
+            cls._resolve_foreign_key(
+                update_data, "scheme", Scheme, "Scheme", validate_active=True
+            )
 
         # Validate content object is active if being updated
         content_type = update_data.get("content_type", scheme_item.content_type)
@@ -195,9 +206,9 @@ class SchemeItemService:
     # Status Management
     # ---------------------------------------------------------------------
 
-    @staticmethod
+    @classmethod
     @transaction.atomic
-    def scheme_item_activate(*, scheme_item_id: str, user=None):
+    def scheme_item_activate(cls, *, scheme_item_id: str, user=None):
         """
         Reactivate a previously deactivated scheme item.
 
@@ -208,23 +219,11 @@ class SchemeItemService:
         Returns:
             SchemeItem: The activated scheme item instance
         """
-        try:
-            scheme_item = SchemeItem.objects.get(id=scheme_item_id, is_deleted=False)
-        except SchemeItem.DoesNotExist as e:
-            raise ValidationError("Scheme item not found") from e
+        return cls.activate(entity_id=scheme_item_id, user=user)
 
-        scheme_item.status = BusinessStatusChoices.ACTIVE
-        scheme_item.is_deleted = False
-        scheme_item.deleted_at = None
-        scheme_item.deleted_by = None
-        scheme_item.save(
-            update_fields=["status", "is_deleted", "deleted_at", "deleted_by"]
-        )
-        return scheme_item
-
-    @staticmethod
+    @classmethod
     @transaction.atomic
-    def scheme_item_deactivate(*, scheme_item_id: str, user=None):
+    def scheme_item_deactivate(cls, *, scheme_item_id: str, user=None):
         """
         Soft delete / deactivate scheme item.
 
@@ -235,19 +234,11 @@ class SchemeItemService:
         Returns:
             SchemeItem: The deactivated scheme item instance
         """
-        try:
-            scheme_item = SchemeItem.objects.get(id=scheme_item_id, is_deleted=False)
-        except SchemeItem.DoesNotExist as e:
-            raise ValidationError("Scheme item not found") from e
+        return cls.deactivate(entity_id=scheme_item_id, user=user, soft_delete=True)
 
-        scheme_item.status = BusinessStatusChoices.INACTIVE
-        scheme_item.is_deleted = True
-        scheme_item.save(update_fields=["status", "is_deleted"])
-        return scheme_item
-
-    @staticmethod
+    @classmethod
     @transaction.atomic
-    def scheme_item_suspend(*, scheme_item_id: str, reason: str, user=None):
+    def scheme_item_suspend(cls, *, scheme_item_id: str, reason: str, user=None):
         """
         Suspend a scheme item with reason tracking.
 
@@ -259,14 +250,7 @@ class SchemeItemService:
         Returns:
             SchemeItem: The suspended scheme item instance
         """
-        try:
-            scheme_item = SchemeItem.objects.get(id=scheme_item_id, is_deleted=False)
-        except SchemeItem.DoesNotExist as e:
-            raise ValidationError("Scheme item not found") from e
-
-        scheme_item.status = BusinessStatusChoices.SUSPENDED
-        scheme_item.save(update_fields=["status"])
-        return scheme_item
+        return cls.suspend(entity_id=scheme_item_id, reason=reason, user=user)
 
     # ---------------------------------------------------------------------
     # Bulk Operations
@@ -288,14 +272,7 @@ class SchemeItemService:
         Returns:
             int: Number of scheme items updated
         """
-        if new_status not in [choice[0] for choice in BusinessStatusChoices.choices]:
-            raise ValidationError("Invalid status")
-
-        updated_count = SchemeItem.objects.filter(
-            id__in=scheme_item_ids, is_deleted=False
-        ).update(status=new_status)
-
-        return updated_count
+        return SchemeItemService.bulk_status_update(entity_ids=scheme_item_ids, new_status=new_status, user=user)
 
     @staticmethod
     @transaction.atomic

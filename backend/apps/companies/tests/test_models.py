@@ -24,7 +24,7 @@ class CompaniesModelTests(TestCase):
             company_name="Test Company",
             contact_person="John Doe",
             email="john@testcompany.com",
-            phone_number="1234567890",
+            phone_number="+256701234567",
             industry=self.industry,
             company_address="123 Test St"
         )
@@ -57,14 +57,15 @@ class CompaniesModelTests(TestCase):
 
     def test_company_validation_required_fields(self):
         """Test company model validation for required fields."""
-        # Test required fields - this will fail due to missing required foreign key
-        with self.assertRaises(IntegrityError):  # Django will raise IntegrityError for missing required fields
+        # Test required fields - this will fail validation before hitting database
+        # With full_clean() in save(), ValidationError is raised before IntegrityError
+        with self.assertRaises(ValidationError):
             Company.objects.create(
                 company_name="Test Company",
                 contact_person="John Doe",
                 email="john@test.com",
-                phone_number="1234567890",
-                # Missing industry which is required
+                phone_number="+256701234567",
+                # Missing industry and company_address which are required
             )
 
     def test_company_validation_valid_creation(self):
@@ -74,7 +75,7 @@ class CompaniesModelTests(TestCase):
             company_name="Valid Company",
             contact_person="John Doe",
             email="john@valid.com",
-            phone_number="1234567890",
+            phone_number="+256701234567",
             industry=self.industry,
             company_address="123 Valid St"
         )
@@ -87,7 +88,7 @@ class CompaniesModelTests(TestCase):
             company_name="Test Company",
             contact_person="John Doe",
             email="john@testcompany.com",
-            phone_number="1234567890",
+            phone_number="+256701234567",
             industry=self.industry,
             company_address="123 Test St"
         )
@@ -107,7 +108,7 @@ class CompaniesModelTests(TestCase):
             "company_name": "Service Company",
             "contact_person": "Jane Doe",
             "email": "jane@service.com",
-            "phone_number": "0987654321",
+            "phone_number": "+256709876543",
             "industry": self.industry.id,  # Pass ID as string
             "company_address": "456 Service St"
         }
@@ -123,7 +124,7 @@ class CompaniesModelTests(TestCase):
             company_name="Original Company",
             contact_person="John Doe",
             email="john@original.com",
-            phone_number="1234567890",
+            phone_number="+256701234567",
             industry=self.industry,
             company_address="123 Original St"
         )
@@ -132,7 +133,7 @@ class CompaniesModelTests(TestCase):
             "company_name": "Updated Company",
             "contact_person": "Jane Doe",
             "email": "jane@updated.com",
-            "phone_number": "0987654321",
+            "phone_number": "+256709876543",
             "industry": self.industry.id,
             "company_address": "456 Updated St"
         }
@@ -149,7 +150,7 @@ class CompaniesModelTests(TestCase):
             company_name="Existing Company",
             contact_person="John Doe",
             email="john@existing.com",
-            phone_number="1234567890",
+            phone_number="+256701234567",
             industry=self.industry,
             company_address="123 Existing St"
         )
@@ -159,7 +160,7 @@ class CompaniesModelTests(TestCase):
             "company_name": "Existing Company",
             "contact_person": "Jane Doe",
             "email": "jane@different.com",
-            "phone_number": "0987654321",
+            "phone_number": "+256709876543",
             "industry": self.industry.id,
             "company_address": "456 Different St"
         }
@@ -196,7 +197,8 @@ class CompaniesModelTests(TestCase):
 
         with self.assertRaises(ValidationError) as context:
             CompanyService.company_create(company_data=company_data, user=self.user)
-        self.assertIn("Invalid phone number format", str(context.exception))
+        # Phone validation error from model clean() method
+        self.assertIn("Phone number", str(context.exception))
 
     def test_company_selectors(self):
         """Test company selector functions."""
@@ -205,7 +207,7 @@ class CompaniesModelTests(TestCase):
             company_name="Alpha Corp",
             contact_person="John Doe",
             email="john@alpha.com",
-            phone_number="1234567890",
+            phone_number="+256701234567",
             industry=self.industry,
             company_address="123 Alpha St"
         )
@@ -218,7 +220,7 @@ class CompaniesModelTests(TestCase):
             company_name="Beta Corp",
             contact_person="Jane Doe",
             email="jane@beta.com",
-            phone_number="0987654321",
+            phone_number="+256709876543",
             industry=industry2,
             company_address="456 Beta St"
         )
@@ -259,7 +261,7 @@ class CompaniesModelTests(TestCase):
             company_name="Company with Dependencies",
             contact_person="John Doe",
             email="john@deps.com",
-            phone_number="1234567890",
+            phone_number="+256701234567",
             industry=self.industry,
             company_address="123 Deps St"
         )
@@ -276,7 +278,7 @@ class CompaniesModelTests(TestCase):
             company_name="Test Company",
             contact_person="John Doe",
             email="john@testcompany.com",
-            phone_number="1234567890",
+            phone_number="+256701234567",
             industry=self.industry,
             company_address="123 Test St"
         )
@@ -294,7 +296,7 @@ class CompaniesModelTests(TestCase):
             company_name="Manager Test Company",
             contact_person="John Doe",
             email="john@manager.com",
-            phone_number="1234567890",
+            phone_number="+256701234567",
             industry=self.industry,
             company_address="123 Manager St"
         )

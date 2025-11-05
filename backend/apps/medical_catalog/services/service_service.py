@@ -1,38 +1,66 @@
+from django.core.exceptions import ValidationError
+from django.db import IntegrityError
 
+from apps.core.services import (
+    BaseService,
+    CSVExportMixin,
+    RequiredFieldsRule,
+    StringLengthRule,
+)
 from apps.medical_catalog.models import Service
 
 
-class ServiceService:
-    @staticmethod
-    def create(*, data: dict, user=None) -> Service:
-        # Filter out non-model fields
-        model_fields = {
-            'name', 'category', 'description', 'base_amount', 'service_type'
-        }
-        filtered_data = {k: v for k, v in data.items() if k in model_fields}
+class ServiceService(BaseService, CSVExportMixin):
+    """
+    Service business logic for write operations.
+    Handles all medical service-related write operations including CRUD, validation,
+    and business logic. Read operations are handled by selectors.
+    
+    Uses SOLID improvements:
+    - Validation rules for extensible validation (OCP)
+    - Standardized method signatures (ISP)
+    - Allowed fields configuration
+    """
+    
+    # BaseService configuration
+    entity_model = Service
+    entity_name = "Service"
+    unique_fields = ["name"]
+    allowed_fields = {'name', 'category', 'description', 'base_amount', 'service_type'}
+    validation_rules = [
+        RequiredFieldsRule(["name"], "Service"),
+        StringLengthRule("name", min_length=1, max_length=255),
+    ]
+    @classmethod
+    def service_create(cls, *, service_data: dict, user=None) -> Service:
+        """
+        Create a new service with validation.
         
-        # Create instance and validate
-        instance = Service(**filtered_data)
-        instance.full_clean()
-        instance.save()
-        return instance
+        Args:
+            service_data: Dictionary containing service information
+            user: User creating the service (for audit trail)
+            
+        Returns:
+            Service: The created service instance
+        """
+        return BaseService.create.__func__(cls, data=service_data, user=user)
 
-    @staticmethod
-    def update(*, service_id: str, data: dict, user=None) -> Service:
-        instance = Service.objects.get(pk=service_id)
-        # Filter out non-model fields
-        model_fields = {
-            'name', 'category', 'description', 'base_amount', 'service_type'
-        }
-        for field, value in data.items():
-            if field in model_fields:
-                setattr(instance, field, value)
-        instance.full_clean()
-        instance.save(update_fields=None)
-        return instance
+    @classmethod
+    def service_update(cls, *, service_id: str, update_data: dict, user=None) -> Service:
+        """
+        Update an existing service with validation.
+        
+        Args:
+            service_id: ID of the service to update
+            update_data: Dictionary containing fields to update
+            user: User performing the update (for audit trail)
+            
+        Returns:
+            Service: The updated service instance
+        """
+        return BaseService.update.__func__(cls, entity_id=service_id, data=update_data, user=user)
 
-    @staticmethod
-    def deactivate(*, service_id: str, user=None) -> None:
-        instance = Service.objects.get(pk=service_id)
-        instance.soft_delete(user=user)
-        instance.save(update_fields=["is_deleted", "deleted_at", "deleted_by"])
+    @classmethod
+    def service_deactivate(cls, *, service_id: str, user=None) -> None:
+        """Deactivate service using base method."""
+        return cls.deactivate(entity_id=service_id, user=user, soft_delete=True)

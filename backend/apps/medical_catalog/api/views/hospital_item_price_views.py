@@ -4,12 +4,13 @@ from rest_framework import filters, status, viewsets
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
+from apps.core.utils.caching import CacheableResponseMixin
 from apps.medical_catalog.api.serializers import HospitalItemPriceSerializer
 from apps.medical_catalog.models import HospitalItemPrice
 from apps.medical_catalog.services import HospitalItemPriceService
 
 
-class HospitalItemPriceViewSet(viewsets.ModelViewSet):
+class HospitalItemPriceViewSet(CacheableResponseMixin, viewsets.ModelViewSet):
     serializer_class = HospitalItemPriceSerializer
     queryset = HospitalItemPrice.objects.all()
     permission_classes = [IsAuthenticated]
@@ -23,27 +24,41 @@ class HospitalItemPriceViewSet(viewsets.ModelViewSet):
     ordering_fields = ["created_at", "updated_at", "amount"]
 
     def create(self, request, *args, **kwargs):
+        user_id = request.user.id if request.user.is_authenticated else None
         try:
-            instance = HospitalItemPriceService.create(data=request.data, user=request.user)
+            instance = HospitalItemPriceService.hospital_item_price_create(price_data=request.data, user=request.user)
             serializer = self.get_serializer(instance)
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
+            response = Response(serializer.data, status=status.HTTP_201_CREATED)
+            # Invalidate cache after successful create
+            self.invalidate_cache(user_id=user_id)
+            return response
         except ValidationError as e:
-            return Response({'error': 'Validation failed', 'details': e.message_dict}, status=status.HTTP_400_BAD_REQUEST)
+            details = e.message_dict if hasattr(e, 'message_dict') else {'error': str(e)}
+            return Response({'error': 'Validation failed', 'details': details}, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
             return Response({'error': 'Invalid data', 'details': str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
     def update(self, request, *args, **kwargs):
+        user_id = request.user.id if request.user.is_authenticated else None
         try:
-            instance = HospitalItemPriceService.update(
-                price_id=kwargs["pk"], data=request.data, user=request.user
+            instance = HospitalItemPriceService.hospital_item_price_update(
+                price_id=kwargs["pk"], update_data=request.data, user=request.user
             )
             serializer = self.get_serializer(instance)
-            return Response(serializer.data)
+            response = Response(serializer.data)
+            # Invalidate cache after successful update
+            self.invalidate_cache(user_id=user_id)
+            return response
         except ValidationError as e:
-            return Response({'error': 'Validation failed', 'details': e.message_dict}, status=status.HTTP_400_BAD_REQUEST)
+            details = e.message_dict if hasattr(e, 'message_dict') else {'error': str(e)}
+            return Response({'error': 'Validation failed', 'details': details}, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
             return Response({'error': 'Invalid data', 'details': str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
     def destroy(self, request, *args, **kwargs):
-        HospitalItemPriceService.deactivate(price_id=kwargs["pk"], user=request.user)
-        return Response(status=status.HTTP_204_NO_CONTENT)
+        user_id = request.user.id if request.user.is_authenticated else None
+        HospitalItemPriceService.hospital_item_price_deactivate(price_id=kwargs["pk"], user=request.user)
+        response = Response(status=status.HTTP_204_NO_CONTENT)
+        # Invalidate cache after successful delete
+        self.invalidate_cache(user_id=user_id)
+        return response

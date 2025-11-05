@@ -1,10 +1,12 @@
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import filters, status, viewsets
-from rest_framework.decorators import action
+from rest_framework.decorators import action, throttle_classes
 from rest_framework.response import Response
 from rest_framework.exceptions import ValidationError
 import logging
 
+from apps.core.utils.throttling import StrictRateThrottle
+from apps.core.utils.caching import ThrottleAwareCacheMixin
 from apps.schemes.api.serializers import SchemeItemSerializer, BulkAssignmentSerializer
 from apps.schemes.models import SchemeItem
 from apps.schemes.selectors import (
@@ -17,7 +19,7 @@ from apps.schemes.services.scheme_item_service import SchemeItemService
 logger = logging.getLogger(__name__)
 
 
-class SchemeItemViewSet(viewsets.ModelViewSet):
+class SchemeItemViewSet(ThrottleAwareCacheMixin, viewsets.ModelViewSet):
     """
     Handles CRUD operations for SchemeItem entities.
     Uses SchemeItemService for business logic.
@@ -59,7 +61,7 @@ class SchemeItemViewSet(viewsets.ModelViewSet):
             scheme_item_id=kwargs["pk"], update_data=request.data, user=request.user
         )
         serializer = self.get_serializer(scheme_item)
-        return Response(serializer.data)
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
     def destroy(self, request, *args, **kwargs):
         """Override delete → perform soft-delete via the service layer."""
@@ -69,8 +71,9 @@ class SchemeItemViewSet(viewsets.ModelViewSet):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
     @action(detail=False, methods=["post"], url_path="bulk")
+    @throttle_classes([StrictRateThrottle])
     def bulk_create(self, request):
-        """Bulk create scheme items for a specific scheme."""
+        """Bulk create scheme items for a specific scheme. Rate limited to 20/hour."""
         serializer = BulkAssignmentSerializer(data=request.data)
         
         try:
@@ -99,8 +102,9 @@ class SchemeItemViewSet(viewsets.ModelViewSet):
             )
 
     @action(detail=False, methods=["post"], url_path="bulk-remove")
+    @throttle_classes([StrictRateThrottle])
     def bulk_remove(self, request):
-        """Bulk remove scheme items."""
+        """Bulk remove scheme items. Rate limited to 20/hour."""
         scheme_item_ids = request.data.get("scheme_item_ids", [])
         
         if not scheme_item_ids:
