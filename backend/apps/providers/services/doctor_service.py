@@ -5,10 +5,21 @@ from django.db import transaction
 
 from apps.core.enums.choices import BusinessStatusChoices
 from apps.core.exceptions.service_errors import InactiveEntityError
+from apps.core.services import BaseService, CSVExportMixin
 from apps.providers.models import Doctor, DoctorHospitalAffiliation, Hospital
 
 
-class DoctorService:
+class DoctorService(BaseService, CSVExportMixin):
+    """
+    Doctor business logic for write operations.
+    Handles all doctor-related write operations including CRUD, validation,
+    and business logic. Read operations are handled by selectors.
+    """
+    
+    # BaseService configuration
+    entity_model = Doctor
+    entity_name = "Doctor"
+    unique_fields = []
     @staticmethod
     def doctor_create(*, doctor_data: dict[str, Any], user=None) -> Doctor:
         hospital_id = doctor_data.pop("hospital", None)
@@ -40,7 +51,8 @@ class DoctorService:
     def doctor_update(
         *, doctor_id: str, update_data: dict[str, Any], user=None
     ) -> Doctor:
-        doctor = Doctor.objects.get(pk=doctor_id)
+        # Get doctor using base method
+        doctor = DoctorService._get_entity(doctor_id)
 
         hospital_id = update_data.pop("hospital", None)
         hospitals_ids = update_data.pop("hospitals", None)

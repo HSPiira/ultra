@@ -12,11 +12,22 @@ from apps.core.exceptions.service_errors import (
     InvalidValueError,
     InactiveEntityError,
 )
+from apps.core.services import BaseService, CSVExportMixin
+from apps.core.utils.validation import validate_required_fields, validate_string_length, validate_email_format
 from apps.members.models import Person
 
 
-class PersonService:
-    """Business logic for Person write operations."""
+class PersonService(BaseService, CSVExportMixin):
+    """
+    Business logic for Person write operations.
+    Handles all person-related write operations including CRUD, validation,
+    and business logic. Read operations are handled by selectors.
+    """
+    
+    # BaseService configuration
+    entity_model = Person
+    entity_name = "Person"
+    unique_fields = []  # Composite unique constraints handled manually
 
     @staticmethod
     def _generate_card_number(*, scheme, relationship: str, parent=None, company=None) -> str:
@@ -121,6 +132,7 @@ class PersonService:
     @staticmethod
     @transaction.atomic
     def person_create(*, person_data: dict, user=None) -> Person:
+        # Validate required fields using base method
         required_fields = [
             "company",
             "scheme",
@@ -128,9 +140,7 @@ class PersonService:
             "gender",
             "relationship",
         ]
-        for field in required_fields:
-            if not person_data.get(field):
-                raise RequiredFieldError(field)
+        PersonService._validate_required_fields(person_data, required_fields)
 
         # Relationship rules: SELF cannot have parent
         if person_data.get(
@@ -138,33 +148,17 @@ class PersonService:
         ) == RelationshipChoices.SELF and person_data.get("parent"):
             raise InvalidValueError("parent", "Principal (SELF) cannot have a parent")
 
-        # Validate company is active
-        company = person_data.get("company")
-        if isinstance(company, str):
-            from apps.companies.models import Company
-            try:
-                company = Company.objects.get(id=company)
-                person_data["company"] = company
-            except Company.DoesNotExist:
-                raise NotFoundError("Company", company)
+        # Resolve company FK using base method
+        from apps.companies.models import Company
+        PersonService._resolve_foreign_key(
+            person_data, "company", Company, "Company", validate_active=True
+        )
 
-        if company:
-            if company.status != BusinessStatusChoices.ACTIVE or company.is_deleted:
-                raise InactiveEntityError("Company", "Company must be active to create a member")
-
-        # Validate scheme is active
-        scheme = person_data.get("scheme")
-        if isinstance(scheme, str):
-            from apps.schemes.models import Scheme
-            try:
-                scheme = Scheme.objects.get(id=scheme)
-                person_data["scheme"] = scheme
-            except Scheme.DoesNotExist:
-                raise NotFoundError("Scheme", scheme)
-
-        if scheme:
-            if scheme.status != BusinessStatusChoices.ACTIVE or scheme.is_deleted:
-                raise InactiveEntityError("Scheme", "Scheme must be active to create a member")
+        # Resolve scheme FK using base method
+        from apps.schemes.models import Scheme
+        PersonService._resolve_foreign_key(
+            person_data, "scheme", Scheme, "Scheme", validate_active=True
+        )
 
         # Validate parent is active (for dependants)
         parent = None
@@ -208,28 +202,15 @@ class PersonService:
             person = Person.objects.create(**person_data)
             return person
         except ValidationError as e:
-            # Check if this is a uniqueness validation error, otherwise re-raise
-            if hasattr(e, 'message_dict'):
-                for field, messages in e.message_dict.items():
-                    if any('already exists' in str(msg).lower() for msg in messages):
-                        raise DuplicateError("Person", [field], f"Person with this {field} already exists")
-            # Not a uniqueness error - re-raise original ValidationError
-            raise
+            PersonService._handle_validation_error(e)
         except IntegrityError as e:
-            # Database constraint violation
-            error_msg = str(e).lower()
-            if 'card_number' in error_msg or 'unique' in error_msg:
-                raise DuplicateError("Person", ["card_number"], "Card number already exists for this company")
-            else:
-                raise DuplicateError("Person", message="Person with duplicate unique field already exists")
+            PersonService._handle_integrity_error(e)
 
     @staticmethod
     @transaction.atomic
     def person_update(*, person_id: str, update_data: dict, user=None) -> Person:
-        try:
-            person = Person.objects.get(id=person_id, is_deleted=False)
-        except Person.DoesNotExist:
-            raise NotFoundError("Person", person_id)
+        # Get person using base method
+        person = PersonService._get_entity(person_id)
 
         if (
             "relationship" in update_data
@@ -238,33 +219,19 @@ class PersonService:
         ):
             raise InvalidValueError("parent", "Principal (SELF) cannot have a parent")
 
-        # Validate company is active if being updated
+        # Resolve company FK using base method if being updated
         if "company" in update_data:
-            company = update_data["company"]
-            if isinstance(company, str):
-                from apps.companies.models import Company
-                try:
-                    company = Company.objects.get(id=company)
-                    update_data["company"] = company
-                except Company.DoesNotExist:
-                    raise NotFoundError("Company", company)
+            from apps.companies.models import Company
+            PersonService._resolve_foreign_key(
+                update_data, "company", Company, "Company", validate_active=True
+            )
 
-            if company and (company.status != BusinessStatusChoices.ACTIVE or company.is_deleted):
-                raise InactiveEntityError("Company", "Company must be active to update a member")
-
-        # Validate scheme is active if being updated
+        # Resolve scheme FK using base method if being updated
         if "scheme" in update_data:
-            scheme = update_data["scheme"]
-            if isinstance(scheme, str):
-                from apps.schemes.models import Scheme
-                try:
-                    scheme = Scheme.objects.get(id=scheme)
-                    update_data["scheme"] = scheme
-                except Scheme.DoesNotExist:
-                    raise NotFoundError("Scheme", scheme)
-
-            if scheme and (scheme.status != BusinessStatusChoices.ACTIVE or scheme.is_deleted):
-                raise InactiveEntityError("Scheme", "Scheme must be active to update a member")
+            from apps.schemes.models import Scheme
+            PersonService._resolve_foreign_key(
+                update_data, "scheme", Scheme, "Scheme", validate_active=True
+            )
 
         # Validate parent is active if being updated (for dependants)
         relationship = update_data.get("relationship", person.relationship)
@@ -286,33 +253,14 @@ class PersonService:
             person.save()
             return person
         except ValidationError as e:
-            # Check if this is a uniqueness validation error, otherwise re-raise
-            if hasattr(e, 'message_dict'):
-                for field, messages in e.message_dict.items():
-                    if any('already exists' in str(msg).lower() for msg in messages):
-                        raise DuplicateError("Person", [field], f"Another person with this {field} already exists")
-            # Not a uniqueness error - re-raise original ValidationError
-            raise
+            PersonService._handle_validation_error(e)
         except IntegrityError as e:
-            # Database constraint violation
-            error_msg = str(e).lower()
-            if 'card_number' in error_msg or 'unique' in error_msg:
-                raise DuplicateError("Person", ["card_number"], "Card number already exists for this company")
-            else:
-                raise DuplicateError("Person", message="Person with duplicate unique field already exists")
+            PersonService._handle_integrity_error(e)
 
     @staticmethod
     @transaction.atomic
     def person_deactivate(*, person_id: str, user=None) -> Person:
-        try:
-            person = Person.objects.get(id=person_id, is_deleted=False)
-        except Person.DoesNotExist:
-            raise NotFoundError("Person", person_id)
-
-        person.status = BusinessStatusChoices.INACTIVE
-        person.is_deleted = True
-        person.save(update_fields=["status", "is_deleted"])
-        return person
+        return PersonService.deactivate(entity_id=person_id, user=user)
 
     # ------------------------------------------------------------------
     # Bulk Import

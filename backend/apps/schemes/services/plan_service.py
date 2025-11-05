@@ -1,6 +1,3 @@
-import csv
-from io import StringIO
-
 from django.core.exceptions import ValidationError
 from django.db import transaction, IntegrityError
 
@@ -11,10 +8,22 @@ from apps.core.exceptions.service_errors import (
     DuplicateError,
     InvalidValueError,
 )
+from apps.core.services import BaseService, CSVExportMixin
+from apps.core.utils.validation import validate_required_fields, validate_string_length
 from apps.schemes.models import Plan
 
 
-class PlanService:
+class PlanService(BaseService, CSVExportMixin):
+    """
+    Plan business logic for write operations.
+    Handles all plan-related write operations including CRUD, validation,
+    and business logic. Read operations are handled by selectors.
+    """
+    
+    # BaseService configuration
+    entity_model = Plan
+    entity_name = "Plan"
+    unique_fields = ["plan_name"]
     """
     Plan business logic for write operations.
     Handles all plan-related write operations including CRUD, validation,
@@ -41,42 +50,26 @@ class PlanService:
         Raises:
             ValidationError: If data is invalid or duplicates exist
         """
-        # Validate required fields
-        required_fields = ["plan_name"]
-        for field in required_fields:
-            if not plan_data.get(field):
-                raise RequiredFieldError(field)
+        # Validate required fields using base method
+        PlanService._validate_required_fields(plan_data, ["plan_name"])
 
-        # Plan name validation
+        # Plan name validation using utility
         plan_name = plan_data.get("plan_name", "").strip()
-        if len(plan_name) < 2:
-            raise InvalidValueError("plan_name", "Plan name must be at least 2 characters long")
-        if len(plan_name) > 255:
-            raise InvalidValueError("plan_name", "Plan name cannot exceed 255 characters")
+        validate_string_length(plan_name, "plan_name", min_length=2, max_length=255)
+        plan_data["plan_name"] = plan_name  # Persist trimmed value
 
-        # Description validation
-        if plan_data.get("description") and len(plan_data["description"]) > 500:
-            raise InvalidValueError("description", "Description cannot exceed 500 characters")
+        # Description validation using utility
+        if plan_data.get("description"):
+            validate_string_length(plan_data["description"], "description", max_length=500, allow_none=True)
 
         # Create plan - database unique constraints prevent duplicates atomically
         try:
             plan = Plan.objects.create(**plan_data)
             return plan
         except ValidationError as e:
-            # Check if this is a uniqueness validation error, otherwise re-raise
-            if hasattr(e, 'message_dict'):
-                for field, messages in e.message_dict.items():
-                    if any('already exists' in str(msg).lower() for msg in messages):
-                        raise DuplicateError("Plan", [field], f"Plan with this {field} already exists")
-            # Not a uniqueness error - re-raise original ValidationError
-            raise
+            PlanService._handle_validation_error(e)
         except IntegrityError as e:
-            # Database constraint violation
-            error_msg = str(e).lower()
-            if 'plan_name' in error_msg or 'unique' in error_msg:
-                raise DuplicateError("Plan", ["plan_name"], "Plan with this name already exists")
-            else:
-                raise DuplicateError("Plan", message="Plan with duplicate unique field already exists")
+            PlanService._handle_integrity_error(e)
 
     @staticmethod
     @transaction.atomic
@@ -95,25 +88,17 @@ class PlanService:
         Raises:
             ValidationError: If data is invalid or duplicates exist
         """
-        try:
-            plan = Plan.objects.get(id=plan_id, is_deleted=False)
-        except Plan.DoesNotExist:
-            raise NotFoundError("Plan", plan_id)
+        # Get plan using base method
+        plan = PlanService._get_entity(plan_id)
 
-        # Validate data
+        # Validate data using utilities
         if "plan_name" in update_data:
             plan_name = update_data["plan_name"].strip()
-            if len(plan_name) < 2:
-                raise InvalidValueError("plan_name", "Plan name must be at least 2 characters long")
-            if len(plan_name) > 255:
-                raise InvalidValueError("plan_name", "Plan name cannot exceed 255 characters")
+            validate_string_length(plan_name, "plan_name", min_length=2, max_length=255)
+            update_data["plan_name"] = plan_name  # Persist trimmed value
 
-        if (
-            "description" in update_data
-            and update_data["description"]
-            and len(update_data["description"]) > 500
-        ):
-            raise InvalidValueError("description", "Description cannot exceed 500 characters")
+        if "description" in update_data and update_data["description"]:
+            validate_string_length(update_data["description"], "description", max_length=500, allow_none=True)
 
         # Update fields
         for field, value in update_data.items():
@@ -124,20 +109,9 @@ class PlanService:
             plan.save()
             return plan
         except ValidationError as e:
-            # Check if this is a uniqueness validation error, otherwise re-raise
-            if hasattr(e, 'message_dict'):
-                for field, messages in e.message_dict.items():
-                    if any('already exists' in str(msg).lower() for msg in messages):
-                        raise DuplicateError("Plan", [field], f"Another plan with this {field} already exists")
-            # Not a uniqueness error - re-raise original ValidationError
-            raise
+            PlanService._handle_validation_error(e)
         except IntegrityError as e:
-            # Database constraint violation
-            error_msg = str(e).lower()
-            if 'plan_name' in error_msg or 'unique' in error_msg:
-                raise DuplicateError("Plan", ["plan_name"], "Another plan with this name already exists")
-            else:
-                raise DuplicateError("Plan", message="Plan with duplicate unique field already exists")
+            PlanService._handle_integrity_error(e)
 
     # ---------------------------------------------------------------------
     # Status Management
@@ -156,17 +130,7 @@ class PlanService:
         Returns:
             Plan: The activated plan instance
         """
-        try:
-            plan = Plan.objects.get(id=plan_id, is_deleted=False)
-        except Plan.DoesNotExist:
-            raise NotFoundError("Plan", plan_id)
-
-        plan.status = BusinessStatusChoices.ACTIVE
-        plan.is_deleted = False
-        plan.deleted_at = None
-        plan.deleted_by = None
-        plan.save(update_fields=["status", "is_deleted", "deleted_at", "deleted_by"])
-        return plan
+        return PlanService.activate(entity_id=plan_id, user=user)
 
     @staticmethod
     @transaction.atomic
@@ -181,15 +145,7 @@ class PlanService:
         Returns:
             Plan: The deactivated plan instance
         """
-        try:
-            plan = Plan.objects.get(id=plan_id, is_deleted=False)
-        except Plan.DoesNotExist:
-            raise NotFoundError("Plan", plan_id)
-
-        plan.status = BusinessStatusChoices.INACTIVE
-        plan.is_deleted = True
-        plan.save(update_fields=["status", "is_deleted"])
-        return plan
+        return PlanService.deactivate(entity_id=plan_id, user=user)
 
     @staticmethod
     @transaction.atomic
@@ -205,14 +161,7 @@ class PlanService:
         Returns:
             Plan: The suspended plan instance
         """
-        try:
-            plan = Plan.objects.get(id=plan_id, is_deleted=False)
-        except Plan.DoesNotExist:
-            raise NotFoundError("Plan", plan_id)
-
-        plan.status = BusinessStatusChoices.SUSPENDED
-        plan.save(update_fields=["status"])
-        return plan
+        return PlanService.suspend(entity_id=plan_id, reason=reason, user=user)
 
     # ---------------------------------------------------------------------
     # Bulk Operations
@@ -232,14 +181,11 @@ class PlanService:
         Returns:
             int: Number of plans updated
         """
-        if new_status not in [choice[0] for choice in BusinessStatusChoices.choices]:
-            raise InvalidValueError("status", "Invalid status value")
-
-        updated_count = Plan.objects.filter(id__in=plan_ids, is_deleted=False).update(
-            status=new_status
+        return PlanService.bulk_status_update(
+            entity_ids=plan_ids,
+            new_status=new_status,
+            user=user
         )
-
-        return updated_count
 
     @staticmethod
     def plans_export_csv(*, filters: dict = None):
@@ -259,25 +205,16 @@ class PlanService:
         else:
             plans = Plan.objects.filter(is_deleted=False)
 
-        output = StringIO()
-        writer = csv.writer(output)
+        headers = ["ID", "Plan Name", "Description", "Status", "Created At", "Updated At"]
 
-        # Write header
-        writer.writerow(
-            ["ID", "Plan Name", "Description", "Status", "Created At", "Updated At"]
-        )
+        def row_extractor(plan):
+            return [
+                plan.id,
+                plan.plan_name,
+                plan.description or "",
+                plan.status,
+                plan.created_at.strftime("%Y-%m-%d %H:%M:%S"),
+                plan.updated_at.strftime("%Y-%m-%d %H:%M:%S"),
+            ]
 
-        # Write data
-        for plan in plans:
-            writer.writerow(
-                [
-                    plan.id,
-                    plan.plan_name,
-                    plan.description or "",
-                    plan.status,
-                    plan.created_at.strftime("%Y-%m-%d %H:%M:%S"),
-                    plan.updated_at.strftime("%Y-%m-%d %H:%M:%S"),
-                ]
-            )
-
-        return output.getvalue()
+        return PlanService.export_to_csv(plans, headers, row_extractor)

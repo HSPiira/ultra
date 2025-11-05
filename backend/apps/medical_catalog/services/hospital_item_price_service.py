@@ -3,12 +3,22 @@ from django.core.exceptions import ValidationError
 from django.db import IntegrityError
 
 from apps.core.exceptions.service_errors import NotFoundError, DuplicateError, InvalidValueError
-from apps.core.utils.integrity import is_unique_constraint_violation
+from apps.core.services import BaseService, CSVExportMixin
 from apps.medical_catalog.models import HospitalItemPrice
 from apps.providers.models import Hospital
 
 
-class HospitalItemPriceService:
+class HospitalItemPriceService(BaseService, CSVExportMixin):
+    """
+    HospitalItemPrice business logic for write operations.
+    Handles all hospital item price-related write operations including CRUD, validation,
+    and business logic. Read operations are handled by selectors.
+    """
+    
+    # BaseService configuration
+    entity_model = HospitalItemPrice
+    entity_name = "HospitalItemPrice"
+    unique_fields = []  # Composite unique constraint handled manually
     @staticmethod
     def create(*, data: dict, user=None) -> HospitalItemPrice:
         # Filter out non-model fields
@@ -17,11 +27,13 @@ class HospitalItemPriceService:
         }
         filtered_data = {k: v for k, v in data.items() if k in model_fields}
 
+        # Resolve hospital FK using base method
         hospital_id = filtered_data.pop("hospital")
-        try:
-            hospital_instance = Hospital.objects.get(pk=hospital_id, is_deleted=False)
-        except Hospital.DoesNotExist as err:
-            raise NotFoundError("Hospital", hospital_id) from err
+        temp_data = {"hospital": hospital_id}
+        HospitalItemPriceService._resolve_foreign_key(
+            temp_data, "hospital", Hospital, "Hospital", validate_active=True
+        )
+        hospital_instance = temp_data["hospital"]
 
         content_type_id = filtered_data.pop("content_type")
         try:
@@ -36,31 +48,14 @@ class HospitalItemPriceService:
                 **filtered_data
             )
         except ValidationError as e:
-            # Check if this is a uniqueness validation error, otherwise re-raise
-            if hasattr(e, 'message_dict'):
-                for field, messages in e.message_dict.items():
-                    if any('already exists' in str(msg).lower() for msg in messages):
-                        raise DuplicateError("HospitalItemPrice", [field], f"HospitalItemPrice with this {field} already exists") from e
-            # Not a uniqueness error - re-raise original ValidationError
-            raise
+            HospitalItemPriceService._handle_validation_error(e)
         except IntegrityError as e:
-            # Database constraint violation - only raise DuplicateError for unique violations
-            if is_unique_constraint_violation(e):
-                raise DuplicateError("HospitalItemPrice", message="HospitalItemPrice with these values already exists") from e
-            else:
-                # Other integrity errors (NOT NULL, FK, etc.) - raise InvalidValueError
-                raise InvalidValueError(
-                    field="database",
-                    message="Database constraint violation",
-                    details={"error": str(e)}
-                ) from e
+            HospitalItemPriceService._handle_integrity_error(e)
 
     @staticmethod
     def update(*, price_id: str, data: dict, user=None) -> HospitalItemPrice:
-        try:
-            instance = HospitalItemPrice.objects.get(pk=price_id, is_deleted=False)
-        except HospitalItemPrice.DoesNotExist as err:
-            raise NotFoundError("HospitalItemPrice", price_id) from err
+        # Get price using base method
+        instance = HospitalItemPriceService._get_entity(price_id)
 
         # Filter out non-model fields
         model_fields = {

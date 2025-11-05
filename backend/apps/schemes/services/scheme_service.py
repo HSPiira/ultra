@@ -1,9 +1,5 @@
-import csv
-from io import StringIO
-
 from django.core.exceptions import ValidationError
 from django.db import transaction, IntegrityError
-from django.db.models import Q
 
 from apps.core.enums.choices import BusinessStatusChoices
 from apps.core.exceptions.service_errors import (
@@ -13,12 +9,23 @@ from apps.core.exceptions.service_errors import (
     InvalidValueError,
     InactiveEntityError,
 )
-from apps.core.utils.integrity import is_unique_constraint_violation
+from apps.core.services import BaseService, CSVExportMixin
+from apps.core.utils.validation import validate_required_fields, validate_string_length, validate_date_range
 from apps.schemes.models import Scheme
 from apps.companies.models import Company
 
 
-class SchemeService:
+class SchemeService(BaseService, CSVExportMixin):
+    """
+    Scheme business logic for write operations.
+    Handles all scheme-related write operations including CRUD, validation,
+    and business logic. Read operations are handled by selectors.
+    """
+    
+    # BaseService configuration
+    entity_model = Scheme
+    entity_name = "Scheme"
+    unique_fields = ["scheme_name", "card_code"]
     """
     Scheme business logic for write operations.
     Handles all scheme-related write operations including CRUD, validation,
@@ -52,7 +59,7 @@ class SchemeService:
             InactiveEntityError: If company is not active
             DuplicateError: If scheme name or card code already exists
         """
-        # Validate required fields
+        # Validate required fields using base method
         required_fields = [
             "scheme_name",
             "company",
@@ -60,72 +67,34 @@ class SchemeService:
             "start_date",
             "end_date",
         ]
-        for field in required_fields:
-            if not scheme_data.get(field):
-                raise RequiredFieldError(field)
+        SchemeService._validate_required_fields(scheme_data, required_fields)
 
-        # Handle company field - convert ID to Company instance if needed
-        company = scheme_data.get("company")
-        if isinstance(company, Company):
-            # Already a Company instance, use it directly
-            pass
-        else:
-            # Attempt to resolve company by ID (supports str, UUID, int, etc.)
-            try:
-                company = Company.objects.get(id=company, is_deleted=False)
-                scheme_data["company"] = company
-            except Company.DoesNotExist as exc:
-                raise NotFoundError("Company", company) from exc
-            except (ValueError, TypeError) as exc:
-                raise InvalidValueError("company", "Company must be a valid Company instance or ID") from exc
+        # Resolve company FK using base method
+        SchemeService._resolve_foreign_key(
+            scheme_data, "company", Company, "Company", validate_active=True
+        )
 
-        # Validate company is active
-        if company.status != BusinessStatusChoices.ACTIVE or company.is_deleted:
-            raise InactiveEntityError("Company", "Company must be active to create a scheme")
-
-        # Date validation
-        if (
-            scheme_data.get("start_date")
-            and scheme_data.get("end_date")
-            and scheme_data["start_date"] >= scheme_data["end_date"]
-        ):
-            raise InvalidValueError("end_date", "End date must be after start date")
+        # Date validation using utility
+        validate_date_range(
+            scheme_data.get("start_date"),
+            scheme_data.get("end_date"),
+            "start_date",
+            "end_date"
+        )
 
         # Card code validation (length check - format handled by model)
         card_code = scheme_data.get("card_code", "").strip()
-        if len(card_code) != 3:
-            raise InvalidValueError("card_code", "Card code must be exactly 3 characters")
+        validate_string_length(card_code, "card_code", min_length=3, max_length=3)
+        scheme_data["card_code"] = card_code  # Persist trimmed value
 
         # Create scheme - database unique constraints prevent duplicates atomically
-        # This eliminates the race condition from check-then-create pattern
         try:
             scheme = Scheme.objects.create(**scheme_data)
             return scheme
         except ValidationError as e:
-            # Check if this is a uniqueness validation error, otherwise re-raise
-            if hasattr(e, 'message_dict'):
-                for field, messages in e.message_dict.items():
-                    if any('already exists' in str(msg).lower() for msg in messages):
-                        raise DuplicateError("Scheme", [field], f"Scheme with this {field} already exists") from e
-            # Not a uniqueness error - re-raise original ValidationError
-            raise
+            SchemeService._handle_validation_error(e)
         except IntegrityError as e:
-            # Database constraint violation - only raise DuplicateError for unique violations
-            if is_unique_constraint_violation(e):
-                error_msg = str(e).lower()
-                if 'card_code' in error_msg:
-                    raise DuplicateError("Scheme", ["card_code"], "Scheme with this card code already exists") from e
-                elif 'scheme_name' in error_msg or 'unique' in error_msg:
-                    raise DuplicateError("Scheme", ["scheme_name"], "Scheme with this name already exists") from e
-                else:
-                    raise DuplicateError("Scheme", message="Scheme with duplicate unique field already exists") from e
-            else:
-                # Other integrity errors (NOT NULL, FK, etc.) - raise InvalidValueError
-                raise InvalidValueError(
-                    field="database",
-                    message="Database constraint violation",
-                    details={"error": str(e)}
-                ) from e
+            SchemeService._handle_integrity_error(e)
 
     @staticmethod
     @transaction.atomic
@@ -150,50 +119,30 @@ class SchemeService:
             InactiveEntityError: If company is not active
             DuplicateError: If scheme name or card code conflicts
         """
-        try:
-            scheme = Scheme.objects.get(id=scheme_id, is_deleted=False)
-        except Scheme.DoesNotExist as exc:
-            raise NotFoundError("Scheme", scheme_id) from exc
+        # Get scheme using base method
+        scheme = SchemeService._get_entity(scheme_id)
 
-        # Validate data
-        if "scheme_name" in update_data and not update_data["scheme_name"]:
-            raise RequiredFieldError("scheme_name")
-        if "company" in update_data and not update_data["company"]:
-            raise RequiredFieldError("company")
-        if "card_code" in update_data and not update_data["card_code"]:
-            raise RequiredFieldError("card_code")
+        # Validate required fields if present in update
+        for field in ["scheme_name", "company", "card_code"]:
+            if field in update_data and not update_data[field]:
+                raise RequiredFieldError(field)
 
-        # Handle company field - convert ID to Company instance if needed
+        # Resolve company FK using base method
         if "company" in update_data:
-            company = update_data["company"]
-            if isinstance(company, Company):
-                # Already a Company instance, use it directly
-                pass
-            else:
-                # Attempt to resolve company by ID (supports str, UUID, int, etc.)
-                try:
-                    company = Company.objects.get(id=company, is_deleted=False)
-                    update_data["company"] = company
-                except Company.DoesNotExist as exc:
-                    raise NotFoundError("Company", company) from exc
-                except (ValueError, TypeError) as exc:
-                    raise InvalidValueError("company", "Company must be a valid Company instance or ID") from exc
+            SchemeService._resolve_foreign_key(
+                update_data, "company", Company, "Company", validate_active=True
+            )
 
-            # Validate company is active
-            if company.status != BusinessStatusChoices.ACTIVE or company.is_deleted:
-                raise InactiveEntityError("Company", "Company must be active to update a scheme")
-
-        # Date validation
+        # Date validation using utility
         start_date = update_data.get("start_date", scheme.start_date)
         end_date = update_data.get("end_date", scheme.end_date)
-        if start_date and end_date and start_date >= end_date:
-            raise InvalidValueError("end_date", "End date must be after start date")
+        validate_date_range(start_date, end_date, "start_date", "end_date")
 
         # Card code validation
         if "card_code" in update_data:
             card_code = update_data["card_code"].strip()
-            if len(card_code) != 3:
-                raise InvalidValueError("card_code", "Card code must be exactly 3 characters")
+            validate_string_length(card_code, "card_code", min_length=3, max_length=3)
+            update_data["card_code"] = card_code  # Persist trimmed value
 
         # Update fields
         for field, value in update_data.items():
@@ -204,30 +153,9 @@ class SchemeService:
             scheme.save()
             return scheme
         except ValidationError as e:
-            # Check if this is a uniqueness validation error, otherwise re-raise
-            if hasattr(e, 'message_dict'):
-                for field, messages in e.message_dict.items():
-                    if any('already exists' in str(msg).lower() for msg in messages):
-                        raise DuplicateError("Scheme", [field], f"Another scheme with this {field} already exists") from e
-            # Not a uniqueness error - re-raise original ValidationError
-            raise
+            SchemeService._handle_validation_error(e)
         except IntegrityError as e:
-            # Database constraint violation - only raise DuplicateError for unique violations
-            if is_unique_constraint_violation(e):
-                error_msg = str(e).lower()
-                if 'card_code' in error_msg:
-                    raise DuplicateError("Scheme", ["card_code"], "Another scheme with this card code already exists") from e
-                elif 'scheme_name' in error_msg or 'unique' in error_msg:
-                    raise DuplicateError("Scheme", ["scheme_name"], "Another scheme with this name already exists") from e
-                else:
-                    raise DuplicateError("Scheme", message="Scheme with duplicate unique field already exists") from e
-            else:
-                # Other integrity errors (NOT NULL, FK, etc.) - raise InvalidValueError
-                raise InvalidValueError(
-                    field="database",
-                    message="Database constraint violation",
-                    details={"error": str(e)}
-                ) from e
+            SchemeService._handle_integrity_error(e)
 
     # ---------------------------------------------------------------------
     # Status Management
@@ -246,17 +174,7 @@ class SchemeService:
         Returns:
             Scheme: The activated scheme instance
         """
-        try:
-            scheme = Scheme.objects.get(id=scheme_id, is_deleted=False)
-        except Scheme.DoesNotExist:
-            raise NotFoundError("Scheme", scheme_id)
-
-        scheme.status = BusinessStatusChoices.ACTIVE
-        scheme.is_deleted = False
-        scheme.deleted_at = None
-        scheme.deleted_by = None
-        scheme.save(update_fields=["status", "is_deleted", "deleted_at", "deleted_by"])
-        return scheme
+        return SchemeService.activate(entity_id=scheme_id, user=user)
 
     @staticmethod
     @transaction.atomic
@@ -307,20 +225,23 @@ class SchemeService:
         Returns:
             Scheme: The suspended scheme instance
         """
-        try:
-            scheme = Scheme.objects.get(id=scheme_id, is_deleted=False)
-        except Scheme.DoesNotExist:
-            raise NotFoundError("Scheme", scheme_id)
-
-        scheme.status = BusinessStatusChoices.SUSPENDED
-        suspension_note = f"\nSuspended: {reason}"
-        scheme.remark = (
-            f"{scheme.remark}{suspension_note}"
-            if scheme.remark
-            else f"Suspended: {reason}"
-        )
-        scheme.save(update_fields=["status", "remark"])
-        return scheme
+        instance = SchemeService._get_entity(scheme_id)
+        
+        instance.status = BusinessStatusChoices.SUSPENDED
+        update_fields = ["status"]
+        
+        # Use remark field for suspension note
+        if reason and hasattr(instance, 'remark'):
+            suspension_note = f"\nSuspended: {reason}"
+            instance.remark = (
+                f"{instance.remark}{suspension_note}"
+                if instance.remark
+                else f"Suspended: {reason}"
+            )
+            update_fields.append("remark")
+        
+        instance.save(update_fields=update_fields)
+        return instance
 
     # ---------------------------------------------------------------------
     # Bulk Operations
@@ -340,14 +261,11 @@ class SchemeService:
         Returns:
             int: Number of schemes updated
         """
-        if new_status not in [choice[0] for choice in BusinessStatusChoices.choices]:
-            raise InvalidValueError("status", "Invalid status value")
-
-        updated_count = Scheme.objects.filter(
-            id__in=scheme_ids, is_deleted=False
-        ).update(status=new_status)
-
-        return updated_count
+        return SchemeService.bulk_status_update(
+            entity_ids=scheme_ids,
+            new_status=new_status,
+            user=user
+        )
 
     @staticmethod
     def schemes_export_csv(*, filters: dict = None):
@@ -367,50 +285,41 @@ class SchemeService:
         else:
             schemes = Scheme.objects.filter(is_deleted=False)
 
-        output = StringIO()
-        writer = csv.writer(output)
+        headers = [
+            "ID",
+            "Scheme Name",
+            "Company",
+            "Card Code",
+            "Description",
+            "Start Date",
+            "End Date",
+            "Termination Date",
+            "Limit Amount",
+            "Family Applicable",
+            "Status",
+            "Created At",
+            "Updated At",
+        ]
 
-        # Write header
-        writer.writerow(
-            [
-                "ID",
-                "Scheme Name",
-                "Company",
-                "Card Code",
-                "Description",
-                "Start Date",
-                "End Date",
-                "Termination Date",
-                "Limit Amount",
-                "Family Applicable",
-                "Status",
-                "Created At",
-                "Updated At",
+        def row_extractor(scheme):
+            return [
+                scheme.id,
+                scheme.scheme_name,
+                scheme.company.company_name if scheme.company else "",
+                scheme.card_code,
+                scheme.description or "",
+                scheme.start_date.strftime("%Y-%m-%d"),
+                scheme.end_date.strftime("%Y-%m-%d"),
+                (
+                    scheme.termination_date.strftime("%Y-%m-%d")
+                    if scheme.termination_date
+                    else ""
+                ),
+                scheme.limit_amount,
+                scheme.family_applicable,
+                scheme.status,
+                scheme.created_at.strftime("%Y-%m-%d %H:%M:%S"),
+                scheme.updated_at.strftime("%Y-%m-%d %H:%M:%S"),
             ]
-        )
 
-        # Write data
-        for scheme in schemes:
-            writer.writerow(
-                [
-                    scheme.id,
-                    scheme.scheme_name,
-                    scheme.company.company_name if scheme.company else "",
-                    scheme.card_code,
-                    scheme.description or "",
-                    scheme.start_date.strftime("%Y-%m-%d"),
-                    scheme.end_date.strftime("%Y-%m-%d"),
-                    (
-                        scheme.termination_date.strftime("%Y-%m-%d")
-                        if scheme.termination_date
-                        else ""
-                    ),
-                    scheme.limit_amount,
-                    scheme.family_applicable,
-                    scheme.status,
-                    scheme.created_at.strftime("%Y-%m-%d %H:%M:%S"),
-                    scheme.updated_at.strftime("%Y-%m-%d %H:%M:%S"),
-                ]
-            )
-
-        return output.getvalue()
+        return SchemeService.export_to_csv(schemes, headers, row_extractor)

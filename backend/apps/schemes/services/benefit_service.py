@@ -1,6 +1,3 @@
-import csv
-from io import StringIO
-
 from django.core.exceptions import ValidationError
 from django.db import transaction, IntegrityError
 
@@ -11,11 +8,22 @@ from apps.core.exceptions.service_errors import (
     DuplicateError,
     InvalidValueError,
 )
-from apps.core.utils.integrity import is_unique_constraint_violation
+from apps.core.services import BaseService, CSVExportMixin
+from apps.core.utils.validation import validate_required_fields, validate_string_length, validate_choice_value
 from apps.schemes.models import Benefit
 
 
-class BenefitService:
+class BenefitService(BaseService, CSVExportMixin):
+    """
+    Benefit business logic for write operations.
+    Handles all benefit-related write operations including CRUD, validation,
+    and business logic. Read operations are handled by selectors.
+    """
+    
+    # BaseService configuration
+    entity_model = Benefit
+    entity_name = "Benefit"
+    unique_fields = ["benefit_name"]
     """
     Benefit business logic for write operations.
     Handles all benefit-related write operations including CRUD, validation,
@@ -42,51 +50,36 @@ class BenefitService:
         Raises:
             ValidationError: If data is invalid or duplicates exist
         """
-        # Validate required fields
-        required_fields = ["benefit_name", "in_or_out_patient"]
-        for field in required_fields:
-            if not benefit_data.get(field):
-                raise RequiredFieldError(field)
+        # Validate required fields using base method
+        BenefitService._validate_required_fields(benefit_data, ["benefit_name", "in_or_out_patient"])
 
-        # Benefit name validation
+        # Benefit name validation using utility
         benefit_name = benefit_data.get("benefit_name", "").strip()
-        if len(benefit_name) < 2:
-            raise InvalidValueError("benefit_name", "Benefit name must be at least 2 characters long")
-        if len(benefit_name) > 255:
-            raise InvalidValueError("benefit_name", "Benefit name cannot exceed 255 characters")
-        # Persist the trimmed value
-        benefit_data["benefit_name"] = benefit_name
+        validate_string_length(benefit_name, "benefit_name", min_length=2, max_length=255)
+        benefit_data["benefit_name"] = benefit_name  # Persist trimmed value
 
-        # Description validation
-        if benefit_data.get("description") and len(benefit_data["description"]) > 500:
-            raise InvalidValueError("description", "Description cannot exceed 500 characters")
+        # Description validation using utility
+        if benefit_data.get("description"):
+            validate_string_length(benefit_data["description"], "description", max_length=500, allow_none=True)
 
-        # Patient type validation
+        # Patient type validation using utility
         valid_patient_types = ["INPATIENT", "OUTPATIENT", "BOTH"]
-        if benefit_data.get("in_or_out_patient") not in valid_patient_types:
-            raise InvalidValueError("in_or_out_patient", "Invalid patient type")
+        validate_choice_value(benefit_data.get("in_or_out_patient"), valid_patient_types, "in_or_out_patient")
 
         # Limit amount validation
         limit_amount = benefit_data.get("limit_amount")
         if limit_amount == "":
             benefit_data["limit_amount"] = None
-        elif limit_amount is not None and limit_amount < 0:
-            raise InvalidValueError("limit_amount", "Limit amount cannot be negative")
+        elif limit_amount is not None:
+            from apps.core.utils.validation import validate_positive_amount
+            validate_positive_amount(limit_amount, "limit_amount", allow_none=True, allow_zero=True)
 
-        # Handle plan field conversion
+        # Resolve plan FK using base method
         if 'plan' in benefit_data and benefit_data['plan']:
             from apps.schemes.models import Plan
-            plan_value = benefit_data['plan']
-            if isinstance(plan_value, Plan):
-                if plan_value.is_deleted:
-                    raise InvalidValueError("plan", "Plan must be active to create a benefit")
-                plan = plan_value
-            else:
-                try:
-                    plan = Plan.objects.get(id=plan_value, is_deleted=False)
-                except Plan.DoesNotExist as exc:
-                    raise NotFoundError("Plan", plan_value) from exc
-            benefit_data['plan'] = plan
+            BenefitService._resolve_foreign_key(
+                benefit_data, "plan", Plan, "Plan", validate_active=True, allow_none=True
+            )
         elif 'plan' in benefit_data and benefit_data['plan'] is None:
             benefit_data['plan'] = None
 
@@ -95,29 +88,9 @@ class BenefitService:
             benefit = Benefit.objects.create(**benefit_data)
             return benefit
         except ValidationError as e:
-            # Check if this is a uniqueness validation error, otherwise re-raise
-            if hasattr(e, 'message_dict'):
-                for field, messages in e.message_dict.items():
-                    if any('already exists' in str(msg).lower() for msg in messages):
-                        raise DuplicateError("Benefit", [field], f"Benefit with this {field} already exists") from e
-            # Not a uniqueness error - re-raise original ValidationError
-            raise
+            BenefitService._handle_validation_error(e)
         except IntegrityError as e:
-            # Database constraint violation - only raise DuplicateError for unique violations
-            if is_unique_constraint_violation(e):
-                # Check for specific benefit-related unique constraint
-                error_msg = str(e).lower()
-                if 'benefit_name' in error_msg or 'unique' in error_msg:
-                    raise DuplicateError("Benefit", ["benefit_name", "in_or_out_patient"], "Benefit with this name and patient type already exists") from e
-                else:
-                    raise DuplicateError("Benefit", message="Benefit with duplicate unique field already exists") from e
-            else:
-                # Other integrity errors (NOT NULL, FK, etc.) - raise InvalidValueError
-                raise InvalidValueError(
-                    field="database",
-                    message="Database constraint violation",
-                    details={"error": str(e)}
-                ) from e
+            BenefitService._handle_integrity_error(e)
 
     @staticmethod
     @transaction.atomic
@@ -136,55 +109,36 @@ class BenefitService:
         Raises:
             ValidationError: If data is invalid or duplicates exist
         """
-        try:
-            benefit = Benefit.objects.get(id=benefit_id, is_deleted=False)
-        except Benefit.DoesNotExist as exc:
-            raise NotFoundError("Benefit", benefit_id) from exc
+        # Get benefit using base method
+        benefit = BenefitService._get_entity(benefit_id)
 
-        # Validate data
+        # Validate data using utilities
         if "benefit_name" in update_data:
             benefit_name = update_data["benefit_name"].strip()
-            if len(benefit_name) < 2:
-                raise InvalidValueError("benefit_name", "Benefit name must be at least 2 characters long")
-            if len(benefit_name) > 255:
-                raise InvalidValueError("benefit_name", "Benefit name cannot exceed 255 characters")
-            # Persist the trimmed value
-            update_data["benefit_name"] = benefit_name
+            validate_string_length(benefit_name, "benefit_name", min_length=2, max_length=255)
+            update_data["benefit_name"] = benefit_name  # Persist trimmed value
 
-        if (
-            "description" in update_data
-            and update_data["description"]
-            and len(update_data["description"]) > 500
-        ):
-            raise InvalidValueError("description", "Description cannot exceed 500 characters")
+        if "description" in update_data and update_data["description"]:
+            validate_string_length(update_data["description"], "description", max_length=500, allow_none=True)
 
         if "in_or_out_patient" in update_data:
             valid_patient_types = ["INPATIENT", "OUTPATIENT", "BOTH"]
-            if update_data["in_or_out_patient"] not in valid_patient_types:
-                raise InvalidValueError("in_or_out_patient", "Invalid patient type")
+            validate_choice_value(update_data["in_or_out_patient"], valid_patient_types, "in_or_out_patient")
 
-        if "limit_amount" in update_data and isinstance(update_data["limit_amount"], str) and update_data["limit_amount"].strip() == "":
-            update_data["limit_amount"] = None
         if "limit_amount" in update_data:
-            limit_amount = update_data["limit_amount"]
-            if limit_amount is not None and limit_amount < 0:
-                raise InvalidValueError("limit_amount", "Limit amount cannot be negative")
+            if isinstance(update_data["limit_amount"], str) and update_data["limit_amount"].strip() == "":
+                update_data["limit_amount"] = None
+            elif update_data["limit_amount"] is not None:
+                from apps.core.utils.validation import validate_positive_amount
+                validate_positive_amount(update_data["limit_amount"], "limit_amount", allow_none=True, allow_zero=True)
 
-        # Handle plan field conversion
+        # Resolve plan FK using base method
         if 'plan' in update_data:
             if update_data['plan']:
                 from apps.schemes.models import Plan
-                plan_value = update_data['plan']
-                if isinstance(plan_value, Plan):
-                    if plan_value.is_deleted:
-                        raise InvalidValueError("plan", "Plan must be active to update a benefit")
-                    plan = plan_value
-                else:
-                    try:
-                        plan = Plan.objects.get(id=plan_value, is_deleted=False)
-                    except Plan.DoesNotExist as exc:
-                        raise NotFoundError("Plan", plan_value) from exc
-                update_data['plan'] = plan
+                BenefitService._resolve_foreign_key(
+                    update_data, "plan", Plan, "Plan", validate_active=True, allow_none=True
+                )
             else:
                 update_data['plan'] = None
 
@@ -197,29 +151,9 @@ class BenefitService:
             benefit.save()
             return benefit
         except ValidationError as e:
-            # Check if this is a uniqueness validation error, otherwise re-raise
-            if hasattr(e, 'message_dict'):
-                for field, messages in e.message_dict.items():
-                    if any('already exists' in str(msg).lower() for msg in messages):
-                        raise DuplicateError("Benefit", [field], f"Another benefit with this {field} already exists") from e
-            # Not a uniqueness error - re-raise original ValidationError
-            raise
+            BenefitService._handle_validation_error(e)
         except IntegrityError as e:
-            # Database constraint violation - only raise DuplicateError for unique violations
-            if is_unique_constraint_violation(e):
-                # Check for specific benefit-related unique constraint
-                error_msg = str(e).lower()
-                if 'benefit_name' in error_msg or 'unique' in error_msg:
-                    raise DuplicateError("Benefit", ["benefit_name", "in_or_out_patient"], "Another benefit with this name and patient type already exists") from e
-                else:
-                    raise DuplicateError("Benefit", message="Benefit with duplicate unique field already exists") from e
-            else:
-                # Other integrity errors (NOT NULL, FK, etc.) - raise InvalidValueError
-                raise InvalidValueError(
-                    field="database",
-                    message="Database constraint violation",
-                    details={"error": str(e)}
-                ) from e
+            BenefitService._handle_integrity_error(e)
 
     # ---------------------------------------------------------------------
     # Status Management
@@ -238,17 +172,7 @@ class BenefitService:
         Returns:
             Benefit: The activated benefit instance
         """
-        try:
-            benefit = Benefit.objects.get(id=benefit_id, is_deleted=False)
-        except Benefit.DoesNotExist as exc:
-            raise NotFoundError("Benefit", benefit_id) from exc
-
-        benefit.status = BusinessStatusChoices.ACTIVE
-        benefit.is_deleted = False
-        benefit.deleted_at = None
-        benefit.deleted_by = None
-        benefit.save(update_fields=["status", "is_deleted", "deleted_at", "deleted_by"])
-        return benefit
+        return BenefitService.activate(entity_id=benefit_id, user=user)
 
     @staticmethod
     @transaction.atomic
@@ -263,15 +187,7 @@ class BenefitService:
         Returns:
             Benefit: The deactivated benefit instance
         """
-        try:
-            benefit = Benefit.objects.get(id=benefit_id, is_deleted=False)
-        except Benefit.DoesNotExist as exc:
-            raise NotFoundError("Benefit", benefit_id) from exc
-
-        benefit.status = BusinessStatusChoices.INACTIVE
-        benefit.is_deleted = True
-        benefit.save(update_fields=["status", "is_deleted"])
-        return benefit
+        return BenefitService.deactivate(entity_id=benefit_id, user=user)
 
     @staticmethod
     @transaction.atomic

@@ -2,11 +2,21 @@ from django.core.exceptions import ValidationError
 from django.db import IntegrityError
 
 from apps.core.exceptions.service_errors import NotFoundError, DuplicateError
-from apps.core.utils.integrity import is_unique_constraint_violation
+from apps.core.services import BaseService, CSVExportMixin
 from apps.medical_catalog.models import Service
 
 
-class ServiceService:
+class ServiceService(BaseService, CSVExportMixin):
+    """
+    Service business logic for write operations.
+    Handles all medical service-related write operations including CRUD, validation,
+    and business logic. Read operations are handled by selectors.
+    """
+    
+    # BaseService configuration
+    entity_model = Service
+    entity_name = "Service"
+    unique_fields = ["name"]
     @staticmethod
     def create(*, data: dict, user=None) -> Service:
         # Filter out non-model fields
@@ -22,32 +32,14 @@ class ServiceService:
             instance.save()
             return instance
         except ValidationError as e:
-            # Check if this is a uniqueness validation error, otherwise re-raise
-            if hasattr(e, 'message_dict'):
-                for field, messages in e.message_dict.items():
-                    if any('already exists' in str(msg).lower() for msg in messages):
-                        raise DuplicateError("Service", [field], f"Service with this {field} already exists") from e
-            # Not a uniqueness error - re-raise original ValidationError
-            raise
+            ServiceService._handle_validation_error(e)
         except IntegrityError as e:
-            # Database constraint violation - only raise DuplicateError for unique violations
-            if is_unique_constraint_violation(e):
-                # Check if we can identify the specific field from the error message
-                error_msg = str(e).lower()
-                if 'name' in error_msg:
-                    raise DuplicateError("Service", ["name"], "Service with this name already exists") from e
-                else:
-                    raise DuplicateError("Service", message="Service with these values already exists") from e
-            else:
-                # Other integrity errors (NOT NULL, FK, etc.) - re-raise
-                raise
+            ServiceService._handle_integrity_error(e)
 
     @staticmethod
     def update(*, service_id: str, data: dict, user=None) -> Service:
-        try:
-            instance = Service.objects.get(pk=service_id, is_deleted=False)
-        except Service.DoesNotExist as e:
-            raise NotFoundError("Service", service_id) from e
+        # Get service using base method
+        instance = ServiceService._get_entity(service_id)
 
         # Filter out non-model fields
         model_fields = {

@@ -2,10 +2,21 @@ from django.core.exceptions import ValidationError
 from django.db import IntegrityError
 
 from apps.core.exceptions.service_errors import NotFoundError, DuplicateError
+from apps.core.services import BaseService, CSVExportMixin
 from apps.medical_catalog.models import LabTest
 
 
-class LabTestService:
+class LabTestService(BaseService, CSVExportMixin):
+    """
+    LabTest business logic for write operations.
+    Handles all lab test-related write operations including CRUD, validation,
+    and business logic. Read operations are handled by selectors.
+    """
+    
+    # BaseService configuration
+    entity_model = LabTest
+    entity_name = "LabTest"
+    unique_fields = ["name"]
     @staticmethod
     def create(*, data: dict, user=None) -> LabTest:
         # Filter out non-model fields
@@ -21,27 +32,14 @@ class LabTestService:
             instance.save()
             return instance
         except ValidationError as e:
-            # Check if this is a uniqueness validation error, otherwise re-raise
-            if hasattr(e, 'message_dict'):
-                for field, messages in e.message_dict.items():
-                    if any('already exists' in str(msg).lower() for msg in messages):
-                        raise DuplicateError("LabTest", [field], f"LabTest with this {field} already exists")
-            # Not a uniqueness error - re-raise original ValidationError
-            raise
+            LabTestService._handle_validation_error(e)
         except IntegrityError as e:
-            # Database constraint violation
-            error_msg = str(e).lower()
-            if 'name' in error_msg or 'unique' in error_msg:
-                raise DuplicateError("LabTest", ["name"], "LabTest with this name already exists")
-            else:
-                raise DuplicateError("LabTest", message="LabTest with duplicate unique field already exists")
+            LabTestService._handle_integrity_error(e)
 
     @staticmethod
     def update(*, labtest_id: str, data: dict, user=None) -> LabTest:
-        try:
-            instance = LabTest.objects.get(pk=labtest_id, is_deleted=False)
-        except LabTest.DoesNotExist:
-            raise NotFoundError("LabTest", labtest_id)
+        # Get labtest using base method
+        instance = LabTestService._get_entity(labtest_id)
 
         # Filter out non-model fields
         model_fields = {
@@ -56,20 +54,9 @@ class LabTestService:
             instance.save(update_fields=None)
             return instance
         except ValidationError as e:
-            # Check if this is a uniqueness validation error, otherwise re-raise
-            if hasattr(e, 'message_dict'):
-                for field, messages in e.message_dict.items():
-                    if any('already exists' in str(msg).lower() for msg in messages):
-                        raise DuplicateError("LabTest", [field], f"Another labtest with this {field} already exists")
-            # Not a uniqueness error - re-raise original ValidationError
-            raise
+            LabTestService._handle_validation_error(e)
         except IntegrityError as e:
-            # Database constraint violation
-            error_msg = str(e).lower()
-            if 'name' in error_msg or 'unique' in error_msg:
-                raise DuplicateError("LabTest", ["name"], "Another labtest with this name already exists")
-            else:
-                raise DuplicateError("LabTest", message="LabTest with duplicate unique field already exists")
+            LabTestService._handle_integrity_error(e)
 
     @staticmethod
     def deactivate(*, labtest_id: str, user=None) -> None:

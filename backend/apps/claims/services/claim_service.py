@@ -6,46 +6,39 @@ from django.db import transaction
 from apps.claims.models import Claim, ClaimDetail, ClaimPayment
 from apps.core.enums.choices import BusinessStatusChoices
 from apps.core.exceptions.service_errors import NotFoundError, InactiveEntityError, InvalidValueError
+from apps.core.services import BaseService, CSVExportMixin
 
 
-class ClaimService:
+class ClaimService(BaseService, CSVExportMixin):
+    """
+    Claim business logic for write operations.
+    Handles all claim-related write operations including CRUD, validation,
+    and business logic. Read operations are handled by selectors.
+    """
+    
+    # BaseService configuration
+    entity_model = Claim
+    entity_name = "Claim"
+    unique_fields = []
     @staticmethod
     @transaction.atomic
     def create_claim(*, data: dict[str, Any], user=None) -> Claim:
         details: list[dict[str, Any]] = data.pop("details", [])
         payments: list[dict[str, Any]] = data.pop("payments", [])
 
-        # Validate member is active
-        member_id = data.get("member")
-        if member_id:
+        # Resolve member FK using base method
+        if data.get("member"):
             from apps.members.models import Person
-            if isinstance(member_id, str):
-                try:
-                    member = Person.objects.get(id=member_id, is_deleted=False)
-                    data["member"] = member
-                except Person.DoesNotExist as exc:
-                    raise NotFoundError("Person", member_id) from exc
-            else:
-                member = member_id
+            ClaimService._resolve_foreign_key(
+                data, "member", Person, "Person", validate_active=True, allow_none=True
+            )
 
-            if member.status != BusinessStatusChoices.ACTIVE or member.is_deleted:
-                raise InactiveEntityError("Person", "Member must be active to create a claim")
-
-        # Validate hospital is active
-        hospital_id = data.get("hospital")
-        if hospital_id:
+        # Resolve hospital FK using base method
+        if data.get("hospital"):
             from apps.providers.models import Hospital
-            if isinstance(hospital_id, str):
-                try:
-                    hospital = Hospital.objects.get(id=hospital_id, is_deleted=False)
-                    data["hospital"] = hospital
-                except Hospital.DoesNotExist as exc:
-                    raise NotFoundError("Hospital", hospital_id) from exc
-            else:
-                hospital = hospital_id
-
-            if hospital.status != BusinessStatusChoices.ACTIVE or hospital.is_deleted:
-                raise InactiveEntityError("Hospital", "Hospital must be active to create a claim")
+            ClaimService._resolve_foreign_key(
+                data, "hospital", Hospital, "Hospital", validate_active=True, allow_none=True
+            )
 
         # Validate doctor is active (if provided)
         doctor_id = data.get("doctor")

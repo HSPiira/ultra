@@ -24,17 +24,18 @@ class OpenAPISchemaTests(TestCase):
         response = self.client.get('/api/v1/schema/')
         self.assertEqual(response.status_code, 200)
 
-        # Should be valid JSON
+        # Should be valid JSON (OpenAPI format)
         try:
-            schema = response.json()
+            # Handle OpenAPI content type
+            schema = json.loads(response.content.decode('utf-8'))
             self.assertIsInstance(schema, dict)
-        except json.JSONDecodeError:
+        except (json.JSONDecodeError, UnicodeDecodeError):
             self.fail("Schema response is not valid JSON")
 
     def test_schema_info_section(self):
         """Test that schema includes proper info section."""
         response = self.client.get('/api/v1/schema/')
-        schema = response.json()
+        schema = json.loads(response.content.decode('utf-8'))
 
         self.assertIn('info', schema)
         info = schema['info']
@@ -47,7 +48,7 @@ class OpenAPISchemaTests(TestCase):
     def test_schema_contact_information(self):
         """Test that schema includes contact information."""
         response = self.client.get('/api/v1/schema/')
-        schema = response.json()
+        schema = json.loads(response.content.decode('utf-8'))
 
         info = schema.get('info', {})
         self.assertIn('contact', info)
@@ -59,7 +60,7 @@ class OpenAPISchemaTests(TestCase):
     def test_schema_tags(self):
         """Test that schema includes tags for organization."""
         response = self.client.get('/api/v1/schema/')
-        schema = response.json()
+        schema = json.loads(response.content.decode('utf-8'))
 
         self.assertIn('tags', schema)
         tags = schema['tags']
@@ -75,7 +76,7 @@ class OpenAPISchemaTests(TestCase):
     def test_schema_valid_openapi_version(self):
         """Test that schema specifies valid OpenAPI version."""
         response = self.client.get('/api/v1/schema/')
-        schema = response.json()
+        schema = json.loads(response.content.decode('utf-8'))
 
         self.assertIn('openapi', schema)
         # Should be OpenAPI 3.x
