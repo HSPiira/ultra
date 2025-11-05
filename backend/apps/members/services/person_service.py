@@ -153,18 +153,25 @@ class PersonService(BaseService, CSVExportMixin):
             company=None
         )
 
-    @staticmethod
+    @classmethod
     @transaction.atomic
-    def person_create(*, person_data: dict, user=None) -> Person:
-        # Validate required fields using base method
-        required_fields = [
-            "company",
-            "scheme",
-            "name",
-            "gender",
-            "relationship",
-        ]
-        PersonService._validate_required_fields(person_data, required_fields)
+    def person_create(cls, *, person_data: dict, user=None) -> Person:
+        """
+        Create a new person with validation.
+        
+        Args:
+            person_data: Dictionary containing person information
+            user: User creating the person (for audit trail)
+            
+        Returns:
+            Person: The created person instance
+        """
+        # Filter fields if allowed_fields is defined
+        if cls.allowed_fields is not None:
+            person_data = cls._filter_model_fields(person_data, cls.allowed_fields)
+        
+        # Apply validation rules (configured in BaseService)
+        cls._apply_validation_rules(person_data)
 
         # Relationship rules: SELF cannot have parent
         if person_data.get(
@@ -174,13 +181,13 @@ class PersonService(BaseService, CSVExportMixin):
 
         # Resolve company FK using base method
         from apps.companies.models import Company
-        PersonService._resolve_foreign_key(
+        company = cls._resolve_foreign_key(
             person_data, "company", Company, "Company", validate_active=True
         )
 
         # Resolve scheme FK using base method
         from apps.schemes.models import Scheme
-        PersonService._resolve_foreign_key(
+        scheme = cls._resolve_foreign_key(
             person_data, "scheme", Scheme, "Scheme", validate_active=True
         )
 
@@ -209,7 +216,7 @@ class PersonService(BaseService, CSVExportMixin):
         # Auto-generate card number if not provided
         if not person_data.get("card_number"):
             try:
-                generated_card = PersonService._generate_card_number(
+                generated_card = cls._generate_card_number(
                     scheme=scheme,
                     relationship=person_data.get("relationship"),
                     parent=parent,
@@ -226,15 +233,40 @@ class PersonService(BaseService, CSVExportMixin):
             person = Person.objects.create(**person_data)
             return person
         except ValidationError as e:
-            PersonService._handle_validation_error(e)
+            cls._handle_validation_error(e)
         except IntegrityError as e:
-            PersonService._handle_integrity_error(e)
+            cls._handle_integrity_error(e)
 
-    @staticmethod
+    @classmethod
     @transaction.atomic
-    def person_update(*, person_id: str, update_data: dict, user=None) -> Person:
+    def person_update(cls, *, person_id: str, update_data: dict, user=None) -> Person:
+        """
+        Update an existing person with validation.
+        
+        Args:
+            person_id: ID of the person to update
+            update_data: Dictionary containing fields to update
+            user: User performing the update (for audit trail)
+            
+        Returns:
+            Person: The updated person instance
+        """
         # Get person using base method
-        person = PersonService._get_entity(person_id)
+        person = cls._get_entity(person_id)
+
+        # Filter fields if allowed_fields is defined
+        if cls.allowed_fields is not None:
+            update_data = cls._filter_model_fields(update_data, cls.allowed_fields)
+        
+        # Merge with existing data for validation
+        merged_data = {}
+        for field in cls.allowed_fields:
+            if hasattr(person, field):
+                merged_data[field] = getattr(person, field)
+        merged_data.update(update_data)
+        
+        # Apply validation rules (configured in BaseService)
+        cls._apply_validation_rules(merged_data, entity=person)
 
         if (
             "relationship" in update_data
@@ -246,14 +278,14 @@ class PersonService(BaseService, CSVExportMixin):
         # Resolve company FK using base method if being updated
         if "company" in update_data:
             from apps.companies.models import Company
-            PersonService._resolve_foreign_key(
+            cls._resolve_foreign_key(
                 update_data, "company", Company, "Company", validate_active=True
             )
 
         # Resolve scheme FK using base method if being updated
         if "scheme" in update_data:
             from apps.schemes.models import Scheme
-            PersonService._resolve_foreign_key(
+            cls._resolve_foreign_key(
                 update_data, "scheme", Scheme, "Scheme", validate_active=True
             )
 
@@ -277,14 +309,15 @@ class PersonService(BaseService, CSVExportMixin):
             person.save()
             return person
         except ValidationError as e:
-            PersonService._handle_validation_error(e)
+            cls._handle_validation_error(e)
         except IntegrityError as e:
-            PersonService._handle_integrity_error(e)
+            cls._handle_integrity_error(e)
 
-    @staticmethod
+    @classmethod
     @transaction.atomic
-    def person_deactivate(*, person_id: str, user=None) -> Person:
-        return PersonService.deactivate(entity_id=person_id, user=user)
+    def person_deactivate(cls, *, person_id: str, user=None) -> Person:
+        """Deactivate person using base method."""
+        return BaseService.deactivate(cls, entity_id=person_id, user=user, soft_delete=True)
 
     # ------------------------------------------------------------------
     # Bulk Import

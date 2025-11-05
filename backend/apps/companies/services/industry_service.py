@@ -46,9 +46,9 @@ class IndustryService(BaseService, CSVExportMixin):
     # Basic CRUD Operations
     # ---------------------------------------------------------------------
 
-    @staticmethod
+    @classmethod
     @transaction.atomic
-    def industry_create(*, industry_data: dict, user=None):
+    def industry_create(cls, *, industry_data: dict, user=None):
         """
         Create a new industry with validation and duplicate checking.
 
@@ -62,30 +62,29 @@ class IndustryService(BaseService, CSVExportMixin):
         Raises:
             ValidationError: If data is invalid or duplicates exist
         """
-        # Validate required fields using base method
-        IndustryService._validate_required_fields(industry_data, ["industry_name"])
-
-        # Industry name validation using utility
-        industry_name = industry_data.get("industry_name", "").strip()
-        validate_string_length(industry_name, "industry_name", min_length=2, max_length=100)
-        industry_data["industry_name"] = industry_name  # Persist trimmed value
-
-        # Description validation using utility
-        if industry_data.get("description"):
-            validate_string_length(industry_data["description"], "description", max_length=500, allow_none=True)
+        # Filter fields if allowed_fields is defined
+        if cls.allowed_fields is not None:
+            industry_data = cls._filter_model_fields(industry_data, cls.allowed_fields)
+        
+        # Apply validation rules (configured in BaseService)
+        cls._apply_validation_rules(industry_data)
+        
+        # Trim industry name
+        if "industry_name" in industry_data:
+            industry_data["industry_name"] = industry_data.get("industry_name", "").strip()
 
         # Create industry - database unique constraints prevent duplicates atomically
         try:
             industry = Industry.objects.create(**industry_data)
             return industry
         except ValidationError as e:
-            IndustryService._handle_validation_error(e)
+            cls._handle_validation_error(e)
         except IntegrityError as e:
-            IndustryService._handle_integrity_error(e)
+            cls._handle_integrity_error(e)
 
-    @staticmethod
+    @classmethod
     @transaction.atomic
-    def industry_update(*, industry_id: str, update_data: dict, user=None):
+    def industry_update(cls, *, industry_id: str, update_data: dict, user=None):
         """
         Update industry with validation and duplicate checking.
 
@@ -101,16 +100,26 @@ class IndustryService(BaseService, CSVExportMixin):
             ValidationError: If data is invalid or duplicates exist
         """
         # Get industry using base method
-        industry = IndustryService._get_entity(industry_id)
+        industry = cls._get_entity(industry_id)
 
-        # Validate data using utilities
+        # Filter fields if allowed_fields is defined
+        if cls.allowed_fields is not None:
+            update_data = cls._filter_model_fields(update_data, cls.allowed_fields)
+        
+        # Merge with existing data for validation (required fields must be present)
+        merged_data = {}
+        for field in cls.allowed_fields:
+            if hasattr(industry, field):
+                merged_data[field] = getattr(industry, field)
+        merged_data.update(update_data)
+        
+        # Apply validation rules (configured in BaseService)
+        cls._apply_validation_rules(merged_data, entity=industry)
+        
+        # Trim industry name if being updated
         if "industry_name" in update_data:
-            industry_name = update_data["industry_name"].strip()
-            validate_string_length(industry_name, "industry_name", min_length=2, max_length=100)
-            update_data["industry_name"] = industry_name  # Persist trimmed value
-
-        if "description" in update_data and update_data["description"]:
-            validate_string_length(update_data["description"], "description", max_length=500, allow_none=True)
+            merged_data["industry_name"] = merged_data.get("industry_name", "").strip()
+            update_data["industry_name"] = merged_data["industry_name"]
 
         # Update fields
         for field, value in update_data.items():
@@ -121,17 +130,17 @@ class IndustryService(BaseService, CSVExportMixin):
             industry.save()
             return industry
         except ValidationError as e:
-            IndustryService._handle_validation_error(e)
+            cls._handle_validation_error(e)
         except IntegrityError as e:
-            IndustryService._handle_integrity_error(e)
+            cls._handle_integrity_error(e)
 
     # ---------------------------------------------------------------------
     # Status Management
     # ---------------------------------------------------------------------
 
-    @staticmethod
+    @classmethod
     @transaction.atomic
-    def industry_activate(*, industry_id: str, user=None):
+    def industry_activate(cls, *, industry_id: str, user=None):
         """
         Reactivate a previously deactivated industry.
 
@@ -142,11 +151,11 @@ class IndustryService(BaseService, CSVExportMixin):
         Returns:
             Industry: The activated industry instance
         """
-        return IndustryService.activate(entity_id=industry_id, user=user)
+        return cls.activate(entity_id=industry_id, user=user)
 
-    @staticmethod
+    @classmethod
     @transaction.atomic
-    def industry_deactivate(*, industry_id: str, user=None):
+    def industry_deactivate(cls, *, industry_id: str, user=None):
         """
         Soft delete / deactivate industry.
         Checks if industry has associated companies before deactivation.
@@ -161,7 +170,7 @@ class IndustryService(BaseService, CSVExportMixin):
         Raises:
             ValidationError: If industry has associated companies
         """
-        industry = IndustryService._get_entity(industry_id)
+        industry = cls._get_entity(industry_id)
 
         # Check if industry has associated companies
         company_count = Company.objects.filter(
@@ -175,9 +184,9 @@ class IndustryService(BaseService, CSVExportMixin):
         industry.save(update_fields=["status", "is_deleted"])
         return industry
 
-    @staticmethod
+    @classmethod
     @transaction.atomic
-    def industry_suspend(*, industry_id: str, reason: str, user=None):
+    def industry_suspend(cls, *, industry_id: str, reason: str, user=None):
         """
         Suspend an industry with reason tracking.
 
@@ -189,7 +198,7 @@ class IndustryService(BaseService, CSVExportMixin):
         Returns:
             Industry: The suspended industry instance
         """
-        return IndustryService.suspend(entity_id=industry_id, reason=reason, user=user)
+        return cls.suspend(entity_id=industry_id, reason=reason, user=user)
 
     # ---------------------------------------------------------------------
     # Bulk Operations

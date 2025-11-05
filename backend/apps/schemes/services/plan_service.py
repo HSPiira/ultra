@@ -44,9 +44,9 @@ class PlanService(BaseService, CSVExportMixin):
     # Basic CRUD Operations
     # ---------------------------------------------------------------------
 
-    @staticmethod
+    @classmethod
     @transaction.atomic
-    def plan_create(*, plan_data: dict, user=None):
+    def plan_create(cls, *, plan_data: dict, user=None):
         """
         Create a new plan with validation and duplicate checking.
 
@@ -60,30 +60,29 @@ class PlanService(BaseService, CSVExportMixin):
         Raises:
             ValidationError: If data is invalid or duplicates exist
         """
-        # Validate required fields using base method
-        PlanService._validate_required_fields(plan_data, ["plan_name"])
-
-        # Plan name validation using utility
-        plan_name = plan_data.get("plan_name", "").strip()
-        validate_string_length(plan_name, "plan_name", min_length=2, max_length=255)
-        plan_data["plan_name"] = plan_name  # Persist trimmed value
-
-        # Description validation using utility
-        if plan_data.get("description"):
-            validate_string_length(plan_data["description"], "description", max_length=500, allow_none=True)
+        # Filter fields if allowed_fields is defined
+        if cls.allowed_fields is not None:
+            plan_data = cls._filter_model_fields(plan_data, cls.allowed_fields)
+        
+        # Apply validation rules (configured in BaseService)
+        cls._apply_validation_rules(plan_data)
+        
+        # Trim plan name
+        if "plan_name" in plan_data:
+            plan_data["plan_name"] = plan_data.get("plan_name", "").strip()
 
         # Create plan - database unique constraints prevent duplicates atomically
         try:
             plan = Plan.objects.create(**plan_data)
             return plan
         except ValidationError as e:
-            PlanService._handle_validation_error(e)
+            cls._handle_validation_error(e)
         except IntegrityError as e:
-            PlanService._handle_integrity_error(e)
+            cls._handle_integrity_error(e)
 
-    @staticmethod
+    @classmethod
     @transaction.atomic
-    def plan_update(*, plan_id: str, update_data: dict, user=None):
+    def plan_update(cls, *, plan_id: str, update_data: dict, user=None):
         """
         Update plan with validation and duplicate checking.
 
@@ -99,16 +98,26 @@ class PlanService(BaseService, CSVExportMixin):
             ValidationError: If data is invalid or duplicates exist
         """
         # Get plan using base method
-        plan = PlanService._get_entity(plan_id)
-
-        # Validate data using utilities
+        plan = cls._get_entity(plan_id)
+        
+        # Filter fields if allowed_fields is defined
+        if cls.allowed_fields is not None:
+            update_data = cls._filter_model_fields(update_data, cls.allowed_fields)
+        
+        # Merge with existing data for validation (required fields must be present)
+        merged_data = {}
+        for field in cls.allowed_fields:
+            if hasattr(plan, field):
+                merged_data[field] = getattr(plan, field)
+        merged_data.update(update_data)
+        
+        # Apply validation rules (configured in BaseService)
+        cls._apply_validation_rules(merged_data, entity=plan)
+        
+        # Trim plan name if being updated
         if "plan_name" in update_data:
-            plan_name = update_data["plan_name"].strip()
-            validate_string_length(plan_name, "plan_name", min_length=2, max_length=255)
-            update_data["plan_name"] = plan_name  # Persist trimmed value
-
-        if "description" in update_data and update_data["description"]:
-            validate_string_length(update_data["description"], "description", max_length=500, allow_none=True)
+            merged_data["plan_name"] = merged_data.get("plan_name", "").strip()
+            update_data["plan_name"] = merged_data["plan_name"]
 
         # Update fields
         for field, value in update_data.items():
@@ -119,17 +128,17 @@ class PlanService(BaseService, CSVExportMixin):
             plan.save()
             return plan
         except ValidationError as e:
-            PlanService._handle_validation_error(e)
+            cls._handle_validation_error(e)
         except IntegrityError as e:
-            PlanService._handle_integrity_error(e)
+            cls._handle_integrity_error(e)
 
     # ---------------------------------------------------------------------
     # Status Management
     # ---------------------------------------------------------------------
 
-    @staticmethod
+    @classmethod
     @transaction.atomic
-    def plan_activate(*, plan_id: str, user=None):
+    def plan_activate(cls, *, plan_id: str, user=None):
         """
         Reactivate a previously deactivated plan.
 
@@ -140,11 +149,11 @@ class PlanService(BaseService, CSVExportMixin):
         Returns:
             Plan: The activated plan instance
         """
-        return PlanService.activate(entity_id=plan_id, user=user)
+        return cls.activate(entity_id=plan_id, user=user)
 
-    @staticmethod
+    @classmethod
     @transaction.atomic
-    def plan_deactivate(*, plan_id: str, user=None):
+    def plan_deactivate(cls, *, plan_id: str, user=None):
         """
         Soft delete / deactivate plan.
 
@@ -155,11 +164,11 @@ class PlanService(BaseService, CSVExportMixin):
         Returns:
             Plan: The deactivated plan instance
         """
-        return PlanService.deactivate(entity_id=plan_id, user=user)
+        return BaseService.deactivate(cls, entity_id=plan_id, user=user, soft_delete=True)
 
-    @staticmethod
+    @classmethod
     @transaction.atomic
-    def plan_suspend(*, plan_id: str, reason: str, user=None):
+    def plan_suspend(cls, *, plan_id: str, reason: str, user=None):
         """
         Suspend a plan with reason tracking.
 
@@ -171,7 +180,7 @@ class PlanService(BaseService, CSVExportMixin):
         Returns:
             Plan: The suspended plan instance
         """
-        return PlanService.suspend(entity_id=plan_id, reason=reason, user=user)
+        return cls.suspend(entity_id=plan_id, reason=reason, user=user)
 
     # ---------------------------------------------------------------------
     # Bulk Operations

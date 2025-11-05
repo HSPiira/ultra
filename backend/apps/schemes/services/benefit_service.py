@@ -52,9 +52,9 @@ class BenefitService(BaseService, CSVExportMixin):
     # Basic CRUD Operations
     # ---------------------------------------------------------------------
 
-    @staticmethod
+    @classmethod
     @transaction.atomic
-    def benefit_create(*, benefit_data: dict, user=None):
+    def benefit_create(cls, *, benefit_data: dict, user=None):
         """
         Create a new benefit with validation and duplicate checking.
 
@@ -68,35 +68,33 @@ class BenefitService(BaseService, CSVExportMixin):
         Raises:
             ValidationError: If data is invalid or duplicates exist
         """
-        # Validate required fields using base method
-        BenefitService._validate_required_fields(benefit_data, ["benefit_name", "in_or_out_patient"])
+        # Filter fields if allowed_fields is defined
+        if cls.allowed_fields is not None:
+            benefit_data = cls._filter_model_fields(benefit_data, cls.allowed_fields)
+        
+        # Apply validation rules (configured in BaseService)
+        cls._apply_validation_rules(benefit_data)
+        
+        # Trim benefit name
+        if "benefit_name" in benefit_data:
+            benefit_data["benefit_name"] = benefit_data.get("benefit_name", "").strip()
 
-        # Benefit name validation using utility
-        benefit_name = benefit_data.get("benefit_name", "").strip()
-        validate_string_length(benefit_name, "benefit_name", min_length=2, max_length=255)
-        benefit_data["benefit_name"] = benefit_name  # Persist trimmed value
-
-        # Description validation using utility
-        if benefit_data.get("description"):
-            validate_string_length(benefit_data["description"], "description", max_length=500, allow_none=True)
-
-        # Patient type validation using utility
+        # Patient type validation using utility (business-specific validation)
         valid_patient_types = ["INPATIENT", "OUTPATIENT", "BOTH"]
         validate_choice_value(benefit_data.get("in_or_out_patient"), valid_patient_types, "in_or_out_patient")
 
-        # Limit amount validation
+        # Limit amount validation (business-specific validation)
         limit_amount = benefit_data.get("limit_amount")
         if limit_amount == "":
             benefit_data["limit_amount"] = None
         elif limit_amount is not None:
-            from apps.core.utils.validation import validate_positive_amount
             validate_positive_amount(limit_amount, "limit_amount", allow_none=True, allow_zero=True)
 
         # Resolve plan FK using base method
         if 'plan' in benefit_data and benefit_data['plan']:
             from apps.schemes.models import Plan
-            BenefitService._resolve_foreign_key(
-                benefit_data, "plan", Plan, "Plan", validate_active=True, allow_none=True
+            cls._resolve_foreign_key(
+                benefit_data, "plan", Plan, "Plan", validate_active=True
             )
         elif 'plan' in benefit_data and benefit_data['plan'] is None:
             benefit_data['plan'] = None
@@ -106,13 +104,13 @@ class BenefitService(BaseService, CSVExportMixin):
             benefit = Benefit.objects.create(**benefit_data)
             return benefit
         except ValidationError as e:
-            BenefitService._handle_validation_error(e)
+            cls._handle_validation_error(e)
         except IntegrityError as e:
-            BenefitService._handle_integrity_error(e)
+            cls._handle_integrity_error(e)
 
-    @staticmethod
+    @classmethod
     @transaction.atomic
-    def benefit_update(*, benefit_id: str, update_data: dict, user=None):
+    def benefit_update(cls, *, benefit_id: str, update_data: dict, user=None):
         """
         Update benefit with validation and duplicate checking.
 
@@ -128,34 +126,46 @@ class BenefitService(BaseService, CSVExportMixin):
             ValidationError: If data is invalid or duplicates exist
         """
         # Get benefit using base method
-        benefit = BenefitService._get_entity(benefit_id)
-
-        # Validate data using utilities
+        benefit = cls._get_entity(benefit_id)
+        
+        # Filter fields if allowed_fields is defined
+        if cls.allowed_fields is not None:
+            update_data = cls._filter_model_fields(update_data, cls.allowed_fields)
+        
+        # Merge with existing data for validation (required fields must be present)
+        merged_data = {}
+        for field in cls.allowed_fields:
+            if hasattr(benefit, field):
+                merged_data[field] = getattr(benefit, field)
+        merged_data.update(update_data)
+        
+        # Apply validation rules (configured in BaseService)
+        cls._apply_validation_rules(merged_data, entity=benefit)
+        
+        # Trim benefit name if being updated
         if "benefit_name" in update_data:
-            benefit_name = update_data["benefit_name"].strip()
-            validate_string_length(benefit_name, "benefit_name", min_length=2, max_length=255)
-            update_data["benefit_name"] = benefit_name  # Persist trimmed value
+            merged_data["benefit_name"] = merged_data.get("benefit_name", "").strip()
+            update_data["benefit_name"] = merged_data["benefit_name"]
 
-        if "description" in update_data and update_data["description"]:
-            validate_string_length(update_data["description"], "description", max_length=500, allow_none=True)
-
+        # Patient type validation if being updated
         if "in_or_out_patient" in update_data:
             valid_patient_types = ["INPATIENT", "OUTPATIENT", "BOTH"]
             validate_choice_value(update_data["in_or_out_patient"], valid_patient_types, "in_or_out_patient")
 
+        # Limit amount validation if being updated
         if "limit_amount" in update_data:
-            if isinstance(update_data["limit_amount"], str) and update_data["limit_amount"].strip() == "":
+            limit_amount = update_data["limit_amount"]
+            if isinstance(limit_amount, str) and limit_amount.strip() == "":
                 update_data["limit_amount"] = None
-            elif update_data["limit_amount"] is not None:
-                from apps.core.utils.validation import validate_positive_amount
-                validate_positive_amount(update_data["limit_amount"], "limit_amount", allow_none=True, allow_zero=True)
+            elif limit_amount is not None:
+                validate_positive_amount(limit_amount, "limit_amount", allow_none=True, allow_zero=True)
 
-        # Resolve plan FK using base method
+        # Resolve plan FK using base method if being updated
         if 'plan' in update_data:
             if update_data['plan']:
                 from apps.schemes.models import Plan
-                BenefitService._resolve_foreign_key(
-                    update_data, "plan", Plan, "Plan", validate_active=True, allow_none=True
+                cls._resolve_foreign_key(
+                    update_data, "plan", Plan, "Plan", validate_active=True
                 )
             else:
                 update_data['plan'] = None
@@ -169,17 +179,17 @@ class BenefitService(BaseService, CSVExportMixin):
             benefit.save()
             return benefit
         except ValidationError as e:
-            BenefitService._handle_validation_error(e)
+            cls._handle_validation_error(e)
         except IntegrityError as e:
-            BenefitService._handle_integrity_error(e)
+            cls._handle_integrity_error(e)
 
     # ---------------------------------------------------------------------
     # Status Management
     # ---------------------------------------------------------------------
 
-    @staticmethod
+    @classmethod
     @transaction.atomic
-    def benefit_activate(*, benefit_id: str, user=None):
+    def benefit_activate(cls, *, benefit_id: str, user=None):
         """
         Reactivate a previously deactivated benefit.
 
@@ -190,11 +200,11 @@ class BenefitService(BaseService, CSVExportMixin):
         Returns:
             Benefit: The activated benefit instance
         """
-        return BenefitService.activate(entity_id=benefit_id, user=user)
+        return cls.activate(entity_id=benefit_id, user=user)
 
-    @staticmethod
+    @classmethod
     @transaction.atomic
-    def benefit_deactivate(*, benefit_id: str, user=None):
+    def benefit_deactivate(cls, *, benefit_id: str, user=None):
         """
         Soft delete / deactivate benefit.
 
@@ -205,11 +215,11 @@ class BenefitService(BaseService, CSVExportMixin):
         Returns:
             Benefit: The deactivated benefit instance
         """
-        return BenefitService.deactivate(entity_id=benefit_id, user=user)
+        return BaseService.deactivate(cls, entity_id=benefit_id, user=user, soft_delete=True)
 
-    @staticmethod
+    @classmethod
     @transaction.atomic
-    def benefit_suspend(*, benefit_id: str, reason: str, user=None):
+    def benefit_suspend(cls, *, benefit_id: str, reason: str, user=None):
         """
         Suspend a benefit with reason tracking.
 
@@ -221,7 +231,7 @@ class BenefitService(BaseService, CSVExportMixin):
         Returns:
             Benefit: The suspended benefit instance
         """
-        return BenefitService.suspend(entity_id=benefit_id, reason=reason, user=user)
+        return cls.suspend(entity_id=benefit_id, reason=reason, user=user)
 
     # ---------------------------------------------------------------------
     # Bulk Operations

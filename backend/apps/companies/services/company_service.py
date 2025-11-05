@@ -49,9 +49,9 @@ class CompanyService(BaseService, CSVExportMixin):
     # Basic CRUD Operations
     # ---------------------------------------------------------------------
 
-    @staticmethod
+    @classmethod
     @transaction.atomic
-    def company_create(*, company_data: dict, user=None):
+    def company_create(cls, *, company_data: dict, user=None):
         """
         Create a new company with validation.
 
@@ -71,44 +71,32 @@ class CompanyService(BaseService, CSVExportMixin):
             InvalidFormatError: If email or phone format is invalid
             DuplicateError: If company name or email already exists
         """
-        # Validate required fields using base method
-        required_fields = [
-            "company_name",
-            "contact_person",
-            "email",
-            "phone_number",
-            "industry",
-        ]
-        CompanyService._validate_required_fields(company_data, required_fields)
-
-        # Email format validation using utility
-        validate_email_format(company_data.get("email"), "email")
-
-        # Phone number validation is handled by model validators
-        # Service layer does basic presence check only
-
-        # Create a mutable copy of the data
-        data = dict(company_data)
+        # Filter fields if allowed_fields is defined
+        if cls.allowed_fields is not None:
+            company_data = cls._filter_model_fields(company_data, cls.allowed_fields)
+        
+        # Apply validation rules (configured in BaseService)
+        cls._apply_validation_rules(company_data)
 
         # Resolve industry FK using base method
-        if "industry" in data:
+        if "industry" in company_data:
             from apps.companies.models import Industry
-            CompanyService._resolve_foreign_key(
-                data, "industry", Industry, "Industry", validate_active=True
+            cls._resolve_foreign_key(
+                company_data, "industry", Industry, "Industry", validate_active=True
             )
 
         # Create company - database unique constraints prevent duplicates atomically
         try:
-            company = Company.objects.create(**data)
+            company = Company.objects.create(**company_data)
             return company
         except ValidationError as e:
-            CompanyService._handle_validation_error(e)
+            cls._handle_validation_error(e)
         except IntegrityError as e:
-            CompanyService._handle_integrity_error(e)
+            cls._handle_integrity_error(e)
 
-    @staticmethod
+    @classmethod
     @transaction.atomic
-    def company_update(*, company_id: str, update_data: dict, user=None):
+    def company_update(cls, *, company_id: str, update_data: dict, user=None):
         """
         Update company with validation.
 
@@ -129,25 +117,31 @@ class CompanyService(BaseService, CSVExportMixin):
             DuplicateError: If company name or email conflicts
         """
         # Get company using base method
-        company = CompanyService._get_entity(company_id)
+        company = cls._get_entity(company_id)
 
-        # Validation is handled by validation_rules in BaseService.update()
-        # Additional business-specific validation can be added here if needed
-
-        # Phone number validation is handled by model validators
-
-        # Create a mutable copy of the data
-        data = dict(update_data)
+        # Filter fields if allowed_fields is defined
+        if cls.allowed_fields is not None:
+            update_data = cls._filter_model_fields(update_data, cls.allowed_fields)
+        
+        # Merge with existing data for validation (required fields must be present)
+        merged_data = {}
+        for field in cls.allowed_fields:
+            if hasattr(company, field):
+                merged_data[field] = getattr(company, field)
+        merged_data.update(update_data)
+        
+        # Apply validation rules (configured in BaseService)
+        cls._apply_validation_rules(merged_data, entity=company)
 
         # Resolve industry FK using base method
-        if "industry" in data:
+        if "industry" in update_data:
             from apps.companies.models import Industry
-            CompanyService._resolve_foreign_key(
-                data, "industry", Industry, "Industry", validate_active=True
+            cls._resolve_foreign_key(
+                update_data, "industry", Industry, "Industry", validate_active=True
             )
 
         # Update fields
-        for field, value in data.items():
+        for field, value in update_data.items():
             setattr(company, field, value)
 
         # Save - database constraints will prevent duplicates atomically
@@ -155,17 +149,17 @@ class CompanyService(BaseService, CSVExportMixin):
             company.save()
             return company
         except ValidationError as e:
-            CompanyService._handle_validation_error(e)
+            cls._handle_validation_error(e)
         except IntegrityError as e:
-            CompanyService._handle_integrity_error(e)
+            cls._handle_integrity_error(e)
 
     # ---------------------------------------------------------------------
     # Status Management
     # ---------------------------------------------------------------------
 
-    @staticmethod
+    @classmethod
     @transaction.atomic
-    def company_activate(*, company_id: str, user=None):
+    def company_activate(cls, *, company_id: str, user=None):
         """
         Reactivate a previously deactivated company.
 
@@ -176,11 +170,11 @@ class CompanyService(BaseService, CSVExportMixin):
         Returns:
             Company: The activated company instance
         """
-        return CompanyService.activate(entity_id=company_id, user=user)
+        return cls.activate(entity_id=company_id, user=user)
 
-    @staticmethod
+    @classmethod
     @transaction.atomic
-    def company_deactivate(*, company_id: str, user=None):
+    def company_deactivate(cls, *, company_id: str, user=None):
         """
         Deactivate company (change status to INACTIVE without soft-deleting).
 
@@ -191,7 +185,7 @@ class CompanyService(BaseService, CSVExportMixin):
         Returns:
             Company: The deactivated company instance
         """
-        return CompanyService.deactivate(entity_id=company_id, user=user, soft_delete=False)
+        return cls.deactivate(entity_id=company_id, user=user, soft_delete=False)
 
     @staticmethod
     @transaction.atomic
@@ -219,9 +213,9 @@ class CompanyService(BaseService, CSVExportMixin):
             company.soft_delete(user=None)
         return company
 
-    @staticmethod
+    @classmethod
     @transaction.atomic
-    def company_suspend(*, company_id: str, reason: str, user=None):
+    def company_suspend(cls, *, company_id: str, reason: str, user=None):
         """
         Suspend a company with reason tracking.
 
@@ -233,7 +227,7 @@ class CompanyService(BaseService, CSVExportMixin):
         Returns:
             Company: The suspended company instance
         """
-        instance = CompanyService._get_entity(company_id)
+        instance = cls._get_entity(company_id)
         
         instance.status = BusinessStatusChoices.SUSPENDED
         update_fields = ["status"]

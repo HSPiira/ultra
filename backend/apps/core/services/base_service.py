@@ -65,6 +65,23 @@ class BaseService(ABC):
         validate_required_fields(data, fields, cls.entity_name)
     
     @classmethod
+    def _apply_validation_rules(cls, data: dict, entity=None):
+        """
+        Apply validation rules if configured.
+        
+        This method can be called from custom create/update methods
+        to ensure validation_rules are applied consistently.
+        
+        Args:
+            data: Dictionary containing data to validate
+            entity: Optional existing entity instance (for update scenarios)
+        """
+        if cls.validation_rules:
+            from apps.core.services.validation_rules import ValidationRuleSet
+            rule_set = ValidationRuleSet(cls.validation_rules)
+            rule_set.validate(data, entity=entity)
+    
+    @classmethod
     def _filter_model_fields(cls, data: dict, allowed_fields: set) -> dict:
         """
         Filter data dictionary to only include allowed model fields.

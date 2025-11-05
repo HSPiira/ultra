@@ -37,8 +37,25 @@ class DoctorService(BaseService, CSVExportMixin):
         RequiredFieldsRule(["name"], "Doctor"),
         StringLengthRule("name", min_length=1, max_length=255),
     ]
-    @staticmethod
-    def doctor_create(*, doctor_data: dict[str, Any], user=None) -> Doctor:
+    @classmethod
+    def doctor_create(cls, *, doctor_data: dict[str, Any], user=None) -> Doctor:
+        """
+        Create a new doctor with validation.
+        
+        Args:
+            doctor_data: Dictionary containing doctor information
+            user: User creating the doctor (for audit trail)
+            
+        Returns:
+            Doctor: The created doctor instance
+        """
+        # Filter fields if allowed_fields is defined
+        if cls.allowed_fields is not None:
+            doctor_data = cls._filter_model_fields(doctor_data, cls.allowed_fields)
+        
+        # Apply validation rules (configured in BaseService)
+        cls._apply_validation_rules(doctor_data)
+        
         hospital_id = doctor_data.pop("hospital", None)
         hospitals_ids = doctor_data.pop("hospitals", None)
         affiliations_payload: list[dict[str, Any]] | None = doctor_data.pop(
@@ -58,18 +75,43 @@ class DoctorService(BaseService, CSVExportMixin):
 
             # Process affiliations payload if provided
             if affiliations_payload:
-                DoctorService._replace_affiliations(
+                cls._replace_affiliations(
                     doctor=doctor, affiliations_payload=affiliations_payload
                 )
 
             return doctor
 
-    @staticmethod
+    @classmethod
     def doctor_update(
-        *, doctor_id: str, update_data: dict[str, Any], user=None
+        cls, *, doctor_id: str, update_data: dict[str, Any], user=None
     ) -> Doctor:
+        """
+        Update an existing doctor with validation.
+        
+        Args:
+            doctor_id: ID of the doctor to update
+            update_data: Dictionary containing fields to update
+            user: User performing the update (for audit trail)
+            
+        Returns:
+            Doctor: The updated doctor instance
+        """
         # Get doctor using base method
-        doctor = DoctorService._get_entity(doctor_id)
+        doctor = cls._get_entity(doctor_id)
+        
+        # Filter fields if allowed_fields is defined
+        if cls.allowed_fields is not None:
+            update_data = cls._filter_model_fields(update_data, cls.allowed_fields)
+        
+        # Merge with existing data for validation
+        merged_data = {}
+        for field in cls.allowed_fields:
+            if hasattr(doctor, field):
+                merged_data[field] = getattr(doctor, field)
+        merged_data.update(update_data)
+        
+        # Apply validation rules (configured in BaseService)
+        cls._apply_validation_rules(merged_data, entity=doctor)
 
         hospital_id = update_data.pop("hospital", None)
         hospitals_ids = update_data.pop("hospitals", None)
@@ -93,7 +135,7 @@ class DoctorService(BaseService, CSVExportMixin):
                 doctor.hospitals.set(Hospital.objects.filter(pk__in=hospitals_ids))
 
             if affiliations_payload is not None:
-                DoctorService._replace_affiliations(
+                cls._replace_affiliations(
                     doctor=doctor, affiliations_payload=affiliations_payload
                 )
 
@@ -150,15 +192,7 @@ class DoctorService(BaseService, CSVExportMixin):
         if hospitals.exists():
             doctor.hospitals.set(hospitals)
 
-    @staticmethod
-    def doctor_deactivate(*, doctor_id: str, user=None) -> None:
+    @classmethod
+    def doctor_deactivate(cls, *, doctor_id: str, user=None) -> None:
         """Deactivate doctor using base method."""
-        instance = DoctorService._get_entity(doctor_id)
-        # Use model's soft_delete if available (handles deleted_at, deleted_by)
-        if hasattr(instance, 'soft_delete'):
-            instance.soft_delete(user=user)
-            instance.save(update_fields=["is_deleted", "deleted_at", "deleted_by"])
-        else:
-            # Fallback to base deactivate
-            from apps.core.services.base_service import BaseService
-            BaseService.deactivate(entity_id=doctor_id, soft_delete=True, user=user)
+        return BaseService.deactivate(cls, entity_id=doctor_id, user=user, soft_delete=True)

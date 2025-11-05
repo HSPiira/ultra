@@ -39,9 +39,9 @@ class SchemeItemService(BaseService, CSVExportMixin):
     # Basic CRUD Operations
     # ---------------------------------------------------------------------
 
-    @staticmethod
+    @classmethod
     @transaction.atomic
-    def scheme_item_create(*, scheme_item_data: dict, user=None):
+    def scheme_item_create(cls, *, scheme_item_data: dict, user=None):
         """
         Create a new scheme item with validation and duplicate checking.
 
@@ -55,12 +55,16 @@ class SchemeItemService(BaseService, CSVExportMixin):
         Raises:
             ValidationError: If data is invalid or duplicates exist
         """
-        # Validate required fields using base method
-        SchemeItemService._validate_required_fields(scheme_item_data, ["scheme", "content_type", "object_id"])
+        # Filter fields if allowed_fields is defined
+        if cls.allowed_fields is not None:
+            scheme_item_data = cls._filter_model_fields(scheme_item_data, cls.allowed_fields)
+        
+        # Apply validation rules (configured in BaseService)
+        cls._apply_validation_rules(scheme_item_data)
 
         # Resolve scheme FK using base method
         from apps.schemes.models import Scheme
-        SchemeItemService._resolve_foreign_key(
+        cls._resolve_foreign_key(
             scheme_item_data, "scheme", Scheme, "Scheme", validate_active=True
         )
 
@@ -104,9 +108,9 @@ class SchemeItemService(BaseService, CSVExportMixin):
         scheme_item = SchemeItem.objects.create(**scheme_item_data)
         return scheme_item
 
-    @staticmethod
+    @classmethod
     @transaction.atomic
-    def scheme_item_update(*, scheme_item_id: str, update_data: dict, user=None):
+    def scheme_item_update(cls, *, scheme_item_id: str, update_data: dict, user=None):
         """
         Update scheme item with validation and duplicate checking.
 
@@ -122,7 +126,21 @@ class SchemeItemService(BaseService, CSVExportMixin):
             ValidationError: If data is invalid or duplicates exist
         """
         # Get scheme item using base method
-        scheme_item = SchemeItemService._get_entity(scheme_item_id)
+        scheme_item = cls._get_entity(scheme_item_id)
+        
+        # Filter fields if allowed_fields is defined
+        if cls.allowed_fields is not None:
+            update_data = cls._filter_model_fields(update_data, cls.allowed_fields)
+        
+        # Merge with existing data for validation
+        merged_data = {}
+        for field in cls.allowed_fields:
+            if hasattr(scheme_item, field):
+                merged_data[field] = getattr(scheme_item, field)
+        merged_data.update(update_data)
+        
+        # Apply validation rules (configured in BaseService)
+        cls._apply_validation_rules(merged_data, entity=scheme_item)
 
         # Validate data using utilities
         if "limit_amount" in update_data and update_data["limit_amount"] is not None:
@@ -138,7 +156,7 @@ class SchemeItemService(BaseService, CSVExportMixin):
         # Resolve scheme FK using base method if being updated
         if "scheme" in update_data:
             from apps.schemes.models import Scheme
-            SchemeItemService._resolve_foreign_key(
+            cls._resolve_foreign_key(
                 update_data, "scheme", Scheme, "Scheme", validate_active=True
             )
 
@@ -185,9 +203,9 @@ class SchemeItemService(BaseService, CSVExportMixin):
     # Status Management
     # ---------------------------------------------------------------------
 
-    @staticmethod
+    @classmethod
     @transaction.atomic
-    def scheme_item_activate(*, scheme_item_id: str, user=None):
+    def scheme_item_activate(cls, *, scheme_item_id: str, user=None):
         """
         Reactivate a previously deactivated scheme item.
 
@@ -198,11 +216,11 @@ class SchemeItemService(BaseService, CSVExportMixin):
         Returns:
             SchemeItem: The activated scheme item instance
         """
-        return SchemeItemService.activate(entity_id=scheme_item_id, user=user)
+        return cls.activate(entity_id=scheme_item_id, user=user)
 
-    @staticmethod
+    @classmethod
     @transaction.atomic
-    def scheme_item_deactivate(*, scheme_item_id: str, user=None):
+    def scheme_item_deactivate(cls, *, scheme_item_id: str, user=None):
         """
         Soft delete / deactivate scheme item.
 
@@ -213,11 +231,11 @@ class SchemeItemService(BaseService, CSVExportMixin):
         Returns:
             SchemeItem: The deactivated scheme item instance
         """
-        return SchemeItemService.deactivate(entity_id=scheme_item_id, user=user)
+        return BaseService.deactivate(cls, entity_id=scheme_item_id, user=user, soft_delete=True)
 
-    @staticmethod
+    @classmethod
     @transaction.atomic
-    def scheme_item_suspend(*, scheme_item_id: str, reason: str, user=None):
+    def scheme_item_suspend(cls, *, scheme_item_id: str, reason: str, user=None):
         """
         Suspend a scheme item with reason tracking.
 
@@ -229,7 +247,7 @@ class SchemeItemService(BaseService, CSVExportMixin):
         Returns:
             SchemeItem: The suspended scheme item instance
         """
-        return SchemeItemService.suspend(entity_id=scheme_item_id, reason=reason, user=user)
+        return cls.suspend(entity_id=scheme_item_id, reason=reason, user=user)
 
     # ---------------------------------------------------------------------
     # Bulk Operations

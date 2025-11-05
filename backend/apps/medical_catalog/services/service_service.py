@@ -31,41 +31,36 @@ class ServiceService(BaseService, CSVExportMixin):
         RequiredFieldsRule(["name"], "Service"),
         StringLengthRule("name", min_length=1, max_length=255),
     ]
-    @staticmethod
-    def create(*, data: dict, user=None) -> Service:
+    @classmethod
+    def service_create(cls, *, service_data: dict, user=None) -> Service:
         """
-        Create a new service using standardized base method.
+        Create a new service with validation.
         
-        Uses validation rules and allowed_fields from BaseService configuration.
+        Args:
+            service_data: Dictionary containing service information
+            user: User creating the service (for audit trail)
+            
+        Returns:
+            Service: The created service instance
         """
-        # Call the classmethod with ServiceService class to use its configuration
-        # Use __func__ to get the unbound method and call it with ServiceService
-        return BaseService.create.__func__(ServiceService, data=data, user=user)
+        return BaseService.create.__func__(cls, data=service_data, user=user)
 
-    @staticmethod
-    def update(*, service_id: str = None, entity_id: str = None, data: dict, user=None) -> Service:
+    @classmethod
+    def service_update(cls, *, service_id: str, update_data: dict, user=None) -> Service:
         """
-        Update an existing service using standardized base method.
+        Update an existing service with validation.
         
-        Uses validation rules and allowed_fields from BaseService configuration.
-        Accepts both 'service_id' (old) and 'entity_id' (new) for compatibility.
+        Args:
+            service_id: ID of the service to update
+            update_data: Dictionary containing fields to update
+            user: User performing the update (for audit trail)
+            
+        Returns:
+            Service: The updated service instance
         """
-        entity_id = entity_id or service_id
-        if not entity_id:
-            raise ValueError("Either 'service_id' or 'entity_id' must be provided")
-        # Call the classmethod with ServiceService class to use its configuration
-        # Use __func__ to get the unbound method and call it with ServiceService
-        return BaseService.update.__func__(ServiceService, entity_id=entity_id, data=data, user=user)
+        return BaseService.update.__func__(cls, entity_id=service_id, data=update_data, user=user)
 
-    @staticmethod
-    def deactivate(*, service_id: str, user=None) -> None:
+    @classmethod
+    def service_deactivate(cls, *, service_id: str, user=None) -> None:
         """Deactivate service using base method."""
-        instance = ServiceService._get_entity(service_id)
-        # Use model's soft_delete if available (handles deleted_at, deleted_by)
-        if hasattr(instance, 'soft_delete'):
-            instance.soft_delete(user=user)
-            instance.save(update_fields=["is_deleted", "deleted_at", "deleted_by"])
-        else:
-            # Fallback to base deactivate (call via class to avoid recursion)
-            from apps.core.services.base_service import BaseService
-            BaseService.deactivate(entity_id=service_id, soft_delete=True, user=user)
+        return BaseService.deactivate(cls, entity_id=service_id, user=user, soft_delete=True)

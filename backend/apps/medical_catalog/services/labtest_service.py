@@ -29,32 +29,35 @@ class LabTestService(BaseService, CSVExportMixin):
         StringLengthRule("name", min_length=1, max_length=255),
     ]
     @classmethod
-    def create(cls, *, data: dict, user=None) -> LabTest:
+    def labtest_create(cls, *, labtest_data: dict, user=None) -> LabTest:
         """
-        Create a new lab test using standardized base method.
+        Create a new lab test with validation.
         
-        Uses validation rules and allowed_fields from BaseService configuration.
+        Args:
+            labtest_data: Dictionary containing lab test information
+            user: User creating the lab test (for audit trail)
+            
+        Returns:
+            LabTest: The created lab test instance
         """
-        return super().create(data=data, user=user)
+        return super().create(data=labtest_data, user=user)
 
     @classmethod
-    def update(cls, *, entity_id: str, data: dict, user=None) -> LabTest:
+    def labtest_update(cls, *, labtest_id: str, update_data: dict, user=None) -> LabTest:
         """
-        Update an existing lab test using standardized base method.
+        Update an existing lab test with validation.
         
-        Uses validation rules and allowed_fields from BaseService configuration.
+        Args:
+            labtest_id: ID of the lab test to update
+            update_data: Dictionary containing fields to update
+            user: User performing the update (for audit trail)
+            
+        Returns:
+            LabTest: The updated lab test instance
         """
-        return super().update(entity_id=entity_id, data=data, user=user)
+        return super().update(entity_id=labtest_id, data=update_data, user=user)
 
-    @staticmethod
-    def deactivate(*, labtest_id: str, user=None) -> None:
+    @classmethod
+    def labtest_deactivate(cls, *, labtest_id: str, user=None) -> None:
         """Deactivate labtest using base method."""
-        instance = LabTestService._get_entity(labtest_id)
-        # Use model's soft_delete if available (handles deleted_at, deleted_by)
-        if hasattr(instance, 'soft_delete'):
-            instance.soft_delete(user=user)
-            instance.save(update_fields=["is_deleted", "deleted_at", "deleted_by"])
-        else:
-            # Fallback to base deactivate (call via class to avoid recursion)
-            from apps.core.services.base_service import BaseService
-            BaseService.deactivate(entity_id=labtest_id, soft_delete=True, user=user)
+        return BaseService.deactivate(cls, entity_id=labtest_id, user=user, soft_delete=True)

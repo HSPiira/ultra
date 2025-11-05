@@ -53,9 +53,9 @@ class SchemeService(BaseService, CSVExportMixin):
     # Basic CRUD Operations
     # ---------------------------------------------------------------------
 
-    @staticmethod
+    @classmethod
     @transaction.atomic
-    def scheme_create(*, scheme_data: dict, user=None):
+    def scheme_create(cls, *, scheme_data: dict, user=None):
         """
         Create a new scheme with validation.
 
@@ -76,46 +76,35 @@ class SchemeService(BaseService, CSVExportMixin):
             InactiveEntityError: If company is not active
             DuplicateError: If scheme name or card code already exists
         """
-        # Validate required fields using base method
-        required_fields = [
-            "scheme_name",
-            "company",
-            "card_code",
-            "start_date",
-            "end_date",
-        ]
-        SchemeService._validate_required_fields(scheme_data, required_fields)
+        # Filter fields if allowed_fields is defined
+        if cls.allowed_fields is not None:
+            scheme_data = cls._filter_model_fields(scheme_data, cls.allowed_fields)
+        
+        # Apply validation rules (configured in BaseService)
+        cls._apply_validation_rules(scheme_data)
 
         # Resolve company FK using base method
-        SchemeService._resolve_foreign_key(
+        cls._resolve_foreign_key(
             scheme_data, "company", Company, "Company", validate_active=True
-        )
-
-        # Date validation using utility
-        validate_date_range(
-            scheme_data.get("start_date"),
-            scheme_data.get("end_date"),
-            "start_date",
-            "end_date"
         )
 
         # Card code validation (length check - format handled by model)
         card_code = scheme_data.get("card_code", "").strip()
-        validate_string_length(card_code, "card_code", min_length=3, max_length=3)
-        scheme_data["card_code"] = card_code  # Persist trimmed value
+        if card_code:
+            scheme_data["card_code"] = card_code  # Persist trimmed value
 
         # Create scheme - database unique constraints prevent duplicates atomically
         try:
             scheme = Scheme.objects.create(**scheme_data)
             return scheme
         except ValidationError as e:
-            SchemeService._handle_validation_error(e)
+            cls._handle_validation_error(e)
         except IntegrityError as e:
-            SchemeService._handle_integrity_error(e)
+            cls._handle_integrity_error(e)
 
-    @staticmethod
+    @classmethod
     @transaction.atomic
-    def scheme_update(*, scheme_id: str, update_data: dict, user=None):
+    def scheme_update(cls, *, scheme_id: str, update_data: dict, user=None):
         """
         Update scheme with validation.
 
@@ -137,23 +126,27 @@ class SchemeService(BaseService, CSVExportMixin):
             DuplicateError: If scheme name or card code conflicts
         """
         # Get scheme using base method
-        scheme = SchemeService._get_entity(scheme_id)
+        scheme = cls._get_entity(scheme_id)
 
-        # Validate required fields if present in update
-        for field in ["scheme_name", "company", "card_code"]:
-            if field in update_data and not update_data[field]:
-                raise RequiredFieldError(field)
+        # Filter fields if allowed_fields is defined
+        if cls.allowed_fields is not None:
+            update_data = cls._filter_model_fields(update_data, cls.allowed_fields)
+        
+        # Merge with existing data for validation (required fields must be present)
+        merged_data = {}
+        for field in cls.allowed_fields:
+            if hasattr(scheme, field):
+                merged_data[field] = getattr(scheme, field)
+        merged_data.update(update_data)
+        
+        # Apply validation rules (configured in BaseService)
+        cls._apply_validation_rules(merged_data, entity=scheme)
 
         # Resolve company FK using base method
         if "company" in update_data:
-            SchemeService._resolve_foreign_key(
+            cls._resolve_foreign_key(
                 update_data, "company", Company, "Company", validate_active=True
             )
-
-        # Date validation using utility
-        start_date = update_data.get("start_date", scheme.start_date)
-        end_date = update_data.get("end_date", scheme.end_date)
-        validate_date_range(start_date, end_date, "start_date", "end_date")
 
         # Card code validation
         if "card_code" in update_data:
@@ -170,17 +163,17 @@ class SchemeService(BaseService, CSVExportMixin):
             scheme.save()
             return scheme
         except ValidationError as e:
-            SchemeService._handle_validation_error(e)
+            cls._handle_validation_error(e)
         except IntegrityError as e:
-            SchemeService._handle_integrity_error(e)
+            cls._handle_integrity_error(e)
 
     # ---------------------------------------------------------------------
     # Status Management
     # ---------------------------------------------------------------------
 
-    @staticmethod
+    @classmethod
     @transaction.atomic
-    def scheme_activate(*, scheme_id: str, user=None):
+    def scheme_activate(cls, *, scheme_id: str, user=None):
         """
         Reactivate a previously deactivated scheme.
 
@@ -191,11 +184,11 @@ class SchemeService(BaseService, CSVExportMixin):
         Returns:
             Scheme: The activated scheme instance
         """
-        return SchemeService.activate(entity_id=scheme_id, user=user)
+        return cls.activate(entity_id=scheme_id, user=user)
 
-    @staticmethod
+    @classmethod
     @transaction.atomic
-    def scheme_deactivate(*, scheme_id: str, user=None):
+    def scheme_deactivate(cls, *, scheme_id: str, user=None):
         """
         Soft delete / deactivate scheme.
 
@@ -224,13 +217,15 @@ class SchemeService(BaseService, CSVExportMixin):
         scheme.soft_delete(user=user)
 
         # Set status to INACTIVE after successful soft delete
+        # Note: BaseService.deactivate handles status change, but scheme_deactivate
+        # uses model's soft_delete for referential checks, so we set status explicitly
         scheme.status = BusinessStatusChoices.INACTIVE
         scheme.save(update_fields=["status"])
         return scheme
 
-    @staticmethod
+    @classmethod
     @transaction.atomic
-    def scheme_suspend(*, scheme_id: str, reason: str, user=None):
+    def scheme_suspend(cls, *, scheme_id: str, reason: str, user=None):
         """
         Suspend a scheme with reason tracking.
 
@@ -242,7 +237,7 @@ class SchemeService(BaseService, CSVExportMixin):
         Returns:
             Scheme: The suspended scheme instance
         """
-        instance = SchemeService._get_entity(scheme_id)
+        instance = cls._get_entity(scheme_id)
         
         instance.status = BusinessStatusChoices.SUSPENDED
         update_fields = ["status"]

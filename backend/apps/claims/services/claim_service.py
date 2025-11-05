@@ -43,6 +43,9 @@ class ClaimService(BaseService, CSVExportMixin):
         details: list[dict[str, Any]] = data.pop("details", [])
         payments: list[dict[str, Any]] = data.pop("payments", [])
 
+        # Apply validation rules (configured in BaseService)
+        ClaimService._apply_validation_rules(data)
+
         # Resolve member FK using base method
         if data.get("member"):
             from apps.members.models import Person
@@ -57,21 +60,12 @@ class ClaimService(BaseService, CSVExportMixin):
                 data, "hospital", Hospital, "Hospital", validate_active=True, allow_none=True
             )
 
-        # Validate doctor is active (if provided)
-        doctor_id = data.get("doctor")
-        if doctor_id:
+        # Resolve doctor FK using base method (if provided)
+        if data.get("doctor"):
             from apps.providers.models import Doctor
-            if isinstance(doctor_id, str):
-                try:
-                    doctor = Doctor.objects.get(id=doctor_id, is_deleted=False)
-                    data["doctor"] = doctor
-                except Doctor.DoesNotExist as exc:
-                    raise NotFoundError("Doctor", doctor_id) from exc
-            else:
-                doctor = doctor_id
-
-            if doctor.status != BusinessStatusChoices.ACTIVE or doctor.is_deleted:
-                raise InactiveEntityError("Doctor", "Doctor must be active to create a claim")
+            ClaimService._resolve_foreign_key(
+                data, "doctor", Doctor, "Doctor", validate_active=True
+            )
 
         claim = Claim.objects.create(**data)
 
