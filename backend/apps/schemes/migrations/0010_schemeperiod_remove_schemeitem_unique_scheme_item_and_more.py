@@ -252,10 +252,6 @@ class Migration(migrations.Migration):
                 to="schemes.schemeperiod",
             ),
         ),
-        migrations.AlterUniqueTogether(
-            name="schemeitem",
-            unique_together={("scheme_period", "content_type", "object_id")},
-        ),
         migrations.AddIndex(
             model_name="schemeitem",
             index=models.Index(

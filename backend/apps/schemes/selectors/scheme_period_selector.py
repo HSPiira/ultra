@@ -26,9 +26,9 @@ def scheme_period_list(*, filters: Optional[dict] = None) -> QuerySet[SchemePeri
             - end_date__lte: End date less than or equal
 
     Returns:
-        QuerySet of SchemePeriod objects
+        QuerySet of SchemePeriod objects with optimized item prefetching
     """
-    qs = SchemePeriod.objects.filter(is_deleted=False).select_related("scheme", "scheme__company")
+    qs = SchemePeriod.objects.filter(is_deleted=False).select_related("scheme", "scheme__company").prefetch_related("items")
 
     if not filters:
         return qs
@@ -63,7 +63,7 @@ def scheme_period_get(*, period_id: str) -> SchemePeriod:
         period_id: SchemePeriod ID
 
     Returns:
-        SchemePeriod object
+        SchemePeriod object with optimized item prefetching
 
     Raises:
         NotFoundError: If period doesn't exist
@@ -72,6 +72,7 @@ def scheme_period_get(*, period_id: str) -> SchemePeriod:
         return (
             SchemePeriod.objects.filter(is_deleted=False)
             .select_related("scheme", "scheme__company", "renewed_from")
+            .prefetch_related("items")
             .get(id=period_id)
         )
     except SchemePeriod.DoesNotExist as exc:
@@ -86,13 +87,14 @@ def scheme_period_current_get(*, scheme_id: str) -> Optional[SchemePeriod]:
         scheme_id: Scheme ID
 
     Returns:
-        Current SchemePeriod or None if no current period
+        Current SchemePeriod or None if no current period, with optimized item prefetching
     """
     return (
         SchemePeriod.objects.filter(
             scheme_id=scheme_id, is_current=True, is_deleted=False, status=BusinessStatusChoices.ACTIVE
         )
         .select_related("scheme", "scheme__company")
+        .prefetch_related("items")
         .first()
     )
 
@@ -106,13 +108,14 @@ def scheme_period_on_date_get(*, scheme_id: str, when_date) -> Optional[SchemePe
         when_date: Date to check
 
     Returns:
-        SchemePeriod that was active on the date, or None
+        SchemePeriod that was active on the date, or None, with optimized item prefetching
     """
     return (
         SchemePeriod.objects.filter(scheme_id=scheme_id, is_deleted=False)
         .filter(start_date__lte=when_date)
         .filter(Q(termination_date__isnull=True) | Q(termination_date__gt=when_date))
         .select_related("scheme", "scheme__company")
+        .prefetch_related("items")
         .first()
     )
 
@@ -206,7 +209,7 @@ def scheme_period_expiring_soon(*, days: int = 30) -> QuerySet[SchemePeriod]:
         days: Number of days to look ahead (default: 30)
 
     Returns:
-        QuerySet of SchemePeriod objects expiring soon
+        QuerySet of SchemePeriod objects expiring soon with optimized item prefetching
     """
     from datetime import timedelta
 
@@ -222,6 +225,7 @@ def scheme_period_expiring_soon(*, days: int = 30) -> QuerySet[SchemePeriod]:
             end_date__lte=expiry_date,
         )
         .select_related("scheme", "scheme__company")
+        .prefetch_related("items")
         .order_by("end_date")
     )
 

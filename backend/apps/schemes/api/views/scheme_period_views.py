@@ -61,6 +61,21 @@ class SchemePeriodViewSet(viewsets.ModelViewSet):
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
+    def partial_update(self, request, *args, **kwargs):
+        """Partial update (PATCH) period using service layer."""
+        period = self.get_object()
+
+        try:
+            updated_period = SchemePeriodService.scheme_period_update(
+                period_id=period.id, update_data=request.data, user=request.user
+            )
+
+            serializer = self.get_serializer(updated_period)
+            return Response(serializer.data)
+
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
     @action(detail=True, methods=["post"])
     def terminate(self, request, pk=None):
         """
@@ -107,7 +122,11 @@ class SchemePeriodViewSet(viewsets.ModelViewSet):
         Query params:
             - days (int): Number of days to look ahead (default: 30)
         """
-        days = int(request.query_params.get("days", 30))
+        raw_days = request.query_params.get("days", 30)
+        try:
+            days = int(raw_days)
+        except (ValueError, TypeError):
+            return Response({"error": "Days must be an integer"}, status=status.HTTP_400_BAD_REQUEST)
 
         periods = scheme_period_expiring_soon(days=days)
         serializer = self.get_serializer(periods, many=True)

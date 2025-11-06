@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { 
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import {
   Building2,
   Plus,
   RefreshCw,
@@ -12,6 +12,12 @@ import { IndustryTable } from '../../components/tables';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useThemeStyles } from '../../hooks/useThemeStyles';
 import { Tooltip } from '../../components/common/Tooltip';
+import { sortData } from '../../utils/sort';
+
+// Cache constants
+const CACHE_KEY = 'industries_cache';
+const CACHE_TIMESTAMP_KEY = 'industries_cache_timestamp';
+const CACHE_DURATION = 10 * 60 * 1000; // 10 minutes in milliseconds
 
 interface IndustryListProps {
   onIndustrySelect?: (industry: Industry) => void;
@@ -39,11 +45,6 @@ export const IndustryList: React.FC<IndustryListProps> = ({
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
   const [rowsPerPage, setRowsPerPage] = useState<number>(10);
   const [currentPage, setCurrentPage] = useState<number>(1);
-
-  // Cache key for localStorage
-  const CACHE_KEY = 'industries_cache';
-  const CACHE_TIMESTAMP_KEY = 'industries_cache_timestamp';
-  const CACHE_DURATION = 10 * 60 * 1000; // 10 minutes in milliseconds
 
   // Load from cache
   const loadFromCache = useCallback((): Industry[] | null => {
@@ -95,7 +96,6 @@ export const IndustryList: React.FC<IndustryListProps> = ({
         setLoading(false);
         hasCachedData = true;
         // Still fetch fresh data in background
-        setLoading(true);
       }
     }
 
@@ -135,33 +135,6 @@ export const IndustryList: React.FC<IndustryListProps> = ({
     }
   }, [refreshTrigger, loadIndustries, clearCache]);
 
-  // Sort function
-  const sortData = <T,>(data: T[], field: string, direction: 'asc' | 'desc'): T[] => {
-    if (!field) return data;
-    
-    return [...data].sort((a, b) => {
-      const aValue = (a as any)[field];
-      const bValue = (b as any)[field];
-      
-      // Handle null/undefined values
-      if (aValue == null && bValue == null) return 0;
-      if (aValue == null) return 1;
-      if (bValue == null) return -1;
-      
-      // Handle string comparison
-      if (typeof aValue === 'string' && typeof bValue === 'string') {
-        return direction === 'asc' 
-          ? aValue.localeCompare(bValue)
-          : bValue.localeCompare(aValue);
-      }
-      
-      // Handle numeric comparison
-      if (aValue < bValue) return direction === 'asc' ? -1 : 1;
-      if (aValue > bValue) return direction === 'asc' ? 1 : -1;
-      return 0;
-    });
-  };
-
   // Handle sorting
   const handleSort = (field: string) => {
     if (sortField === field) {
@@ -172,32 +145,32 @@ export const IndustryList: React.FC<IndustryListProps> = ({
     }
   };
 
-  // Filter and sort data
-  const filteredIndustries = sortData(
-    allFilteredIndustries.filter(industry =>
-      industry.industry_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (industry.description?.toLowerCase().includes(searchTerm.toLowerCase()) ?? false)
-    ),
-    sortField,
-    sortDirection
-  );
+  // Filter and sort data (memoized)
+  const filteredIndustries = useMemo(() => {
+    return sortData(
+      allFilteredIndustries.filter(industry =>
+        industry.industry_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (industry.description?.toLowerCase().includes(searchTerm.toLowerCase()) ?? false)
+      ),
+      sortField,
+      sortDirection
+    );
+  }, [allFilteredIndustries, searchTerm, sortField, sortDirection]);
 
-  // Pagination logic
-  const totalPages = Math.ceil(filteredIndustries.length / rowsPerPage);
-  const startIndex = (currentPage - 1) * rowsPerPage;
-  const endIndex = startIndex + rowsPerPage;
-  
-  const paginatedIndustries = filteredIndustries.slice(startIndex, endIndex);
+  // Pagination logic (memoized)
+  const { totalPages, startIndex, endIndex, paginatedIndustries } = useMemo(() => {
+    const totalPages = Math.ceil(filteredIndustries.length / rowsPerPage);
+    const startIndex = (currentPage - 1) * rowsPerPage;
+    const endIndex = startIndex + rowsPerPage;
+    const paginatedIndustries = filteredIndustries.slice(startIndex, endIndex);
 
-  // Reset to first page when rows per page changes
+    return { totalPages, startIndex, endIndex, paginatedIndustries };
+  }, [filteredIndustries, rowsPerPage, currentPage]);
+
+  // Reset to first page when rows per page or search term changes
   useEffect(() => {
     setCurrentPage(1);
-  }, [rowsPerPage]);
-
-  // Reset to first page when search term changes
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [searchTerm]);
+  }, [rowsPerPage, searchTerm]);
 
   const handleIndustryView = (industry: Industry) => {
     onIndustrySelect?.(industry);
@@ -257,6 +230,7 @@ export const IndustryList: React.FC<IndustryListProps> = ({
           <div className="flex items-center gap-3">
             <Tooltip content="Refresh data">
               <button
+                type="button"
                 onClick={() => {
                   clearCache();
                   loadIndustries(true);
@@ -271,6 +245,7 @@ export const IndustryList: React.FC<IndustryListProps> = ({
             
             <Tooltip content="Add new industry">
               <button
+                type="button"
                 onClick={onAddIndustry}
                 className="p-2 rounded-lg transition-colors"
                 style={{ backgroundColor: colors.background.quaternary, color: colors.text.primary }}
@@ -296,6 +271,7 @@ export const IndustryList: React.FC<IndustryListProps> = ({
               {[10, 25, 50, 100].map((rows) => (
                 <Tooltip key={rows} content={`Show ${rows} rows per page`}>
                   <button
+                    type="button"
                     onClick={() => setRowsPerPage(rows)}
                     className={`px-3 py-1 text-sm rounded transition-colors ${
                       rowsPerPage === rows
@@ -316,8 +292,9 @@ export const IndustryList: React.FC<IndustryListProps> = ({
 
           {/* Export Button */}
           <Tooltip content="Export data to CSV">
-            <button 
-              className="p-2 rounded-lg transition-colors" 
+            <button
+              type="button"
+              className="p-2 rounded-lg transition-colors"
               style={{ color: '#9ca3af' }}
               onMouseEnter={(e) => {
                 e.currentTarget.style.color = '#ffffff';
@@ -364,7 +341,8 @@ export const IndustryList: React.FC<IndustryListProps> = ({
           <p className="mb-4" style={{ color: '#9ca3af' }}>
             Get started by adding your first industry
           </p>
-          <button 
+          <button
+            type="button"
             onClick={onAddIndustry}
             className="px-4 py-2 rounded-lg hover:bg-gray-600 transition-colors"
             style={{ backgroundColor: '#3b3b3b', color: '#ffffff' }}

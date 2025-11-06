@@ -13,7 +13,7 @@ from django.db import transaction
 from django.core.exceptions import ValidationError
 from apps.companies.models.company import Company
 from apps.companies.models.industry import Industry
-from apps.core.utils.validators import normalize_phone_number
+from apps.core.utils.validators import normalize_phone_number, DEFAULT_COUNTRY_CODE
 from pathlib import Path
 import re
 import csv
@@ -126,10 +126,13 @@ def extract_phone_number(phone_str: str) -> str:
             return cleaned
     else:
         # If no +, assume it's a local number and add country code
-        # Default to +256 for Uganda
         if cleaned and len(cleaned) >= 7:
-            return '+256' + cleaned
-    
+            # Remove leading zeros from local number before adding country code
+            cleaned = cleaned.lstrip('0')
+            # Only add country code if we still have a valid number after stripping zeros
+            if cleaned and len(cleaned) >= 7:
+                return DEFAULT_COUNTRY_CODE + cleaned
+
     return ""
 
 
@@ -181,11 +184,8 @@ class Command(BaseCommand):
         
         for encoding in encodings:
             try:
-                with open(csv_file, 'r', encoding=encoding) as f:
+                with open(csv_file, encoding=encoding) as f:
                     reader = csv.DictReader(f)
-                    
-                    # Normalize field names (remove BOM, handle case)
-                    field_names = [name.strip().replace('\ufeff', '') for name in reader.fieldnames or []]
                     
                     for row in reader:
                         # Create normalized row dict
@@ -255,12 +255,12 @@ class Command(BaseCommand):
                 continue  # Try next encoding
             except Exception as e:
                 if encoding == encodings[-1]:  # Last encoding
-                    raise Exception(f"Error reading CSV file: {str(e)}")
+                    raise Exception(f"Error reading CSV file: {str(e)}") from e
                 continue
         
         return companies
 
-    def handle(self, *args, **options):
+    def handle(self, **options):
         reset = options["reset"]
         industry_id = options.get("industry_id")
         csv_file = options.get("csv")
@@ -410,7 +410,7 @@ class Command(BaseCommand):
                             )
                         else:
                             # Create company
-                            company = Company.objects.create(**company_dict)
+                            Company.objects.create(**company_dict)
                             created_count += 1
                             self.stdout.write(
                                 self.style.SUCCESS(f"✓ Created: {company_name}")

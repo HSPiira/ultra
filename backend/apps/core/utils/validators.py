@@ -13,6 +13,14 @@ from apps.core.utils.sanitizers import sanitize_name, sanitize_phone_number, san
 # ---------------------------------------------------------------------
 # Phone Number Validation
 # ---------------------------------------------------------------------
+
+# Get default country code from settings, with fallback to '+256'
+DEFAULT_COUNTRY_CODE = getattr(settings, 'DEFAULT_COUNTRY_CODE', '+256')
+# Ensure it starts with '+'
+if not DEFAULT_COUNTRY_CODE.startswith('+'):
+    DEFAULT_COUNTRY_CODE = '+' + DEFAULT_COUNTRY_CODE
+
+
 def normalize_phone_number(phone_number: str) -> str:
     """
     Normalize phone number to E.164 format.
@@ -29,19 +37,13 @@ def normalize_phone_number(phone_number: str) -> str:
     if not phone_number:
         return phone_number
 
-    # Get default country code from settings, with fallback to '+256'
-    default_code = getattr(settings, 'DEFAULT_COUNTRY_CODE', '+256')
-    # Ensure default_code starts with '+'
-    if not default_code.startswith('+'):
-        default_code = '+' + default_code
-
     # Remove all non-digit characters except +
     cleaned = re.sub(r'[^\d+]', '', phone_number)
 
     # Ensure + prefix exists
     if not cleaned.startswith('+'):
         # Use configurable default country code if no country code provided
-        cleaned = default_code + cleaned
+        cleaned = DEFAULT_COUNTRY_CODE + cleaned
 
     return cleaned
 

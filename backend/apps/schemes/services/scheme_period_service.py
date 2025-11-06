@@ -177,11 +177,7 @@ class SchemePeriodService(BaseService):
         ).first()
 
         if not current_period:
-            raise NotFoundError(
-                "Current Period",
-                scheme_id,
-                detail="Scheme has no current period. Use scheme_period_create_initial instead.",
-            )
+            raise NotFoundError("Current Period", scheme_id)
 
         # Validate current period is active (not terminated)
         if current_period.status != BusinessStatusChoices.ACTIVE:

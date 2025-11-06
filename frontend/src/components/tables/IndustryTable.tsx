@@ -23,8 +23,17 @@ interface IndustryTableProps {
   onRetry?: () => void;
 }
 
-const formatDate = (dateString: string) => {
-  return new Date(dateString).toLocaleDateString('en-US', {
+const formatDate = (dateString: string | null | undefined) => {
+  if (!dateString) {
+    return '—';
+  }
+
+  const date = new Date(dateString);
+  if (isNaN(date.getTime())) {
+    return '—';
+  }
+
+  return date.toLocaleDateString('en-US', {
     year: 'numeric',
     month: 'short',
     day: 'numeric'
@@ -81,6 +90,7 @@ export function IndustryTable({
             {String(value)}
           </span>
           <button
+            type="button"
             onClick={(e) => {
               e.stopPropagation();
               onIndustryView?.(industry);
@@ -133,7 +143,7 @@ export function IndustryTable({
       align: 'left',
       render: (value) => (
         <span className="text-sm text-gray-400">
-          {formatDate(String(value))}
+          {formatDate(value as string)}
         </span>
       ),
     },

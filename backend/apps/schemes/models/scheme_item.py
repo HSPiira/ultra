@@ -178,7 +178,6 @@ class SchemeItem(BaseModel):
         verbose_name = "Scheme Item"
         verbose_name_plural = "Scheme Items"
         db_table = "scheme_items"
-        unique_together = ("scheme_period", "content_type", "object_id")
 
         indexes = [
             models.Index(fields=["content_type", "object_id"]),
