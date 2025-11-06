@@ -29,9 +29,11 @@ class SchemeManager(ActiveManager):
         )
 
     def has_scheme_items(self, scheme_id: str) -> bool:
-        """Check if scheme has any associated scheme items."""
+        """Check if scheme has any associated scheme items across all periods."""
         from apps.schemes.models.scheme_item import SchemeItem
-        return SchemeItem.objects.filter(scheme_id=scheme_id).exists()
+        from apps.schemes.models.scheme_period import SchemePeriod
+        period_ids = SchemePeriod.objects.filter(scheme_id=scheme_id).values_list('id', flat=True)
+        return SchemeItem.objects.filter(scheme_period_id__in=period_ids).exists()
 
     def has_members(self, scheme_id: str) -> bool:
         """Check if scheme has any associated members/persons."""
@@ -42,6 +44,12 @@ class SchemeManager(ActiveManager):
 # Scheme
 # ---------------------------------------------------------------------
 class Scheme(BaseModel):
+    """
+    Master scheme entity representing a scheme across all periods.
+
+    Time-specific data (dates, limits) are stored in SchemePeriod model.
+    This allows tracking renewals without data loss.
+    """
     scheme_name = models.CharField(max_length=255, help_text="Name of the scheme.")
     company = models.ForeignKey(
         Company,
@@ -58,22 +66,14 @@ class Scheme(BaseModel):
     description = models.TextField(
         max_length=500, blank=True, help_text="Scheme description."
     )
-    start_date = models.DateField(help_text="Start date.")
-    end_date = models.DateField(help_text="End date.")
-    termination_date = models.DateField(
-        null=True, blank=True, help_text="Termination date."
-    )
-    limit_amount = models.DecimalField(
-        max_digits=15,
-        decimal_places=2,
-        validators=[MinValueValidator(Decimal('0.01'))],
-        help_text="Coverage or limit amount.",
+    is_renewable = models.BooleanField(
+        default=True, help_text="Can this scheme be renewed?"
     )
     family_applicable = models.BooleanField(
         default=False, help_text="Applies to family?"
     )
     remark = models.TextField(
-        max_length=500, blank=True, help_text="Additional remarks."
+        max_length=500, blank=True, help_text="Additional remarks about the scheme."
     )
 
     objects = SchemeManager()
@@ -82,7 +82,7 @@ class Scheme(BaseModel):
     class Meta:
         verbose_name = "Scheme"
         verbose_name_plural = "Schemes"
-        db_table = "nm_schemes"
+        db_table = "schemes"
 
     def clean(self):
         errors = {}
@@ -94,26 +94,10 @@ class Scheme(BaseModel):
             except ValidationError as e:
                 errors["card_code"] = str(e)
 
-        if self.start_date and self.end_date and self.start_date >= self.end_date:
-            errors["end_date"] = "End date must be after start date."
-        if (
-            self.termination_date
-            and self.end_date
-            and self.termination_date <= self.end_date
-        ):
-            errors["termination_date"] = "Termination date must be after end date."
         if errors:
             raise ValidationError(errors)
 
     def save(self, *args, **kwargs):
-        if self.end_date and not self.termination_date:
-            # Handle both date and string types
-            if isinstance(self.end_date, str):
-                from datetime import datetime
-                end_date = datetime.strptime(self.end_date, '%Y-%m-%d').date()
-            else:
-                end_date = self.end_date
-            self.termination_date = end_date + timedelta(days=1)
         self.full_clean()
         super().save(*args, **kwargs)
 
@@ -121,25 +105,83 @@ class Scheme(BaseModel):
         return self.scheme_name
 
     # Domain helpers
+    def get_current_period(self):
+        """Get the current active period for this scheme."""
+        return self.periods.filter(is_current=True, is_deleted=False).first()
+
+    def get_period_on_date(self, when_date):
+        """Get the period that was active on a specific date."""
+        return (
+            self.periods.filter(is_deleted=False)
+            .filter(start_date__lte=when_date)
+            .filter(
+                models.Q(termination_date__isnull=True)
+                | models.Q(termination_date__gt=when_date)
+            )
+            .first()
+        )
+
     def is_active_on(self, when_date) -> bool:
+        """Check if scheme has an active period on the given date."""
         if self.status != BusinessStatusChoices.ACTIVE:
             return False
-        if self.start_date and when_date < self.start_date:
-            return False
-        return not (self.termination_date and when_date >= self.termination_date)
+        period = self.get_period_on_date(when_date)
+        return period is not None and period.is_active_on(when_date)
+
+    def get_renewal_count(self) -> int:
+        """
+        Get the number of times this scheme has been renewed.
+
+        Returns:
+            int: Number of renewals (0 for initial period, 1+ for renewals)
+
+        Example:
+            >>> scheme.get_renewal_count()
+            2  # Scheme has been renewed twice (on Period 3)
+        """
+        total_periods = self.periods.filter(is_deleted=False).count()
+        return max(0, total_periods - 1)  # Subtract initial period
+
+    def get_last_renewal_date(self):
+        """
+        Get the date of the most recent renewal.
+
+        Returns:
+            date: Date of last renewal, or None if never renewed
+
+        Example:
+            >>> scheme.get_last_renewal_date()
+            date(2025, 1, 1)  # Last renewed on January 1, 2025
+        """
+        last_renewed_period = (
+            self.periods.filter(is_deleted=False, period_number__gt=1)
+            .order_by("-period_number")
+            .first()
+        )
+        return last_renewed_period.renewal_date if last_renewed_period else None
+
+    def get_total_periods(self) -> int:
+        """
+        Get the total number of periods (including current).
+
+        Returns:
+            int: Total number of periods
+
+        Example:
+            >>> scheme.get_total_periods()
+            3  # Scheme has 3 periods total
+        """
+        return self.periods.filter(is_deleted=False).count()
 
     def terminate(self, *, reason: str | None = None, user=None):
-        """Terminate scheme and mark as inactive."""
+        """Terminate scheme and all its periods."""
         self.status = BusinessStatusChoices.INACTIVE
-        if not self.termination_date and self.end_date:
-            # Handle both date and string types
-            if isinstance(self.end_date, str):
-                from datetime import datetime
-                end_date = datetime.strptime(self.end_date, '%Y-%m-%d').date()
-            else:
-                end_date = self.end_date
-            self.termination_date = end_date + timedelta(days=1)
-        self.save(update_fields=["status", "termination_date", "updated_at"])
+        self.save(update_fields=["status", "updated_at"])
+
+        # Terminate current period if exists
+        current_period = self.get_current_period()
+        if current_period:
+            current_period.terminate(reason=reason, user=user)
 
     def soft_delete(self, user=None):
         """Prevent deletion when related scheme items or members exist."""

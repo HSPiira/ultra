@@ -3,7 +3,7 @@ from rest_framework import serializers
 
 from apps.core.utils.serializers import BaseSerializer
 from apps.core.utils.sanitizers import sanitize_text, sanitize_card_code
-from apps.schemes.models import Benefit, Plan, Scheme, SchemeItem
+from apps.schemes.models import Benefit, Plan, Scheme, SchemePeriod, SchemeItem
 from apps.companies.models import Company
 from apps.companies.api.serializers import CompanySerializer
 
@@ -11,6 +11,8 @@ from apps.companies.api.serializers import CompanySerializer
 class SchemeSerializer(BaseSerializer):
     company = serializers.PrimaryKeyRelatedField(queryset=Company.objects.all())
     company_detail = CompanySerializer(source="company", read_only=True)
+    current_period = serializers.SerializerMethodField(read_only=True)
+    total_periods = serializers.SerializerMethodField(read_only=True)
 
     class Meta(BaseSerializer.Meta):
         model = Scheme
@@ -20,13 +22,30 @@ class SchemeSerializer(BaseSerializer):
             "company_detail",
             "description",
             "card_code",
-            "start_date",
-            "end_date",
-            "termination_date",
-            "limit_amount",
+            "is_renewable",
             "family_applicable",
             "remark",
+            "current_period",
+            "total_periods",
         ]
+
+    def get_current_period(self, obj):
+        """Get current period summary."""
+        current = obj.get_current_period()
+        if current:
+            return {
+                "id": current.id,
+                "period_number": current.period_number,
+                "start_date": current.start_date,
+                "end_date": current.end_date,
+                "limit_amount": str(current.limit_amount),
+                "is_current": current.is_current,
+            }
+        return None
+
+    def get_total_periods(self, obj):
+        """Get total number of periods."""
+        return obj.periods.filter(is_deleted=False).count()
 
     def validate_scheme_name(self, value):
         """Validate and sanitize scheme name."""
@@ -51,12 +70,6 @@ class SchemeSerializer(BaseSerializer):
         sanitized = sanitize_text(value, max_length=500, allow_newlines=True)
         return sanitized
 
-    def validate_limit_amount(self, value):
-        """Validate limit amount."""
-        if value is not None and value < 0:
-            raise serializers.ValidationError("Limit amount cannot be negative")
-        return value
-
     def validate_company(self, value):
         """Validate company is active."""
         from apps.core.enums.choices import BusinessStatusChoices
@@ -65,20 +78,6 @@ class SchemeSerializer(BaseSerializer):
             raise serializers.ValidationError("Company must be active to create or update a scheme")
 
         return value
-
-    def validate(self, data):
-        """Cross-field validation."""
-        start_date = data.get("start_date")
-        end_date = data.get("end_date")
-        termination_date = data.get("termination_date")
-
-        if start_date and end_date and start_date >= end_date:
-            raise serializers.ValidationError("End date must be after start date")
-
-        if termination_date and end_date and termination_date <= end_date:
-            raise serializers.ValidationError("Termination date must be after end date")
-
-        return data
 
 
 class PlanSerializer(BaseSerializer):
@@ -153,21 +152,33 @@ class BenefitSerializer(BaseSerializer):
 
 
 class SchemeItemSerializer(BaseSerializer):
-    scheme = serializers.PrimaryKeyRelatedField(queryset=Scheme.objects.all())
-    scheme_detail = SchemeSerializer(source="scheme", read_only=True)
+    scheme_period = serializers.PrimaryKeyRelatedField(queryset=SchemePeriod.objects.all())
+    scheme_period_detail = serializers.SerializerMethodField(read_only=True)
     item_detail = serializers.SerializerMethodField(read_only=True)
 
     class Meta(BaseSerializer.Meta):
         model = SchemeItem
         fields = BaseSerializer.Meta.fields + [
-            "scheme",
-            "scheme_detail",
+            "scheme_period",
+            "scheme_period_detail",
             "content_type",
             "object_id",
             "item_detail",
             "limit_amount",
             "copayment_percent",
         ]
+
+    def get_scheme_period_detail(self, obj):
+        """Get scheme period summary."""
+        if obj.scheme_period:
+            return {
+                "id": obj.scheme_period.id,
+                "scheme_name": obj.scheme_period.scheme.scheme_name,
+                "period_number": obj.scheme_period.period_number,
+                "start_date": obj.scheme_period.start_date,
+                "end_date": obj.scheme_period.end_date,
+            }
+        return None
 
     def get_item_detail(self, obj) -> dict | None:
         """Get generic item detail (can't use nested serializer for generic FK)."""
@@ -274,3 +285,76 @@ class BulkAssignmentSerializer(serializers.Serializer):
                     raise serializers.ValidationError(f"Assignment {i+1} missing required field: {field}")
         
         return value
+
+
+
+# Scheme Period Serializers
+class SchemePeriodSerializer(BaseSerializer):
+    scheme = serializers.PrimaryKeyRelatedField(queryset=Scheme.objects.all())
+    scheme_detail = serializers.SerializerMethodField(read_only=True)
+    renewed_from = serializers.PrimaryKeyRelatedField(
+        queryset=SchemePeriod.objects.all(), required=False, allow_null=True
+    )
+    items_count = serializers.SerializerMethodField(read_only=True)
+
+    class Meta(BaseSerializer.Meta):
+        model = SchemePeriod
+        fields = BaseSerializer.Meta.fields + [
+            "scheme",
+            "scheme_detail",
+            "period_number",
+            "start_date",
+            "end_date",
+            "termination_date",
+            "limit_amount",
+            "renewed_from",
+            "renewal_date",
+            "is_current",
+            "changes_summary",
+            "remark",
+            "items_count",
+        ]
+
+    def get_scheme_detail(self, obj):
+        """Get scheme summary."""
+        return {
+            "id": obj.scheme.id,
+            "scheme_name": obj.scheme.scheme_name,
+            "card_code": obj.scheme.card_code,
+            "company_name": obj.scheme.company.company_name if obj.scheme.company else None,
+        }
+
+    def get_items_count(self, obj):
+        """Get count of items for this period."""
+        return obj.items.filter(is_deleted=False).count()
+
+    def validate(self, data):
+        """Cross-field validation."""
+        start_date = data.get("start_date")
+        end_date = data.get("end_date")
+        termination_date = data.get("termination_date")
+
+        if start_date and end_date and start_date >= end_date:
+            raise serializers.ValidationError("End date must be after start date")
+
+        if termination_date and end_date and termination_date <= end_date:
+            raise serializers.ValidationError("Termination date must be after end date")
+
+        return data
+
+
+class SchemeRenewalSerializer(serializers.Serializer):
+    """Serializer for scheme renewal requests."""
+    start_date = serializers.DateField(required=True)
+    end_date = serializers.DateField(required=True)
+    limit_amount = serializers.DecimalField(max_digits=15, decimal_places=2, required=False)
+    remark = serializers.CharField(max_length=500, required=False, allow_blank=True)
+    copy_items = serializers.BooleanField(default=True)
+    item_modifications = serializers.JSONField(required=False, allow_null=True)
+
+    def validate(self, data):
+        """Cross-field validation."""
+        if data["start_date"] >= data["end_date"]:
+            raise serializers.ValidationError("End date must be after start date")
+        return data
+
