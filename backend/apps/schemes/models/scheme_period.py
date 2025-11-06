@@ -235,3 +235,61 @@ class SchemePeriod(BaseModel):
             }
 
         return changes
+
+    def compare_with(self, other_period: "SchemePeriod") -> dict:
+        """
+        Compare this period with another period.
+
+        Provides detailed comparison metrics including limit changes,
+        duration differences, and period gaps.
+
+        Args:
+            other_period: Another SchemePeriod to compare with
+
+        Returns:
+            dict: Comparison details including:
+                - period_difference: Difference in period numbers
+                - limit_change: Absolute change in limit amount
+                - limit_change_percent: Percentage change in limit
+                - duration_days_1: Duration of first period
+                - duration_days_2: Duration of second period
+                - gap_days: Days between periods (negative if overlap)
+                - scheme_name: Name of the scheme
+
+        Example:
+            >>> period1 = scheme.periods.get(period_number=1)
+            >>> period2 = scheme.periods.get(period_number=2)
+            >>> comparison = period1.compare_with(period2)
+            >>> print(f"Limit increased by {comparison['limit_change_percent']}%")
+        """
+        from decimal import Decimal
+
+        # Calculate limit changes
+        limit_change = float(other_period.limit_amount - self.limit_amount)
+        limit_change_percent = (
+            float(((other_period.limit_amount - self.limit_amount) / self.limit_amount) * 100)
+            if self.limit_amount > 0
+            else 0
+        )
+
+        # Calculate durations
+        duration_1 = (self.end_date - self.start_date).days + 1
+        duration_2 = (other_period.end_date - other_period.start_date).days + 1
+
+        # Calculate gap (negative means overlap)
+        gap_days = (other_period.start_date - self.end_date).days - 1
+
+        return {
+            "period_difference": other_period.period_number - self.period_number,
+            "limit_change": limit_change,
+            "limit_change_percent": round(limit_change_percent, 2),
+            "duration_days_1": duration_1,
+            "duration_days_2": duration_2,
+            "duration_change": duration_2 - duration_1,
+            "gap_days": gap_days,
+            "has_gap": gap_days > 0,
+            "has_overlap": gap_days < 0,
+            "scheme_name": self.scheme.scheme_name,
+            "period_1_number": self.period_number,
+            "period_2_number": other_period.period_number,
+        }

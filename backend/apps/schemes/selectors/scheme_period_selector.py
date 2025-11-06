@@ -125,11 +125,12 @@ def scheme_period_list_by_scheme(*, scheme_id: str) -> QuerySet[SchemePeriod]:
         scheme_id: Scheme ID
 
     Returns:
-        QuerySet of SchemePeriod objects
+        QuerySet of SchemePeriod objects with optimized item prefetching
     """
     return (
         SchemePeriod.objects.filter(scheme_id=scheme_id, is_deleted=False)
         .select_related("scheme", "scheme__company", "renewed_from")
+        .prefetch_related("items")
         .order_by("-period_number")
     )
 
