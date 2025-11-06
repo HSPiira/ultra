@@ -2,6 +2,7 @@
 Custom validators for data integrity.
 """
 import re
+from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.core.validators import EmailValidator as DjangoEmailValidator, RegexValidator
 from rest_framework import serializers
@@ -22,20 +23,25 @@ def normalize_phone_number(phone_number: str) -> str:
 
     Examples:
         '+256 207 123 4567' -> '+2562071234567'
-        '234-567-8900' -> '+12345678900' (assumes Uganda if no country code)
+        '234-567-8900' -> '+12345678900' (assumes default country code if no country code)
         '+256 72 123 4567' -> '+256721234567'
     """
     if not phone_number:
         return phone_number
+
+    # Get default country code from settings, with fallback to '+256'
+    default_code = getattr(settings, 'DEFAULT_COUNTRY_CODE', '+256')
+    # Ensure default_code starts with '+'
+    if not default_code.startswith('+'):
+        default_code = '+' + default_code
 
     # Remove all non-digit characters except +
     cleaned = re.sub(r'[^\d+]', '', phone_number)
 
     # Ensure + prefix exists
     if not cleaned.startswith('+'):
-        # Default to +256 (Uganda) if no country code provided
-        # For international use, you may want to make this configurable
-        cleaned = '+256' + cleaned
+        # Use configurable default country code if no country code provided
+        cleaned = default_code + cleaned
 
     return cleaned
 

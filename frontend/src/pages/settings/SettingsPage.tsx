@@ -73,10 +73,10 @@ const SettingsPage: React.FC = () => {
         {/* Sidebar Navigation */}
         <div className="w-64 border-r" style={{ backgroundColor: '#2a2a2a', borderColor: '#4a4a4a' }}>
           <div className="p-4">
-            <h3 className="text-sm font-medium mb-3" style={{ color: '#d1d5db' }}>
+            <h3 className="text-sm font-medium mb-2" style={{ color: '#d1d5db' }}>
               Settings Sections
             </h3>
-            <nav className="space-y-1">
+            <nav className="space-y-0.5">
             {sections.map((section) => {
               const Icon = section.icon;
               const isActive = activeSection === section.id;
@@ -85,7 +85,7 @@ const SettingsPage: React.FC = () => {
                 <button
                   key={section.id}
                   onClick={() => setActiveSection(section.id)}
-                  className={`w-full flex items-center gap-3 px-3 py-3 rounded-lg transition-colors text-left ${
+                  className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-colors text-left ${
                     isActive ? 'bg-gray-700' : 'hover:bg-gray-600'
                   }`}
                   style={{

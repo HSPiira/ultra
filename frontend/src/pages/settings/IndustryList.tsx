@@ -1,12 +1,17 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { 
-  Edit, 
-  Trash2, 
-  Eye, 
   Building2,
+  Plus,
+  RefreshCw,
+  Search,
+  Download,
 } from 'lucide-react';
 import { companiesApi } from '../../services/companies';
 import type { Industry } from '../../types/companies';
+import { IndustryTable } from '../../components/tables';
+import { useTheme } from '../../contexts/ThemeContext';
+import { useThemeStyles } from '../../hooks/useThemeStyles';
+import { Tooltip } from '../../components/common/Tooltip';
 
 interface IndustryListProps {
   onIndustrySelect?: (industry: Industry) => void;
@@ -23,41 +28,192 @@ export const IndustryList: React.FC<IndustryListProps> = ({
   onAddIndustry,
   refreshTrigger
 }) => {
+  const { colors } = useTheme();
+  const { getIconButtonProps } = useThemeStyles();
   const [industries, setIndustries] = useState<Industry[]>([]);
+  const [allFilteredIndustries, setAllFilteredIndustries] = useState<Industry[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | undefined>(undefined);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [sortField, setSortField] = useState<string>('');
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
+  const [rowsPerPage, setRowsPerPage] = useState<number>(10);
+  const [currentPage, setCurrentPage] = useState<number>(1);
 
-  useEffect(() => {
-    loadIndustries();
+  // Cache key for localStorage
+  const CACHE_KEY = 'industries_cache';
+  const CACHE_TIMESTAMP_KEY = 'industries_cache_timestamp';
+  const CACHE_DURATION = 10 * 60 * 1000; // 10 minutes in milliseconds
+
+  // Load from cache
+  const loadFromCache = useCallback((): Industry[] | null => {
+    try {
+      const cached = localStorage.getItem(CACHE_KEY);
+      const timestamp = localStorage.getItem(CACHE_TIMESTAMP_KEY);
+      
+      if (cached && timestamp) {
+        const age = Date.now() - parseInt(timestamp, 10);
+        if (age < CACHE_DURATION) {
+          return JSON.parse(cached) as Industry[];
+        } else {
+          // Cache expired, remove it
+          localStorage.removeItem(CACHE_KEY);
+          localStorage.removeItem(CACHE_TIMESTAMP_KEY);
+        }
+      }
+    } catch (err) {
+      console.error('Error reading from cache:', err);
+    }
+    return null;
   }, []);
 
-  // Watch for refresh trigger changes
-  useEffect(() => {
-    if (refreshTrigger !== undefined) {
-      console.log('Industry refresh trigger changed:', refreshTrigger);
-      loadIndustries();
-    }
-  }, [refreshTrigger]);
-
-  const loadIndustries = async () => {
+  // Save to cache
+  const saveToCache = useCallback((data: Industry[]) => {
     try {
-      setLoading(true);
-      console.log('Loading industries...');
+      localStorage.setItem(CACHE_KEY, JSON.stringify(data));
+      localStorage.setItem(CACHE_TIMESTAMP_KEY, Date.now().toString());
+    } catch (err) {
+      console.error('Error saving to cache:', err);
+    }
+  }, []);
+
+  // Clear cache
+  const clearCache = useCallback(() => {
+    localStorage.removeItem(CACHE_KEY);
+    localStorage.removeItem(CACHE_TIMESTAMP_KEY);
+  }, []);
+
+  const loadIndustries = useCallback(async (forceRefresh: boolean = false) => {
+    // Try to load from cache first (unless forced refresh)
+    let hasCachedData = false;
+    if (!forceRefresh) {
+      const cachedData = loadFromCache();
+      if (cachedData && cachedData.length > 0) {
+        console.log('Loading industries from cache...');
+        setIndustries(cachedData);
+        setAllFilteredIndustries(cachedData);
+        setLoading(false);
+        hasCachedData = true;
+        // Still fetch fresh data in background
+        setLoading(true);
+      }
+    }
+
+    try {
+      setError(undefined);
+      console.log('Fetching industries from API...');
       const data = await companiesApi.getIndustries();
-      console.log('Industries loaded:', data);
+      console.log('Industries loaded from API:', data);
+      
+      // Update state
       setIndustries(data);
+      setAllFilteredIndustries(data);
+      
+      // Save to cache
+      saveToCache(data);
     } catch (err) {
       console.error('Error loading industries:', err);
+      // If we don't have cached data, show error
+      if (!hasCachedData) {
+        setError('Failed to load industries');
+      }
     } finally {
       setLoading(false);
     }
+  }, [loadFromCache, saveToCache]);
+
+  useEffect(() => {
+    loadIndustries();
+  }, [loadIndustries]);
+
+  // Watch for refresh trigger changes
+  useEffect(() => {
+    if (refreshTrigger !== undefined && refreshTrigger > 0) {
+      console.log('Industry refresh trigger changed:', refreshTrigger);
+      clearCache(); // Clear cache on explicit refresh
+      loadIndustries(true); // Force refresh
+    }
+  }, [refreshTrigger, loadIndustries, clearCache]);
+
+  // Sort function
+  const sortData = <T,>(data: T[], field: string, direction: 'asc' | 'desc'): T[] => {
+    if (!field) return data;
+    
+    return [...data].sort((a, b) => {
+      const aValue = (a as any)[field];
+      const bValue = (b as any)[field];
+      
+      // Handle null/undefined values
+      if (aValue == null && bValue == null) return 0;
+      if (aValue == null) return 1;
+      if (bValue == null) return -1;
+      
+      // Handle string comparison
+      if (typeof aValue === 'string' && typeof bValue === 'string') {
+        return direction === 'asc' 
+          ? aValue.localeCompare(bValue)
+          : bValue.localeCompare(aValue);
+      }
+      
+      // Handle numeric comparison
+      if (aValue < bValue) return direction === 'asc' ? -1 : 1;
+      if (aValue > bValue) return direction === 'asc' ? 1 : -1;
+      return 0;
+    });
   };
 
-  const handleDelete = async (industry: Industry) => {
+  // Handle sorting
+  const handleSort = (field: string) => {
+    if (sortField === field) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortDirection('asc');
+    }
+  };
+
+  // Filter and sort data
+  const filteredIndustries = sortData(
+    allFilteredIndustries.filter(industry =>
+      industry.industry_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (industry.description?.toLowerCase().includes(searchTerm.toLowerCase()) ?? false)
+    ),
+    sortField,
+    sortDirection
+  );
+
+  // Pagination logic
+  const totalPages = Math.ceil(filteredIndustries.length / rowsPerPage);
+  const startIndex = (currentPage - 1) * rowsPerPage;
+  const endIndex = startIndex + rowsPerPage;
+  
+  const paginatedIndustries = filteredIndustries.slice(startIndex, endIndex);
+
+  // Reset to first page when rows per page changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [rowsPerPage]);
+
+  // Reset to first page when search term changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm]);
+
+  const handleIndustryView = (industry: Industry) => {
+    onIndustrySelect?.(industry);
+  };
+
+  const handleIndustryEdit = (industry: Industry) => {
+    onIndustryEdit?.(industry);
+  };
+
+  const handleIndustryDelete = async (industry: Industry) => {
     if (window.confirm(`Are you sure you want to delete ${industry.industry_name}?`)) {
       try {
         await companiesApi.deleteIndustry(industry.id);
-        // Let the parent component handle the refresh via refreshTrigger
+        clearCache(); // Clear cache after delete
         onIndustryDelete?.(industry);
+        loadIndustries(true); // Force refresh
       } catch (err) {
         console.error('Failed to delete industry');
         console.error('Error deleting industry:', err);
@@ -65,104 +221,143 @@ export const IndustryList: React.FC<IndustryListProps> = ({
     }
   };
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2" style={{ borderColor: '#9ca3af' }}></div>
-      </div>
-    );
-  }
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+  };
 
   return (
     <div>
-      {/* Industries Display */}
-      <div className="overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead>
-              <tr className="border-b" style={{ borderColor: '#374151' }}>
-                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Industry Name
-                </th>
-                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Description
-                </th>
-                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Status
-                </th>
-                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Created
-                </th>
-                <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Actions
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {industries.map((industry) => (
-                <tr 
-                  key={industry.id} 
-                  className="border-b hover:bg-gray-800 transition-colors" 
-                  style={{ borderColor: '#374151' }}
-                >
-                  <td className="px-4 py-2">
-                    <div className="font-medium text-white">{industry.industry_name}</div>
-                  </td>
-                  <td className="px-4 py-2">
-                    <span className="text-sm text-gray-400">
-                      {industry.description || 'No description'}
-                    </span>
-                  </td>
-                  <td className="px-4 py-2">
-                              <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                                industry.status === 'ACTIVE'
-                                  ? 'bg-green-900 text-green-300'
-                                  : industry.status === 'INACTIVE'
-                                  ? 'bg-red-900 text-red-300'
-                                  : 'bg-amber-900 text-amber-300'
-                              }`}>
-                      {industry.status}
-                    </span>
-                  </td>
-                  <td className="px-4 py-2">
-                    <span className="text-sm text-gray-400">
-                      {new Date(industry.created_at).toLocaleDateString()}
-                    </span>
-                  </td>
-                  <td className="px-4 py-2 text-right">
-                    <div className="flex items-center justify-end gap-1">
-                      <button
-                        onClick={() => onIndustrySelect?.(industry)}
-                        className="p-1 text-gray-400 hover:text-white transition-colors rounded"
-                        title="View Details"
-                      >
-                        <Eye className="w-4 h-4" />
-                      </button>
-                      <button
-                        onClick={() => onIndustryEdit?.(industry)}
-                        className="p-1 text-gray-400 hover:text-blue-400 transition-colors rounded"
-                        title="Edit Industry"
-                      >
-                        <Edit className="w-4 h-4" />
-                      </button>
-                      <button
-                        onClick={() => handleDelete(industry)}
-                        className="p-1 text-gray-400 hover:text-red-400 transition-colors rounded"
-                        title="Delete Industry"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
+      {/* Search and Filter Bar with Action Buttons */}
+      <div className="mb-4 flex items-center justify-between">
+        <div className="flex items-center gap-4">
+          {/* Search Bar */}
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4" style={{ color: '#9ca3af' }} />
+            <input
+              type="text"
+              placeholder="Search industries..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-64 pl-10 pr-4 py-2 border rounded-lg transition-colors"
+              style={{ 
+                backgroundColor: '#1a1a1a', 
+                borderColor: '#4a4a4a', 
+                color: '#ffffff' 
+              }}
+              onFocus={(e) => {
+                e.target.style.borderColor = '#6b7280';
+              }}
+              onBlur={(e) => {
+                e.target.style.borderColor = '#4a4a4a';
+              }}
+            />
+          </div>
+
+          {/* Action Buttons - Refresh and Add */}
+          <div className="flex items-center gap-3">
+            <Tooltip content="Refresh data">
+              <button
+                onClick={() => {
+                  clearCache();
+                  loadIndustries(true);
+                }}
+                className="p-2 rounded-lg transition-colors"
+                {...getIconButtonProps()}
+                title="Refresh Data"
+              >
+                <RefreshCw className="w-4 h-4" />
+              </button>
+            </Tooltip>
+            
+            <Tooltip content="Add new industry">
+              <button
+                onClick={onAddIndustry}
+                className="p-2 rounded-lg transition-colors"
+                style={{ backgroundColor: colors.background.quaternary, color: colors.text.primary }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = colors.background.hover;
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = colors.background.quaternary;
+                }}
+                title="Add Industry"
+              >
+                <Plus className="w-4 h-4" />
+              </button>
+            </Tooltip>
+          </div>
+        </div>
+        
+        <div className="flex items-center gap-4">
+          {/* Rows per page selector */}
+          <div className="flex items-center gap-2">
+            <span className="text-sm" style={{ color: '#9ca3af' }}>Rows</span>
+            <div className="flex items-center gap-1">
+              {[10, 25, 50, 100].map((rows) => (
+                <Tooltip key={rows} content={`Show ${rows} rows per page`}>
+                  <button
+                    onClick={() => setRowsPerPage(rows)}
+                    className={`px-3 py-1 text-sm rounded transition-colors ${
+                      rowsPerPage === rows
+                        ? 'text-white border-2'
+                        : 'text-gray-400 hover:text-gray-300'
+                    }`}
+                    style={{
+                      backgroundColor: rowsPerPage === rows ? '#2E3333' : 'transparent',
+                      borderColor: rowsPerPage === rows ? '#66D9EF' : 'transparent',
+                    }}
+                  >
+                    {rows}
+                  </button>
+                </Tooltip>
               ))}
-            </tbody>
-          </table>
+            </div>
+          </div>
+
+          {/* Export Button */}
+          <Tooltip content="Export data to CSV">
+            <button 
+              className="p-2 rounded-lg transition-colors" 
+              style={{ color: '#9ca3af' }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.color = '#ffffff';
+                e.currentTarget.style.backgroundColor = '#3b3b3b';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.color = '#9ca3af';
+                e.currentTarget.style.backgroundColor = 'transparent';
+              }}
+              onClick={() => console.log('Export industries')}
+            >
+              <Download className="w-4 h-4" />
+            </button>
+          </Tooltip>
         </div>
       </div>
 
+      {/* Industries Table */}
+      <IndustryTable
+        industries={paginatedIndustries}
+        allFilteredIndustries={filteredIndustries}
+        currentPage={currentPage}
+        totalPages={totalPages}
+        startIndex={startIndex}
+        endIndex={endIndex}
+        sortField={sortField}
+        sortDirection={sortDirection}
+        onSort={handleSort}
+        onIndustryView={handleIndustryView}
+        onIndustryEdit={handleIndustryEdit}
+        onIndustryDelete={handleIndustryDelete}
+        onIndustrySelect={onIndustrySelect}
+        onPageChange={handlePageChange}
+        loading={loading}
+        error={error}
+        onRetry={loadIndustries}
+      />
+
       {/* Empty State */}
-      {industries.length === 0 && !loading && (
+      {industries.length === 0 && !loading && !error && (
         <div className="rounded-lg border text-center py-12" style={{ backgroundColor: '#2a2a2a', borderColor: '#4a4a4a' }}>
           <Building2 className="w-12 h-12 mx-auto mb-4" style={{ color: '#9ca3af' }} />
           <h3 className="text-lg font-medium mb-2" style={{ color: '#ffffff' }}>No industries found</h3>

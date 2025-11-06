@@ -1,15 +1,7 @@
-import React, { useState, useEffect } from 'react';
-import { 
-  Building2, 
-  Plus,
-  Search,
-  Filter,
-  RefreshCw
-} from 'lucide-react';
+import React, { useState } from 'react';
 import { IndustryList } from './IndustryList';
 import { IndustryForm } from './IndustryForm';
 import { IndustryDetails } from './IndustryDetails';
-import { companiesApi } from '../../services/companies';
 import type { Industry } from '../../types/companies';
 
 export const IndustriesSection: React.FC = () => {
@@ -31,6 +23,9 @@ export const IndustriesSection: React.FC = () => {
 
   const handleIndustryDelete = (industry: Industry) => {
     console.log('Industry deleted:', industry);
+    // Clear cache and trigger refresh
+    localStorage.removeItem('industries_cache');
+    localStorage.removeItem('industries_cache_timestamp');
     setRefreshTrigger(prev => prev + 1);
   };
 
@@ -42,6 +37,9 @@ export const IndustriesSection: React.FC = () => {
   const handleFormSave = () => {
     setIsFormOpen(false);
     setEditingIndustry(null);
+    // Clear cache and trigger refresh
+    localStorage.removeItem('industries_cache');
+    localStorage.removeItem('industries_cache_timestamp');
     setRefreshTrigger(prev => prev + 1);
   };
 
@@ -55,60 +53,8 @@ export const IndustriesSection: React.FC = () => {
     setSelectedIndustry(null);
   };
 
-  const refreshData = () => {
-    setRefreshTrigger(prev => prev + 1);
-  };
-
   return (
     <div className="space-y-6 p-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-xl font-semibold" style={{ color: '#ffffff' }}>
-            Industries Management
-          </h2>
-          <p className="text-sm" style={{ color: '#9ca3af' }}>
-            Manage company industry categories and types
-          </p>
-        </div>
-      </div>
-
-      {/* Filters */}
-      <div className="flex items-center gap-4">
-        <div className="flex-1"></div>
-        <button
-          onClick={refreshData}
-          className="p-2 rounded-lg transition-colors"
-          style={{ color: '#9ca3af' }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.color = '#ffffff';
-            e.currentTarget.style.backgroundColor = '#3b3b3b';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.color = '#9ca3af';
-            e.currentTarget.style.backgroundColor = 'transparent';
-          }}
-          title="Refresh Data"
-        >
-          <RefreshCw className="w-4 h-4" />
-        </button>
-        
-        <button
-          onClick={handleAddIndustry}
-          className="p-2 rounded-lg transition-colors"
-          style={{ backgroundColor: '#3b82f6', color: '#ffffff' }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.backgroundColor = '#2563eb';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.backgroundColor = '#3b82f6';
-          }}
-          title="Add Industry"
-        >
-          <Plus className="w-4 h-4" />
-        </button>
-      </div>
-
       {/* Content */}
       <div>
         <IndustryList
