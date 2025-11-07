@@ -33,6 +33,41 @@ const formatPhoneNumber = (phone: string) => {
   return phone;
 };
 
+const formatEmail = (email: string, maxLength: number = 20): string => {
+  if (!email) return '';
+  
+  // If email is short enough, return as is
+  if (email.length <= maxLength) {
+    return email;
+  }
+  
+  // Extract parts: local@domain
+  const [local, domain] = email.split('@');
+  
+  if (!domain) {
+    // Not a valid email format, just truncate
+    return email.length > maxLength ? email.slice(0, maxLength - 3) + '...' : email;
+  }
+  
+  // If domain is short, show: local...domain
+  if (domain.length <= 8) {
+    const localPart = local.slice(0, Math.max(1, maxLength - domain.length - 3));
+    return `${localPart}...${domain}`;
+  }
+  
+  // If domain is long, show: local...com (or last part of domain)
+  const domainParts = domain.split('.');
+  const tld = domainParts[domainParts.length - 1] || 'com';
+  const localPart = local.slice(0, Math.max(1, maxLength - tld.length - 3));
+  return `${localPart}...${tld}`;
+};
+
+const truncateText = (text: string, maxLength: number = 25): string => {
+  if (!text) return '';
+  if (text.length <= maxLength) return text;
+  return text.slice(0, maxLength - 3) + '...';
+};
+
 const getTextColor = (status: string, isStatusField: boolean = false): string => {
   const normalizedStatus = status.toLowerCase();
   
@@ -83,13 +118,13 @@ export function CompanyTable({
     {
       key: 'company_name',
       label: 'Company',
-      width: 'w-1/5',
+      width: 'w-1/3', // Fixed width but still larger than other columns
       sortable: true,
       align: 'left',
       render: (value, company) => (
-        <div className="flex items-center gap-2">
-          <span className="font-bold text-sm">
-            {String(value)}
+        <div className="flex items-center gap-2 min-w-0">
+          <span className="font-bold text-sm block truncate" title={String(value)}>
+            {truncateText(String(value), 40)}
           </span>
           <button
             onClick={(e) => {
@@ -106,50 +141,53 @@ export function CompanyTable({
     {
       key: 'industry_detail',
       label: 'Industry',
-      width: 'w-1/6',
+      width: 'w-32',
       sortable: true,
       align: 'left',
       render: (value) => (
-        <span className="text-sm">
-          {value?.industry_name || ''}
+        <span className="text-sm block truncate" title={value?.industry_name || ''}>
+          {truncateText(value?.industry_name || '', 15)}
         </span>
       ),
     },
     {
       key: 'contact_person',
       label: 'Contact',
-      width: 'w-1/6',
+      width: 'w-32',
       sortable: true,
       align: 'left',
       render: (value) => (
-        <span className="text-sm">
-          {String(value)}
+        <span className="text-sm block truncate" title={String(value)}>
+          {truncateText(String(value), 15)}
         </span>
       ),
     },
     {
       key: 'email',
       label: 'Email',
-      width: 'w-1/5',
+      width: 'w-40',
       sortable: true,
       align: 'left',
       render: (value) => (
-        <span className="text-sm block truncate">
-          {String(value)}
+        <span className="text-sm block truncate" title={String(value)}>
+          {formatEmail(String(value), 20)}
         </span>
       ),
     },
     {
       key: 'phone_number',
       label: 'Phone',
-      width: 'w-24',
+      width: 'w-28',
       sortable: true,
       align: 'left',
-      render: (value) => (
-        <span className="text-sm">
-          {formatPhoneNumber(String(value))}
-        </span>
-      ),
+      render: (value) => {
+        const formatted = formatPhoneNumber(String(value));
+        return (
+          <span className="text-sm block truncate" title={String(value)}>
+            {truncateText(formatted, 15)}
+          </span>
+        );
+      },
     },
     {
       key: 'status',

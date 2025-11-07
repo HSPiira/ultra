@@ -1,12 +1,14 @@
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import filters, status, viewsets
+from rest_framework.decorators import action
 from rest_framework.response import Response
 
 from apps.core.utils.caching import CacheableResponseMixin
-from apps.schemes.api.serializers import SchemeSerializer
+from apps.schemes.api.serializers import SchemeSerializer, SchemeRenewalSerializer, SchemePeriodSerializer
 from apps.schemes.models import Scheme
 from apps.schemes.selectors import scheme_list
 from apps.schemes.services.scheme_service import SchemeService
+from apps.schemes.services.scheme_period_service import SchemePeriodService
 
 
 class SchemeViewSet(CacheableResponseMixin, viewsets.ModelViewSet):
@@ -73,3 +75,52 @@ class SchemeViewSet(CacheableResponseMixin, viewsets.ModelViewSet):
         # Invalidate cache after successful delete
         self.invalidate_cache(user_id=user_id)
         return response
+
+    @action(detail=True, methods=["post"])
+    def renew(self, request, pk=None):
+        """
+        Renew a scheme for a new period.
+
+        Body:
+            - start_date (required): Start date of new period
+            - end_date (required): End date of new period
+            - limit_amount (optional): Limit amount (defaults to previous period)
+            - copy_items (bool, default=True): Copy items from previous period
+            - item_modifications (JSON, optional): Modifications to apply to copied items
+        """
+        scheme = self.get_object()
+        serializer = SchemeRenewalSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        try:
+            user_id = request.user.id if request.user.is_authenticated else None
+
+            # Extract copy_items and item_modifications separately
+            copy_items = serializer.validated_data.get("copy_items", True)
+            item_modifications = serializer.validated_data.get("item_modifications")
+
+            # Build cleaned renewal_data with only period fields
+            renewal_data = {
+                key: value
+                for key, value in serializer.validated_data.items()
+                if key not in ("copy_items", "item_modifications")
+            }
+
+            new_period = SchemePeriodService.scheme_period_renew_with_items(
+                scheme_id=scheme.id,
+                renewal_data=renewal_data,
+                copy_items=copy_items,
+                item_modifications=item_modifications,
+                user=request.user,
+            )
+
+            response = Response(
+                SchemePeriodSerializer(new_period).data,
+                status=status.HTTP_201_CREATED,
+            )
+            # Invalidate cache after successful renewal
+            self.invalidate_cache(user_id=user_id)
+            return response
+
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)

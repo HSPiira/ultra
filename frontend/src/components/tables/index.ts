@@ -5,6 +5,7 @@ export { DoctorTable } from './DoctorTable';
 export { HospitalTable } from './HospitalTable';
 export { CompanyTable } from './CompanyTable';
 export { SchemeTable } from './SchemeTable';
+export { IndustryTable } from './IndustryTable';
 export { MedicineTable } from './MedicineTable';
 export { LabTestTable } from './LabTestTable';
 export { ServiceTable } from './ServiceTable';

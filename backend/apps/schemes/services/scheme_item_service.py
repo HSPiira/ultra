@@ -1,4 +1,6 @@
 from typing import Any, Optional
+import csv
+from io import StringIO
 
 from django.core.exceptions import ValidationError
 from django.db import transaction
@@ -30,11 +32,11 @@ class SchemeItemService(BaseService, CSVExportMixin):
     entity_name = "SchemeItem"
     unique_fields = []  # Composite unique constraint handled manually
     allowed_fields = {
-        'scheme', 'content_type', 'object_id', 'limit_amount',
+        'scheme_period', 'content_type', 'object_id', 'limit_amount',
         'copayment_percent', 'status'
     }
     validation_rules = [
-        RequiredFieldsRule(["scheme", "content_type", "object_id"], "SchemeItem"),
+        RequiredFieldsRule(["scheme_period", "content_type", "object_id"], "SchemeItem"),
     ]
 
     # ---------------------------------------------------------------------
@@ -65,10 +67,10 @@ class SchemeItemService(BaseService, CSVExportMixin):
         # Apply validation rules (configured in BaseService)
         cls._apply_validation_rules(scheme_item_data)
 
-        # Resolve scheme FK using base method
-        from apps.schemes.models import Scheme
+        # Resolve scheme_period FK using base method
+        from apps.schemes.models import SchemePeriod
         cls._resolve_foreign_key(
-            scheme_item_data, "scheme", Scheme, "Scheme", validate_active=True
+            scheme_item_data, "scheme_period", SchemePeriod, "SchemePeriod", validate_active=True
         )
 
         # Validate content object is active
@@ -98,14 +100,14 @@ class SchemeItemService(BaseService, CSVExportMixin):
                 scheme_item_data["copayment_percent"], "copayment_percent", allow_none=True
             )
 
-        # Check for duplicates (unique together: scheme, content_type, object_id)
+        # Check for duplicates (unique together: scheme_period, content_type, object_id)
         qs = SchemeItem.objects.filter(is_deleted=False)
         if qs.filter(
-            scheme=scheme_item_data.get("scheme"),
+            scheme_period=scheme_item_data.get("scheme_period"),
             content_type=scheme_item_data.get("content_type"),
             object_id=scheme_item_data.get("object_id"),
         ).exists():
-            raise ValidationError("Scheme item with this combination already exists")
+            raise ValidationError("Scheme item with this combination already exists for this period")
 
         # Create scheme item
         scheme_item = SchemeItem.objects.create(**scheme_item_data)
@@ -156,11 +158,11 @@ class SchemeItemService(BaseService, CSVExportMixin):
                 update_data["copayment_percent"], "copayment_percent", allow_none=True
             )
 
-        # Resolve scheme FK using base method if being updated
-        if "scheme" in update_data:
-            from apps.schemes.models import Scheme
+        # Resolve scheme_period FK using base method if being updated
+        if "scheme_period" in update_data:
+            from apps.schemes.models import SchemePeriod
             cls._resolve_foreign_key(
-                update_data, "scheme", Scheme, "Scheme", validate_active=True
+                update_data, "scheme_period", SchemePeriod, "SchemePeriod", validate_active=True
             )
 
         # Validate content object is active if being updated
@@ -180,19 +182,19 @@ class SchemeItemService(BaseService, CSVExportMixin):
 
         # Check for duplicates (excluding current scheme item)
         if (
-            "scheme" in update_data
+            "scheme_period" in update_data
             or "content_type" in update_data
             or "object_id" in update_data
         ):
             qs = SchemeItem.objects.filter(is_deleted=False).exclude(id=scheme_item_id)
-            scheme = update_data.get("scheme", scheme_item.scheme)
+            scheme_period = update_data.get("scheme_period", scheme_item.scheme_period)
             content_type = update_data.get("content_type", scheme_item.content_type)
             object_id = update_data.get("object_id", scheme_item.object_id)
             if qs.filter(
-                scheme=scheme, content_type=content_type, object_id=object_id
+                scheme_period=scheme_period, content_type=content_type, object_id=object_id
             ).exists():
                 raise ValidationError(
-                    "Another scheme item with this combination already exists"
+                    "Another scheme item with this combination already exists for this period"
                 )
 
         # Update fields
@@ -276,12 +278,12 @@ class SchemeItemService(BaseService, CSVExportMixin):
 
     @staticmethod
     @transaction.atomic
-    def scheme_items_bulk_create(*, scheme_id: str, assignments: list, user=None):
+    def scheme_items_bulk_create(*, scheme_period_id: str, assignments: list, user=None):
         """
-        Bulk create scheme items for a specific scheme.
+        Bulk create scheme items for a specific scheme period.
 
         Args:
-            scheme_id: ID of the scheme to assign items to
+            scheme_period_id: ID of the scheme period to assign items to
             assignments: List of assignment dictionaries with content_type, object_id, limit_amount, copayment_percent
             user: User performing the bulk assignment
 
@@ -291,13 +293,13 @@ class SchemeItemService(BaseService, CSVExportMixin):
         Raises:
             ValidationError: If data is invalid or duplicates exist
         """
-        from apps.schemes.models import Scheme
+        from apps.schemes.models import SchemePeriod
 
-        # Validate scheme exists
+        # Validate scheme period exists
         try:
-            scheme = Scheme.objects.get(id=scheme_id, is_deleted=False)
-        except Scheme.DoesNotExist as e:
-            raise ValidationError("Scheme not found") from e
+            scheme_period = SchemePeriod.objects.get(id=scheme_period_id, is_deleted=False)
+        except SchemePeriod.DoesNotExist as e:
+            raise ValidationError("Scheme period not found") from e
 
         created_items = []
         errors = []
@@ -321,11 +323,11 @@ class SchemeItemService(BaseService, CSVExportMixin):
                 
                 # Check if item is already assigned but soft-deleted
                 existing_item = SchemeItem.objects.filter(
-                    scheme=scheme,
+                    scheme_period=scheme_period,
                     content_type=content_type,
                     object_id=object_id
                 ).first()
-                
+
                 if existing_item and existing_item.is_deleted:
                     # Validate data before restoring
                     limit_amount = assignment.get("limit_amount")
@@ -354,7 +356,7 @@ class SchemeItemService(BaseService, CSVExportMixin):
                 else:
                     # Create new scheme item
                     scheme_item_data = {
-                        "scheme": scheme,
+                        "scheme_period": scheme_period,
                         "content_type": content_type,
                         "object_id": object_id,
                         "limit_amount": assignment.get("limit_amount"),
@@ -401,6 +403,87 @@ class SchemeItemService(BaseService, CSVExportMixin):
         return removed_count
 
     @staticmethod
+    @transaction.atomic
+    def scheme_items_copy_from_period(
+        *,
+        source_period_id: str,
+        target_period_id: str,
+        item_modifications: dict = None,
+        filter_content_types: list = None,
+        exclude_object_ids: list = None,
+        user=None,
+    ) -> list:
+        """
+        Copy items from one period to another.
+
+        Args:
+            source_period_id: Period to copy items from
+            target_period_id: Period to copy items to
+            item_modifications: Optional dict of field changes to apply
+                e.g., {"copayment_percent": Decimal("15.00")}
+            filter_content_types: Only copy items with these content types
+            exclude_object_ids: Exclude items with these object IDs
+            user: User performing the operation
+
+        Returns:
+            List of created SchemeItem instances
+
+        Raises:
+            ValidationError: If periods don't exist
+        """
+        from apps.schemes.models import SchemePeriod
+
+        # Get periods
+        try:
+            source_period = SchemePeriod.objects.get(
+                id=source_period_id, is_deleted=False
+            )
+            target_period = SchemePeriod.objects.get(
+                id=target_period_id, is_deleted=False
+            )
+        except SchemePeriod.DoesNotExist as e:
+            raise ValidationError("Source or target period not found") from e
+
+        # Get items to copy
+        items = SchemeItem.objects.filter(
+            scheme_period=source_period, is_deleted=False
+        )
+
+        # Apply filters
+        if filter_content_types:
+            items = items.filter(content_type__in=filter_content_types)
+
+        if exclude_object_ids:
+            items = items.exclude(object_id__in=exclude_object_ids)
+
+        # Copy items
+        created_items = []
+        for old_item in items:
+            new_item_data = {
+                "scheme_period": target_period,
+                "content_type": old_item.content_type,
+                "object_id": old_item.object_id,
+                "limit_amount": old_item.limit_amount,
+                "copayment_percent": old_item.copayment_percent,
+                "status": old_item.status,
+            }
+
+            # Apply modifications if provided
+            if item_modifications:
+                for field, value in item_modifications.items():
+                    if field in new_item_data and field != "scheme_period":
+                        new_item_data[field] = value
+
+            try:
+                new_item = SchemeItem.objects.create(**new_item_data)
+                created_items.append(new_item)
+            except Exception:
+                # Skip duplicates or errors
+                continue
+
+        return created_items
+
+    @staticmethod
     def scheme_items_export_csv(*, filters: dict = None):
         """
         Export filtered scheme items to CSV format.
@@ -426,6 +509,7 @@ class SchemeItemService(BaseService, CSVExportMixin):
             [
                 "ID",
                 "Scheme",
+                "Period Number",
                 "Content Type",
                 "Object ID",
                 "Item Name",
@@ -442,7 +526,8 @@ class SchemeItemService(BaseService, CSVExportMixin):
             writer.writerow(
                 [
                     scheme_item.id,
-                    scheme_item.scheme.scheme_name if scheme_item.scheme else "",
+                    scheme_item.scheme_period.scheme.scheme_name if scheme_item.scheme_period else "",
+                    scheme_item.scheme_period.period_number if scheme_item.scheme_period else "",
                     scheme_item.content_type.model if scheme_item.content_type else "",
                     scheme_item.object_id,
                     str(scheme_item.item) if scheme_item.item else "",

@@ -18,6 +18,17 @@ from django.core.exceptions import ImproperlyConfigured
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+# Load environment variables from .env file
+try:
+    from dotenv import load_dotenv
+    # Load .env file from the backend directory
+    env_path = BASE_DIR / '.env'
+    if env_path.exists():
+        load_dotenv(env_path)
+except ImportError:
+    # python-dotenv not installed, skip loading .env file
+    pass
+
 # Test detection - centralized for use across the application
 IS_TESTING = 'test' in sys.argv or 'pytest' in sys.modules
 
@@ -124,12 +135,55 @@ WSGI_APPLICATION = "ultra.wsgi.application"
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
-DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.sqlite3",
-        "NAME": BASE_DIR / "db.sqlite3",
+# Support DATABASE_URL environment variable (e.g., for Xata, Heroku, etc.)
+# Format: postgresql://user:password@host:port/database?sslmode=require
+# If DATABASE_URL is not set, fall back to SQLite for development
+database_url = os.environ.get('DATABASE_URL', '').strip()
+
+if database_url:
+    # Parse DATABASE_URL
+    import urllib.parse
+    result = urllib.parse.urlparse(database_url)
+    
+    # Extract database name (may include branch like "ultra:dev")
+    db_path = result.path.lstrip('/')
+    # Handle Xata format: "ultra:dev" -> use "ultra" as database name
+    db_name = db_path.split(':')[0] if ':' in db_path else db_path
+    
+    # Parse query parameters
+    query_params = urllib.parse.parse_qs(result.query)
+    
+    # Always require SSL for cloud databases (Xata, Heroku, etc.)
+    # Use sslmode from URL if provided, otherwise default to 'require'
+    ssl_mode = query_params.get('sslmode', ['require'])[0]
+    
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.postgresql",
+            "NAME": db_name,
+            "USER": result.username,
+            "PASSWORD": result.password,
+            "HOST": result.hostname,
+            "PORT": result.port or "5432",
+            "OPTIONS": {
+                "sslmode": ssl_mode,
+            },
+            # Use SQLite for tests (Xata doesn't support CREATE DATABASE)
+            # This allows tests to run without trying to create test databases
+            "TEST": {
+                "ENGINE": "django.db.backends.sqlite3",
+                "NAME": ":memory:",
+            },
+        }
     }
-}
+else:
+    # Fall back to SQLite for local development
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.sqlite3",
+            "NAME": BASE_DIR / "db.sqlite3",
+        }
+    }
 
 # Caching (Redis - fallback to local memory if Redis not available)
 if DEBUG:

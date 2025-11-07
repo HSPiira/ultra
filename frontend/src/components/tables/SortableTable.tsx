@@ -4,7 +4,7 @@ import React from 'react';
 export interface TableColumn<T> {
   key: keyof T;
   label: string;
-  width: string;
+  width?: string; // Optional - if undefined, column takes remaining space
   sortable?: boolean;
   align?: 'left' | 'right' | 'center';
   render?: (value: any, item: T) => React.ReactNode;
@@ -106,7 +106,7 @@ export function SortableTable<T>({
               {columns.map((column) => (
                 <th
                   key={String(column.key)}
-                  className={`px-2 py-2 text-xs font-semibold text-gray-400 tracking-wider ${column.width} ${
+                  className={`px-2 py-2 text-xs font-semibold text-gray-400 tracking-wider ${column.width || ''} ${
                     column.sortable ? 'cursor-pointer hover:text-gray-300 transition-colors' : ''
                   } ${column.align === 'right' ? 'text-right' : column.align === 'center' ? 'text-center' : 'text-left'}`}
                   onClick={() => column.sortable && onSort?.(String(column.key))}
@@ -146,7 +146,7 @@ export function SortableTable<T>({
                       return (
                         <td
                           key={String(column.key)}
-                          className={`px-2 py-2 align-middle truncate ${column.width} ${textColor} ${
+                          className={`px-2 py-2 align-middle truncate ${column.width || ''} ${textColor} ${
                             column.align === 'right' ? 'text-right' : column.align === 'center' ? 'text-center' : 'text-left'
                           }`}
                         >

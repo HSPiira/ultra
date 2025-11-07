@@ -22,6 +22,10 @@ class IndustryViewSet(CacheableResponseMixin, viewsets.ModelViewSet):
 
     serializer_class = IndustrySerializer
     # Using global authentication settings from REST_FRAMEWORK
+    
+    # Industries don't change frequently, so cache longer
+    cache_list_timeout = 900  # 15 minutes (instead of default 5 minutes)
+    cache_detail_timeout = 1800  # 30 minutes (instead of default 10 minutes)
 
     filter_backends = [
         DjangoFilterBackend,

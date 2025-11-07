@@ -2,6 +2,7 @@
 Custom validators for data integrity.
 """
 import re
+from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.core.validators import EmailValidator as DjangoEmailValidator, RegexValidator
 from rest_framework import serializers
@@ -12,6 +13,14 @@ from apps.core.utils.sanitizers import sanitize_name, sanitize_phone_number, san
 # ---------------------------------------------------------------------
 # Phone Number Validation
 # ---------------------------------------------------------------------
+
+# Get default country code from settings, with fallback to '+256'
+DEFAULT_COUNTRY_CODE = getattr(settings, 'DEFAULT_COUNTRY_CODE', '+256')
+# Ensure it starts with '+'
+if not DEFAULT_COUNTRY_CODE.startswith('+'):
+    DEFAULT_COUNTRY_CODE = '+' + DEFAULT_COUNTRY_CODE
+
+
 def normalize_phone_number(phone_number: str) -> str:
     """
     Normalize phone number to E.164 format.
@@ -22,7 +31,7 @@ def normalize_phone_number(phone_number: str) -> str:
 
     Examples:
         '+256 207 123 4567' -> '+2562071234567'
-        '234-567-8900' -> '+12345678900' (assumes Uganda if no country code)
+        '234-567-8900' -> '+12345678900' (assumes default country code if no country code)
         '+256 72 123 4567' -> '+256721234567'
     """
     if not phone_number:
@@ -33,9 +42,8 @@ def normalize_phone_number(phone_number: str) -> str:
 
     # Ensure + prefix exists
     if not cleaned.startswith('+'):
-        # Default to +256 (Uganda) if no country code provided
-        # For international use, you may want to make this configurable
-        cleaned = '+256' + cleaned
+        # Use configurable default country code if no country code provided
+        cleaned = DEFAULT_COUNTRY_CODE + cleaned
 
     return cleaned
 
