@@ -18,8 +18,12 @@ def scheme_item_list(*, filters: dict = None):
 
     Returns:
         QuerySet: Filtered scheme item queryset
+
+    Note:
+        Uses select_related('scheme_period__scheme') to prevent N+1 queries
+        when accessing scheme_period.scheme in __str__ or other operations.
     """
-    qs = SchemeItem.objects.select_related("scheme", "content_type").filter(
+    qs = SchemeItem.objects.select_related("scheme_period__scheme", "content_type").filter(
         is_deleted=False
     )
 
@@ -55,9 +59,13 @@ def scheme_item_get(*, scheme_item_id: str):
 
     Returns:
         SchemeItem: Scheme item instance or None
+
+    Note:
+        Uses select_related('scheme_period__scheme') to prevent N+1 queries
+        when accessing scheme_period.scheme in __str__ or other operations.
     """
     try:
-        return SchemeItem.objects.select_related("scheme", "content_type").get(
+        return SchemeItem.objects.select_related("scheme_period__scheme", "content_type").get(
             id=scheme_item_id, is_deleted=False
         )
     except SchemeItem.DoesNotExist:
@@ -73,8 +81,13 @@ def scheme_item_list_by_scheme(*, scheme_id: str):
 
     Returns:
         QuerySet: Scheme items for the specified scheme
+
+    Note:
+        Uses select_related('scheme_period__scheme') to prevent N+1 queries.
+        Note: This function uses the DEPRECATED 'scheme' field for filtering.
+        Consider migrating to scheme_period-based filtering.
     """
-    return SchemeItem.objects.select_related("scheme", "content_type").filter(
+    return SchemeItem.objects.select_related("scheme_period__scheme", "content_type").filter(
         scheme_id=scheme_id, is_deleted=False
     )
 
@@ -88,8 +101,12 @@ def scheme_item_list_by_content_type(*, content_type_id: str):
 
     Returns:
         QuerySet: Scheme items for the specified content type
+
+    Note:
+        Uses select_related('scheme_period__scheme') to prevent N+1 queries
+        when accessing scheme_period.scheme in __str__ or other operations.
     """
-    return SchemeItem.objects.select_related("scheme", "content_type").filter(
+    return SchemeItem.objects.select_related("scheme_period__scheme", "content_type").filter(
         content_type_id=content_type_id, is_deleted=False
     )
 
@@ -203,6 +220,10 @@ def scheme_item_health_scores_list():
 
     Returns:
         list: List of health score data
+
+    Note:
+        Optimized with select_related to prevent N+1 queries when accessing
+        scheme_period.scheme in the loop.
     """
     scheme_items = scheme_item_list()
     health_data = []
@@ -213,7 +234,7 @@ def scheme_item_health_scores_list():
             health_data.append(
                 {
                     "scheme_item_id": scheme_item.id,
-                    "scheme_name": scheme_item.scheme.scheme_name,
+                    "scheme_name": scheme_item.scheme_period.scheme.scheme_name,
                     "item_name": str(scheme_item.item),
                     "health_score": health_score,
                 }
@@ -395,8 +416,13 @@ def scheme_assigned_items_get(*, scheme_id: str, content_type: str = None):
 
     Returns:
         QuerySet: Assigned scheme items
+
+    Note:
+        Uses select_related('scheme_period__scheme') to prevent N+1 queries.
+        Note: This function uses the DEPRECATED 'scheme' field for filtering.
+        Consider migrating to scheme_period-based filtering.
     """
-    qs = SchemeItem.objects.select_related("scheme", "content_type").filter(
+    qs = SchemeItem.objects.select_related("scheme_period__scheme", "content_type").filter(
         scheme_id=scheme_id, is_deleted=False
     )
 

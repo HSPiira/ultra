@@ -38,6 +38,14 @@ class SchemeItemViewSet(ThrottleAwareCacheMixin, viewsets.ModelViewSet):
     ordering_fields = ["created_at", "updated_at", "scheme__scheme_name"]
 
     def get_queryset(self):
+        """
+        Get optimized queryset for scheme items.
+
+        Note:
+            The scheme_item_list selector uses select_related('scheme_period__scheme')
+            to prevent N+1 queries when accessing scheme_period.scheme in __str__
+            or serialization.
+        """
         query = self.request.query_params.get("search", "").strip()
         filters_dict = {
             "status": self.request.query_params.get("status"),

@@ -334,7 +334,7 @@ class Command(BaseCommand):
             else:
                 deleted_count, _ = Company.objects.all().delete()
                 self.stdout.write(
-                    self.style.WARNING(f"Deleted {existing_count} existing companies")
+                    self.style.WARNING(f"Deleted {deleted_count} existing companies")
                 )
                 existing_count = 0
 

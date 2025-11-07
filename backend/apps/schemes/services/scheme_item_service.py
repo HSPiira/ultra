@@ -493,13 +493,19 @@ class SchemeItemService(BaseService, CSVExportMixin):
 
         Returns:
             str: CSV content as string
+
+        Note:
+            Optimized with select_related to prevent N+1 queries when accessing
+            scheme_period.scheme in the CSV export loop.
         """
         from apps.schemes.selectors import scheme_item_list
 
         if filters:
             scheme_items = scheme_item_list(filters=filters)
         else:
-            scheme_items = SchemeItem.objects.filter(is_deleted=False)
+            scheme_items = SchemeItem.objects.select_related(
+                "scheme_period__scheme", "content_type"
+            ).filter(is_deleted=False)
 
         output = StringIO()
         writer = csv.writer(output)

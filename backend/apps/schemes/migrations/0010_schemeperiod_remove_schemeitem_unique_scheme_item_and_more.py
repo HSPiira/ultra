@@ -252,13 +252,6 @@ class Migration(migrations.Migration):
                 to="schemes.schemeperiod",
             ),
         ),
-        migrations.AddIndex(
-            model_name="schemeitem",
-            index=models.Index(
-                fields=["scheme_period", "content_type", "object_id"],
-                name="scheme_item_scheme__ac6dd0_idx",
-            ),
-        ),
         migrations.AddConstraint(
             model_name="schemeitem",
             constraint=models.UniqueConstraint(

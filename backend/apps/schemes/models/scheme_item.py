@@ -19,21 +19,35 @@ class SchemeItemQuerySet(models.QuerySet):
         """Get items for a specific scheme period."""
         return self.filter(scheme_period_id=scheme_period_id)
 
+    def _for_content_type(self, model_class, object_id: str = None):
+        """
+        Helper to filter items by content type.
+
+        Args:
+            model_class: The Django model class to filter by
+            object_id: Optional specific object ID. If None, returns all items of this type.
+
+        Returns:
+            QuerySet filtered by content_type and optionally object_id
+        """
+        ct = ContentType.objects.get_for_model(model_class)
+        queryset = self.filter(content_type=ct)
+        if object_id:
+            queryset = queryset.filter(object_id=object_id)
+        return queryset
+
     def for_plan(self, plan_id: str = None):
         """
         Filter items related to Plan content type.
 
         Args:
             plan_id: Optional specific plan ID. If None, returns all plan items.
-        """
-        from django.contrib.contenttypes.models import ContentType
-        from apps.schemes.models import Plan
 
-        ct = ContentType.objects.get_for_model(Plan)
-        queryset = self.filter(content_type=ct)
-        if plan_id:
-            queryset = queryset.filter(object_id=plan_id)
-        return queryset
+        Note:
+            Imports Plan locally to avoid circular import issues.
+        """
+        from apps.schemes.models import Plan
+        return self._for_content_type(Plan, plan_id)
 
     def for_benefit(self, benefit_id: str = None):
         """
@@ -41,15 +55,12 @@ class SchemeItemQuerySet(models.QuerySet):
 
         Args:
             benefit_id: Optional specific benefit ID. If None, returns all benefit items.
-        """
-        from django.contrib.contenttypes.models import ContentType
-        from apps.schemes.models import Benefit
 
-        ct = ContentType.objects.get_for_model(Benefit)
-        queryset = self.filter(content_type=ct)
-        if benefit_id:
-            queryset = queryset.filter(object_id=benefit_id)
-        return queryset
+        Note:
+            Imports Benefit locally to avoid circular import issues.
+        """
+        from apps.schemes.models import Benefit
+        return self._for_content_type(Benefit, benefit_id)
 
     def for_hospital(self, hospital_id: str = None):
         """
@@ -57,15 +68,12 @@ class SchemeItemQuerySet(models.QuerySet):
 
         Args:
             hospital_id: Optional specific hospital ID. If None, returns all hospital items.
-        """
-        from django.contrib.contenttypes.models import ContentType
-        from apps.providers.models import Hospital
 
-        ct = ContentType.objects.get_for_model(Hospital)
-        queryset = self.filter(content_type=ct)
-        if hospital_id:
-            queryset = queryset.filter(object_id=hospital_id)
-        return queryset
+        Note:
+            Imports Hospital locally to avoid circular import issues during Django model loading.
+        """
+        from apps.providers.models import Hospital
+        return self._for_content_type(Hospital, hospital_id)
 
     def for_service(self, service_id: str = None):
         """
@@ -73,15 +81,12 @@ class SchemeItemQuerySet(models.QuerySet):
 
         Args:
             service_id: Optional specific service ID. If None, returns all service items.
-        """
-        from django.contrib.contenttypes.models import ContentType
-        from apps.medical_catalog.models import Service
 
-        ct = ContentType.objects.get_for_model(Service)
-        queryset = self.filter(content_type=ct)
-        if service_id:
-            queryset = queryset.filter(object_id=service_id)
-        return queryset
+        Note:
+            Imports Service locally to avoid circular import issues during Django model loading.
+        """
+        from apps.medical_catalog.models import Service
+        return self._for_content_type(Service, service_id)
 
     def for_labtest(self, labtest_id: str = None):
         """
@@ -89,15 +94,12 @@ class SchemeItemQuerySet(models.QuerySet):
 
         Args:
             labtest_id: Optional specific labtest ID. If None, returns all labtest items.
-        """
-        from django.contrib.contenttypes.models import ContentType
-        from apps.medical_catalog.models import LabTest
 
-        ct = ContentType.objects.get_for_model(LabTest)
-        queryset = self.filter(content_type=ct)
-        if labtest_id:
-            queryset = queryset.filter(object_id=labtest_id)
-        return queryset
+        Note:
+            Imports LabTest locally to avoid circular import issues during Django model loading.
+        """
+        from apps.medical_catalog.models import LabTest
+        return self._for_content_type(LabTest, labtest_id)
 
     def for_medicine(self, medicine_id: str = None):
         """
@@ -105,15 +107,12 @@ class SchemeItemQuerySet(models.QuerySet):
 
         Args:
             medicine_id: Optional specific medicine ID. If None, returns all medicine items.
-        """
-        from django.contrib.contenttypes.models import ContentType
-        from apps.medical_catalog.models import Medicine
 
-        ct = ContentType.objects.get_for_model(Medicine)
-        queryset = self.filter(content_type=ct)
-        if medicine_id:
-            queryset = queryset.filter(object_id=medicine_id)
-        return queryset
+        Note:
+            Imports Medicine locally to avoid circular import issues during Django model loading.
+        """
+        from apps.medical_catalog.models import Medicine
+        return self._for_content_type(Medicine, medicine_id)
 
 
 class SchemeItemManager(models.Manager):
@@ -181,7 +180,6 @@ class SchemeItem(BaseModel):
 
         indexes = [
             models.Index(fields=["content_type", "object_id"]),
-            models.Index(fields=["scheme_period", "content_type", "object_id"]),
         ]
 
         constraints = [
@@ -203,5 +201,16 @@ class SchemeItem(BaseModel):
             raise ValidationError(errors)
 
     def __str__(self):
+        """
+        String representation of SchemeItem.
+
+        WARNING: This method accesses self.scheme_period.scheme.scheme_name which causes
+        2 FK lookups and can lead to N+1 query problems when rendering many SchemeItem instances.
+
+        PERFORMANCE TIP: When querying multiple SchemeItems, always use:
+            SchemeItem.objects.select_related('scheme_period__scheme')
+
+        This fetches related scheme_period and scheme in the same query.
+        """
         return f"{self.scheme_period.scheme.scheme_name} (Period {self.scheme_period.period_number}) - {self.item}"
 

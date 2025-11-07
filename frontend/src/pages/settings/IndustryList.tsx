@@ -172,6 +172,17 @@ export const IndustryList: React.FC<IndustryListProps> = ({
     setCurrentPage(1);
   }, [rowsPerPage, searchTerm]);
 
+  // Clamp currentPage to valid range when totalPages changes (e.g., after deletions or filters)
+  useEffect(() => {
+    if (totalPages === 0) {
+      // No pages, reset to 1
+      setCurrentPage(1);
+    } else if (currentPage > totalPages) {
+      // Current page exceeds total pages, move to last valid page
+      setCurrentPage(totalPages);
+    }
+  }, [totalPages, currentPage]);
+
   const handleIndustryView = (industry: Industry) => {
     onIndustrySelect?.(industry);
   };

@@ -87,3 +87,8 @@ class SchemeItemAdmin(admin.ModelAdmin):
     list_filter = ("status", "scheme_period__scheme", "content_type")
     autocomplete_fields = ("scheme_period",)
     readonly_fields = ("created_at", "updated_at")
+
+    def get_queryset(self, request):
+        """Optimize queryset to prevent N+1 queries when rendering __str__."""
+        qs = super().get_queryset(request)
+        return qs.select_related('scheme_period__scheme', 'content_type')
