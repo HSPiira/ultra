@@ -1,5 +1,5 @@
 cuid2==2.0.1
-Django==5.2.7
+Django==5.2.8
 djangorestframework==3.16.1
 django-filter==25.2
 drf-spectacular==0.28.0
