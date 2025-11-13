@@ -183,8 +183,10 @@ export const SchemeOverviewTab: React.FC<SchemeOverviewTabProps> = ({ scheme }) 
     return { status: 'active', color: 'text-green-400', bgColor: 'bg-green-900' };
   };
 
-  const expiryStatus = getExpiryStatus(scheme.end_date);
-  const daysLeft = getDaysTillExpiry(scheme.end_date);
+  const currentPeriod = scheme.current_period;
+  const expiryStatus = getExpiryStatus(currentPeriod?.end_date || null);
+  const daysLeft = getDaysTillExpiry(currentPeriod?.end_date || null);
+  const coverageAmount = currentPeriod ? Number(currentPeriod.limit_amount) : null;
 
   if (loading) {
     return (
@@ -216,7 +218,7 @@ export const SchemeOverviewTab: React.FC<SchemeOverviewTabProps> = ({ scheme }) 
             <div className="flex justify-between items-center py-1">
               <span className="text-sm font-medium" style={{ color: '#9ca3af' }}>Coverage Amount</span>
               <span className="text-sm font-semibold" style={{ color: '#ffffff' }}>
-                {formatCurrency(scheme.limit_amount)}
+                {coverageAmount ? formatCurrency(coverageAmount) : '—'}
               </span>
             </div>
 
@@ -232,12 +234,16 @@ export const SchemeOverviewTab: React.FC<SchemeOverviewTabProps> = ({ scheme }) 
 
             <div className="flex justify-between items-center py-1">
               <span className="text-sm font-medium" style={{ color: '#9ca3af' }}>Start Date</span>
-              <span className="text-sm font-medium" style={{ color: '#ffffff' }}>{formatDate(scheme.start_date)}</span>
+              <span className="text-sm font-medium" style={{ color: '#ffffff' }}>
+                {currentPeriod ? formatDate(currentPeriod.start_date) : '—'}
+              </span>
             </div>
 
             <div className="flex justify-between items-center py-1">
               <span className="text-sm font-medium" style={{ color: '#9ca3af' }}>End Date</span>
-              <span className="text-sm font-medium" style={{ color: '#ffffff' }}>{formatDate(scheme.end_date)}</span>
+              <span className="text-sm font-medium" style={{ color: '#ffffff' }}>
+                {currentPeriod ? formatDate(currentPeriod.end_date) : '—'}
+              </span>
             </div>
 
             <div className="flex justify-between items-center py-1">
@@ -245,15 +251,21 @@ export const SchemeOverviewTab: React.FC<SchemeOverviewTabProps> = ({ scheme }) 
               <div className="flex items-center gap-2">
                 <div className={`w-2 h-2 rounded-full ${expiryStatus.bgColor}`}></div>
                 <span className={`text-sm font-medium ${expiryStatus.color}`}>
-                  {daysLeft < 0 ? 'Expired' : `${daysLeft} days`}
+                  {!Number.isFinite(daysLeft)
+                    ? '—'
+                    : daysLeft < 0
+                    ? 'Expired'
+                    : `${daysLeft} days`}
                 </span>
               </div>
             </div>
 
-            {scheme.termination_date && (
+            {currentPeriod?.termination_date && (
               <div className="flex justify-between items-center py-1">
                 <span className="text-sm font-medium" style={{ color: '#9ca3af' }}>Termination Date</span>
-                <span className="text-sm font-medium" style={{ color: '#ffffff' }}>{formatDate(scheme.termination_date)}</span>
+                <span className="text-sm font-medium" style={{ color: '#ffffff' }}>
+                  {formatDate(currentPeriod.termination_date)}
+                </span>
               </div>
             )}
 
@@ -362,7 +374,7 @@ export const SchemeOverviewTab: React.FC<SchemeOverviewTabProps> = ({ scheme }) 
       </div>
 
       {/* Expiry Warning */}
-      {daysLeft <= 30 && daysLeft >= 0 && (
+      {Number.isFinite(daysLeft) && daysLeft !== null && daysLeft <= 30 && daysLeft >= 0 && (
         <div className="bg-amber-900 border border-amber-700 rounded-lg p-4">
           <div className="flex items-center gap-2">
             <AlertCircle className="w-5 h-5 text-amber-400" />
@@ -376,7 +388,7 @@ export const SchemeOverviewTab: React.FC<SchemeOverviewTabProps> = ({ scheme }) 
         </div>
       )}
 
-      {daysLeft < 0 && (
+      {Number.isFinite(daysLeft) && daysLeft !== null && daysLeft < 0 && (
         <div className="bg-red-900 border border-red-700 rounded-lg p-4">
           <div className="flex items-center gap-2">
             <AlertCircle className="w-5 h-5 text-red-400" />

@@ -1,6 +1,11 @@
-import React from 'react';
-import { Search, Download } from 'lucide-react';
+import React, { useEffect, useRef, useState } from 'react';
+import { Search, Download, Loader2 } from 'lucide-react';
 import { Tooltip } from './Tooltip';
+
+interface ExportOption {
+  label: string;
+  format: string;
+}
 
 interface SearchFilterBarProps {
   searchTerm: string;
@@ -9,7 +14,9 @@ interface SearchFilterBarProps {
   rowsPerPage: number;
   onRowsPerPageChange: (rows: number) => void;
   rowsPerPageOptions?: number[];
-  onExport?: () => void;
+  onExport?: (format?: string) => void;
+  exportOptions?: ExportOption[];
+  exportLoading?: boolean;
   showExport?: boolean;
   className?: string;
 }
@@ -22,9 +29,53 @@ export const SearchFilterBar: React.FC<SearchFilterBarProps> = ({
   onRowsPerPageChange,
   rowsPerPageOptions = [10, 25, 50, 100],
   onExport,
+  exportOptions,
+  exportLoading = false,
   showExport = true,
   className = ""
 }) => {
+  const [exportMenuOpen, setExportMenuOpen] = useState(false);
+  const exportButtonRef = useRef<HTMLDivElement | null>(null);
+
+  const availableExportOptions = exportOptions && exportOptions.length > 0
+    ? exportOptions
+    : [{ label: 'Export CSV', format: 'csv' }];
+
+  useEffect(() => {
+    if (!exportMenuOpen) {
+      return;
+    }
+
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        exportButtonRef.current &&
+        !exportButtonRef.current.contains(event.target as Node)
+      ) {
+        setExportMenuOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [exportMenuOpen]);
+
+  const handleExportClick = () => {
+    if (!onExport || exportLoading) {
+      return;
+    }
+
+    if (availableExportOptions.length <= 1) {
+      onExport(availableExportOptions[0].format);
+    } else {
+      setExportMenuOpen((prev) => !prev);
+    }
+  };
+
+  const handleExportOptionSelect = (format: string) => {
+    setExportMenuOpen(false);
+    onExport?.(format);
+  };
+
   return (
     <div className={`mb-4 flex items-center justify-between ${className}`}>
       <div className="flex items-center gap-4">
@@ -77,24 +128,57 @@ export const SearchFilterBar: React.FC<SearchFilterBarProps> = ({
           </div>
         </div>
 
-        {showExport && (
-          <Tooltip content="Export data to CSV">
-            <button 
-              className="p-2 rounded-lg transition-colors" 
-              style={{ color: '#9ca3af' }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.color = '#ffffff';
-                e.currentTarget.style.backgroundColor = '#3b3b3b';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.color = '#9ca3af';
-                e.currentTarget.style.backgroundColor = 'transparent';
-              }}
-              onClick={onExport}
-            >
-              <Download className="w-4 h-4" />
-            </button>
-          </Tooltip>
+        {showExport && onExport && (
+          <div className="relative" ref={exportButtonRef}>
+            <Tooltip content="Export data">
+              <button
+                type="button"
+                className="p-2 rounded-lg transition-colors flex items-center justify-center"
+                style={{ color: '#9ca3af' }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.color = exportLoading ? '#9ca3af' : '#ffffff';
+                  e.currentTarget.style.backgroundColor = exportLoading ? 'transparent' : '#3b3b3b';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.color = '#9ca3af';
+                  e.currentTarget.style.backgroundColor = 'transparent';
+                }}
+                onClick={handleExportClick}
+                disabled={exportLoading}
+              >
+                {exportLoading ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Download className="w-4 h-4" />
+                )}
+              </button>
+            </Tooltip>
+
+            {exportMenuOpen && !exportLoading && availableExportOptions.length > 1 && (
+              <div
+                className="absolute right-0 mt-2 w-48 rounded-lg border shadow-lg z-10"
+                style={{ backgroundColor: '#1f1f1f', borderColor: '#4a4a4a' }}
+              >
+                {availableExportOptions.map((option) => (
+                  <button
+                    key={option.format}
+                    type="button"
+                    className="w-full text-left px-4 py-2 text-sm transition-colors"
+                    style={{ color: '#d1d5db' }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.backgroundColor = '#2a2a2a';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.backgroundColor = 'transparent';
+                    }}
+                    onClick={() => handleExportOptionSelect(option.format)}
+                  >
+                    {option.label}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
         )}
       </div>
     </div>

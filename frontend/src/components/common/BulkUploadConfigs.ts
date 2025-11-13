@@ -110,20 +110,21 @@ export const SCHEME_BULK_UPLOAD_CONFIG = {
   sampleFileName: 'schemes_sample.csv',
   acceptedFileTypes: ['.csv', '.xlsx'],
   maxFileSize: 10,
-  requiredFields: ['scheme_name', 'company', 'start_date', 'end_date', 'premium_amount'],
+  requiredFields: ['scheme_name', 'company', 'card_code', 'initial_start_date', 'initial_end_date', 'initial_limit_amount'],
   fieldMappings: {
     'Scheme Name': 'scheme_name',
     'Name': 'scheme_name',
     'Company': 'company',
     'Company ID': 'company',
-    'Start Date': 'start_date',
-    'End Date': 'end_date',
-    'Premium Amount': 'premium_amount',
-    'Premium': 'premium_amount',
+    'Card Code': 'card_code',
+    'Start Date': 'initial_start_date',
+    'End Date': 'initial_end_date',
+    'Coverage Amount': 'initial_limit_amount',
+    'Coverage': 'initial_limit_amount',
     'Description': 'description',
     'Status': 'status'
   },
-  previewColumns: ['scheme_name', 'company', 'start_date', 'end_date', 'premium_amount', 'status']
+  previewColumns: ['scheme_name', 'company', 'card_code', 'initial_start_date', 'initial_end_date', 'initial_limit_amount', 'status']
 };
 
 export const MEDICINE_BULK_UPLOAD_CONFIG = {

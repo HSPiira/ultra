@@ -1,5 +1,13 @@
+from io import BytesIO
+
 from django.core.exceptions import ValidationError
 from django.db import transaction, IntegrityError
+
+from openpyxl import Workbook
+from reportlab.lib import colors
+from reportlab.lib.pagesizes import landscape, letter
+from reportlab.pdfgen import canvas
+from reportlab.platypus import Table, TableStyle
 
 from apps.companies.models import Company
 from apps.core.enums.choices import BusinessStatusChoices
@@ -17,14 +25,17 @@ from apps.core.services import (
     EmailFormatRule,
     StringLengthRule,
 )
+from apps.core.exports import ExportableMixin
 from apps.core.utils.validation import validate_required_fields, validate_email_format
 
 
-class CompanyService(BaseService, CSVExportMixin):
+class CompanyService(BaseService, CSVExportMixin, ExportableMixin):
     """
     Company business logic for write operations.
     Handles all company-related write operations including CRUD, validation,
     and business logic. Read operations are handled by selectors.
+
+    Includes export functionality via ExportableMixin (SOLID-compliant).
     """
     
     # BaseService configuration
@@ -44,6 +55,53 @@ class CompanyService(BaseService, CSVExportMixin):
         StringLengthRule("company_name", min_length=1, max_length=255),
         StringLengthRule("contact_person", min_length=1, max_length=255),
     ]
+
+    # ------------------------------------------------------------------
+    # Export Configuration (ExportableMixin interface)
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def _get_export_queryset(filters: dict | None = None):
+        """Get queryset for export with optional filters."""
+        from apps.companies.selectors import company_list
+
+        if filters:
+            return company_list(filters=filters)
+        return Company.objects.filter(is_deleted=False)
+
+    @staticmethod
+    def _get_export_headers() -> list[str]:
+        """Return column headers for company export."""
+        return [
+            "ID",
+            "Company Name",
+            "Contact Person",
+            "Email",
+            "Phone Number",
+            "Website",
+            "Address",
+            "Industry",
+            "Status",
+            "Created At",
+            "Updated At",
+        ]
+
+    @staticmethod
+    def _get_export_row(company) -> list[str]:
+        """Extract data from company instance for export row."""
+        return [
+            str(company.id),
+            company.company_name,
+            company.contact_person,
+            company.email,
+            company.phone_number,
+            company.website or "",
+            company.company_address,
+            company.industry.industry_name if company.industry else "",
+            company.status,
+            company.created_at.strftime("%Y-%m-%d %H:%M:%S"),
+            company.updated_at.strftime("%Y-%m-%d %H:%M:%S"),
+        ]
 
     # ---------------------------------------------------------------------
     # Basic CRUD Operations
@@ -270,9 +328,9 @@ class CompanyService(BaseService, CSVExportMixin):
         )
 
     @staticmethod
-    def companies_export_csv(*, filters: dict = None):
+    def companies_export_csv(*, filters: dict = None) -> str:
         """
-        Export filtered companies to CSV format.
+        Export filtered companies to CSV format using SOLID export framework.
 
         Args:
             filters: Optional filters to apply
@@ -280,40 +338,42 @@ class CompanyService(BaseService, CSVExportMixin):
         Returns:
             str: CSV content as string
         """
-        from apps.companies.selectors import company_list
+        content, _, _ = CompanyService.export_to_format('csv', filters=filters)
+        return content.decode('utf-8')
 
-        if filters:
-            companies = company_list(filters=filters)
-        else:
-            companies = Company.objects.filter(is_deleted=False)
+    @staticmethod
+    def companies_export_xlsx(*, filters: dict = None) -> bytes:
+        """
+        Export filtered companies to XLSX format using SOLID export framework.
 
-        headers = [
-            "ID",
-            "Company Name",
-            "Contact Person",
-            "Email",
-            "Phone Number",
-            "Website",
-            "Address",
-            "Industry",
-            "Status",
-            "Created At",
-            "Updated At",
-        ]
+        Args:
+            filters: Optional filters to apply
 
-        def row_extractor(company):
-            return [
-                company.id,
-                company.company_name,
-                company.contact_person,
-                company.email,
-                company.phone_number,
-                company.website or "",
-                company.company_address,
-                company.industry.industry_name if company.industry else "",
-                company.status,
-                company.created_at.strftime("%Y-%m-%d %H:%M:%S"),
-                company.updated_at.strftime("%Y-%m-%d %H:%M:%S"),
-            ]
+        Returns:
+            bytes: XLSX file content
+        """
+        content, _, _ = CompanyService.export_to_format(
+            'xlsx',
+            filters=filters,
+            sheet_name='Companies'
+        )
+        return content
 
-        return CompanyService.export_to_csv(companies, headers, row_extractor)
+    @staticmethod
+    def companies_export_pdf(*, filters: dict = None) -> bytes:
+        """
+        Export filtered companies to PDF format using SOLID export framework.
+
+        Args:
+            filters: Optional filters to apply
+
+        Returns:
+            bytes: PDF file content
+        """
+        content, _, _ = CompanyService.export_to_format(
+            'pdf',
+            filters=filters,
+            title='Companies Export',
+            orientation='landscape'
+        )
+        return content

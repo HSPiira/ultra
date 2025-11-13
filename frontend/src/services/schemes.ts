@@ -1,10 +1,10 @@
 import { api } from './api';
-import type { 
-  Scheme, 
-  SchemeFilters, 
-  SchemeCreateData, 
+import type {
+  Scheme,
+  SchemeFilters,
+  SchemeCreateData,
   SchemeUpdateData,
-  SchemeStatistics
+  SchemeStatistics,
 } from '../types/schemes';
 
 export const schemesApi = {
@@ -26,7 +26,13 @@ export const schemesApi = {
   },
 
   createScheme: async (data: SchemeCreateData): Promise<Scheme> => {
-    const response = await api.post('/schemes/', data);
+    const { initial_period, ...schemeInfo } = data;
+    const response = await api.post('/schemes/', {
+      ...schemeInfo,
+      start_date: initial_period.start_date,
+      end_date: initial_period.end_date,
+      limit_amount: initial_period.limit_amount,
+    });
     return response.data as Scheme;
   },
 

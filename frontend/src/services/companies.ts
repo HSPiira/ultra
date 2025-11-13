@@ -1,12 +1,13 @@
 import { api } from './api';
-import type { 
-  Company, 
-  Industry, 
-  CompanyFilters, 
-  CompanyCreateData, 
+import type {
+  Company,
+  Industry,
+  CompanyFilters,
+  CompanyCreateData,
   CompanyUpdateData,
   CompanyStatistics,
-  IndustryUpdateData
+  IndustryUpdateData,
+  CompanyExportFormat,
 } from '../types/companies';
 
 export const companiesApi = {
@@ -99,5 +100,56 @@ export const companiesApi = {
   getCompaniesNeedingAttention: async (): Promise<Company[]> => {
     const response = await api.get('/companies-analytics/needing_attention/');
     return response.data as Company[];
+  },
+
+  exportCompanies: async ({
+    format,
+    filters,
+  }: {
+    format: CompanyExportFormat;
+    filters?: CompanyFilters;
+  }): Promise<Blob> => {
+    const params: Record<string, string> = { file_format: format };
+
+    if (filters?.search) {
+      params.search = filters.search;
+    }
+    if (filters?.status) {
+      params.status = filters.status;
+    }
+    if (filters?.industry) {
+      params.industry = filters.industry;
+    }
+
+    const response = await api.get('/companies/export/', {
+      params,
+      responseType: 'blob',
+    });
+
+    return response.data as Blob;
+  },
+
+  exportIndustries: async ({
+    format,
+    filters,
+  }: {
+    format: CompanyExportFormat;
+    filters?: { search?: string; status?: string };
+  }): Promise<Blob> => {
+    const params: Record<string, string> = { file_format: format };
+
+    if (filters?.search) {
+      params.search = filters.search;
+    }
+    if (filters?.status) {
+      params.status = filters.status;
+    }
+
+    const response = await api.get('/industries/export/', {
+      params,
+      responseType: 'blob',
+    });
+
+    return response.data as Blob;
   },
 };

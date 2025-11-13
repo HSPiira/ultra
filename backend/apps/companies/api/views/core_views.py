@@ -1,9 +1,12 @@
+from django.http import HttpResponse
+from django.utils import timezone
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import filters, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
 from apps.core.utils.caching import CacheableResponseMixin
+from apps.core.utils.throttling import ExportRateThrottle
 # JWT authentication removed - using global session authentication
 from apps.companies.api.serializers import CompanySerializer, IndustrySerializer
 from apps.companies.selectors import (
@@ -76,6 +79,45 @@ class IndustryViewSet(CacheableResponseMixin, viewsets.ModelViewSet):
         # Invalidate cache after successful delete
         self.invalidate_cache(user_id=user_id)
         return response
+
+    @action(detail=False, methods=['get'], url_path='export', throttle_classes=[ExportRateThrottle])
+    def export(self, request):
+        """Export industries in the requested format (csv, xlsx, pdf)."""
+
+        export_format = request.query_params.get('file_format', 'csv').lower()
+        search_query = request.query_params.get('search', '')
+
+        filters_dict = {
+            "status": request.query_params.get('status'),
+            "query": search_query.strip() if search_query else None,
+        }
+        # Remove empty filters
+        filters_dict = {key: value for key, value in filters_dict.items() if value}
+
+        if export_format == 'xlsx':
+            content = IndustryService.industries_export_xlsx(filters=filters_dict)
+            content_type = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+            extension = 'xlsx'
+        elif export_format == 'pdf':
+            content = IndustryService.industries_export_pdf(filters=filters_dict)
+            content_type = 'application/pdf'
+            extension = 'pdf'
+        else:
+            csv_content = IndustryService.industries_export_csv(filters=filters_dict)
+            content = csv_content.encode('utf-8')
+            content_type = 'text/csv; charset=utf-8'
+            extension = 'csv'
+
+        timestamp = timezone.now().strftime('%Y%m%d_%H%M%S')
+        filename = f"industries_export_{timestamp}.{extension}"
+
+        http_response = HttpResponse(content, content_type=content_type)
+        http_response['Content-Disposition'] = f'attachment; filename="{filename}"'
+        http_response['Cache-Control'] = 'no-store'
+        http_response['Access-Control-Expose-Headers'] = 'Content-Disposition'
+
+        # Return a raw HttpResponse so cache middleware doesn't try to serialize .data
+        return http_response
 
 
 class CompanyViewSet(CacheableResponseMixin, viewsets.ModelViewSet):
@@ -175,3 +217,43 @@ class CompanyViewSet(CacheableResponseMixin, viewsets.ModelViewSet):
         # Invalidate cache after status change
         self.invalidate_cache(user_id=user_id)
         return response
+
+    @action(detail=False, methods=['get'], url_path='export', throttle_classes=[ExportRateThrottle])
+    def export(self, request):
+        """Export companies in the requested format (csv, xlsx, pdf)."""
+
+        export_format = request.query_params.get('file_format', 'csv').lower()
+        search_query = request.query_params.get('search', '')
+
+        filters_dict = {
+            "status": request.query_params.get('status'),
+            "industry": request.query_params.get('industry'),
+            "query": search_query.strip() if search_query else None,
+        }
+        # Remove empty filters
+        filters_dict = {key: value for key, value in filters_dict.items() if value}
+
+        if export_format == 'xlsx':
+            content = CompanyService.companies_export_xlsx(filters=filters_dict)
+            content_type = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+            extension = 'xlsx'
+        elif export_format == 'pdf':
+            content = CompanyService.companies_export_pdf(filters=filters_dict)
+            content_type = 'application/pdf'
+            extension = 'pdf'
+        else:
+            csv_content = CompanyService.companies_export_csv(filters=filters_dict)
+            content = csv_content.encode('utf-8')
+            content_type = 'text/csv; charset=utf-8'
+            extension = 'csv'
+
+        timestamp = timezone.now().strftime('%Y%m%d_%H%M%S')
+        filename = f"companies_export_{timestamp}.{extension}"
+
+        http_response = HttpResponse(content, content_type=content_type)
+        http_response['Content-Disposition'] = f'attachment; filename="{filename}"'
+        http_response['Cache-Control'] = 'no-store'
+        http_response['Access-Control-Expose-Headers'] = 'Content-Disposition'
+
+        # Return a raw HttpResponse so cache middleware doesn't try to serialize .data
+        return http_response

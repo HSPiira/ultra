@@ -4,6 +4,7 @@ Custom throttle classes for API rate limiting.
 Provides fine-grained control over API request rates to prevent abuse
 and ensure system stability.
 """
+from django.conf import settings
 from rest_framework.throttling import AnonRateThrottle, UserRateThrottle, ScopedRateThrottle
 
 
@@ -31,13 +32,24 @@ class StrictRateThrottle(UserRateThrottle):
 
 class ExportRateThrottle(UserRateThrottle):
     """
-    Export rate throttle: 5 requests per hour.
-    
+    Export rate throttle: Environment-aware rate limiting.
+
     Used for CSV/Excel export endpoints to prevent
     excessive resource consumption.
+
+    Rates:
+    - Development (DEBUG=True): 100/hour (~unlimited for testing)
+    - Production (DEBUG=False): 10/hour (conservative)
     """
-    rate = '5/hour'
     scope = 'export'
+
+    def __init__(self):
+        super().__init__()
+        # Set rate based on DEBUG mode
+        if settings.DEBUG:
+            self.rate = '100/hour'  # Very generous for development
+        else:
+            self.rate = '10/hour'   # Conservative for production
 
 
 class ScopedRateThrottleCustom(ScopedRateThrottle):

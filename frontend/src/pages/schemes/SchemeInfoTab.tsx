@@ -45,7 +45,8 @@ export const SchemeInfoTab: React.FC<SchemeInfoTabProps> = ({ scheme }) => {
     }
   };
 
-  const getDaysTillExpiry = (endDate: string) => {
+  const getDaysTillExpiry = (endDate?: string | null) => {
+    if (!endDate) return Infinity;
     const today = new Date();
     const expiry = new Date(endDate);
     const diffTime = expiry.getTime() - today.getTime();
@@ -53,16 +54,21 @@ export const SchemeInfoTab: React.FC<SchemeInfoTabProps> = ({ scheme }) => {
     return diffDays;
   };
 
-  const getExpiryStatus = (endDate: string) => {
+  const getExpiryStatus = (endDate?: string | null) => {
     const days = getDaysTillExpiry(endDate);
+    if (!Number.isFinite(days)) {
+      return { status: 'unknown', color: 'text-gray-400', bgColor: 'bg-gray-700' };
+    }
     if (days < 0) return { status: 'expired', color: 'text-red-400', bgColor: 'bg-red-900' };
     if (days <= 30) return { status: 'expiring', color: 'text-amber-400', bgColor: 'bg-amber-900' };
     if (days <= 90) return { status: 'warning', color: 'text-yellow-400', bgColor: 'bg-yellow-900' };
     return { status: 'active', color: 'text-green-400', bgColor: 'bg-green-900' };
   };
 
-  const expiryStatus = getExpiryStatus(scheme.end_date);
-  const daysLeft = getDaysTillExpiry(scheme.end_date);
+  const currentPeriod = scheme.current_period;
+  const coverageAmount = currentPeriod ? Number(currentPeriod.limit_amount) : null;
+  const expiryStatus = getExpiryStatus(currentPeriod?.end_date || null);
+  const daysLeft = getDaysTillExpiry(currentPeriod?.end_date || null);
 
   return (
     <div className="space-y-6">
@@ -143,7 +149,7 @@ export const SchemeInfoTab: React.FC<SchemeInfoTabProps> = ({ scheme }) => {
             </label>
             <div className="px-3 py-2 rounded-lg" style={{ backgroundColor: '#1f1f1f' }}>
               <p className="text-sm font-semibold" style={{ color: '#ffffff' }}>
-                {formatCurrency(scheme.limit_amount)}
+                {coverageAmount ? formatCurrency(coverageAmount) : '—'}
               </p>
             </div>
           </div>
@@ -179,7 +185,9 @@ export const SchemeInfoTab: React.FC<SchemeInfoTabProps> = ({ scheme }) => {
               Start Date
             </label>
             <div className="px-3 py-2 rounded-lg" style={{ backgroundColor: '#1f1f1f' }}>
-              <p className="text-sm" style={{ color: '#ffffff' }}>{formatDate(scheme.start_date)}</p>
+              <p className="text-sm" style={{ color: '#ffffff' }}>
+                {currentPeriod ? formatDate(currentPeriod.start_date) : '—'}
+              </p>
             </div>
           </div>
 
@@ -188,7 +196,9 @@ export const SchemeInfoTab: React.FC<SchemeInfoTabProps> = ({ scheme }) => {
               End Date
             </label>
             <div className="px-3 py-2 rounded-lg" style={{ backgroundColor: '#1f1f1f' }}>
-              <p className="text-sm" style={{ color: '#ffffff' }}>{formatDate(scheme.end_date)}</p>
+              <p className="text-sm" style={{ color: '#ffffff' }}>
+                {currentPeriod ? formatDate(currentPeriod.end_date) : '—'}
+              </p>
             </div>
           </div>
 
@@ -200,19 +210,25 @@ export const SchemeInfoTab: React.FC<SchemeInfoTabProps> = ({ scheme }) => {
               <div className="flex items-center gap-2">
                 <div className={`w-2 h-2 rounded-full ${expiryStatus.bgColor}`}></div>
                 <span className={`text-sm font-medium ${expiryStatus.color}`}>
-                  {daysLeft < 0 ? 'Expired' : `${daysLeft} days`}
+                  {!Number.isFinite(daysLeft)
+                    ? '—'
+                    : daysLeft < 0
+                    ? 'Expired'
+                    : `${daysLeft} days`}
                 </span>
               </div>
             </div>
           </div>
 
-          {scheme.termination_date && (
+          {currentPeriod?.termination_date && (
             <div className="md:col-span-3">
               <label className="block text-sm font-medium mb-2" style={{ color: '#d1d5db' }}>
                 Termination Date
               </label>
               <div className="px-3 py-2 rounded-lg" style={{ backgroundColor: '#1f1f1f' }}>
-                <p className="text-sm" style={{ color: '#ffffff' }}>{formatDate(scheme.termination_date)}</p>
+                <p className="text-sm" style={{ color: '#ffffff' }}>
+                  {formatDate(currentPeriod.termination_date)}
+                </p>
               </div>
             </div>
           )}
@@ -243,7 +259,7 @@ export const SchemeInfoTab: React.FC<SchemeInfoTabProps> = ({ scheme }) => {
       )}
 
       {/* Expiry Warning */}
-      {daysLeft <= 30 && daysLeft >= 0 && (
+      {Number.isFinite(daysLeft) && daysLeft <= 30 && daysLeft >= 0 && (
         <div className="bg-amber-900 border border-amber-700 rounded-lg p-4">
           <div className="flex items-center gap-2">
             <AlertCircle className="w-5 h-5 text-amber-400" />
@@ -257,7 +273,7 @@ export const SchemeInfoTab: React.FC<SchemeInfoTabProps> = ({ scheme }) => {
         </div>
       )}
 
-      {daysLeft < 0 && (
+      {Number.isFinite(daysLeft) && daysLeft < 0 && (
         <div className="bg-red-900 border border-red-700 rounded-lg p-4">
           <div className="flex items-center gap-2">
             <AlertCircle className="w-5 h-5 text-red-400" />

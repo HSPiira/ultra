@@ -45,6 +45,8 @@ export const IndustryList: React.FC<IndustryListProps> = ({
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
   const [rowsPerPage, setRowsPerPage] = useState<number>(10);
   const [currentPage, setCurrentPage] = useState<number>(1);
+  const [exportLoading, setExportLoading] = useState<boolean>(false);
+  const [showExportMenu, setShowExportMenu] = useState<boolean>(false);
 
   // Load from cache
   const loadFromCache = useCallback((): Industry[] | null => {
@@ -183,6 +185,20 @@ export const IndustryList: React.FC<IndustryListProps> = ({
     }
   }, [totalPages, currentPage]);
 
+  // Close export menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (showExportMenu && !(event.target as HTMLElement).closest('.relative')) {
+        setShowExportMenu(false);
+      }
+    };
+
+    if (showExportMenu) {
+      document.addEventListener('click', handleClickOutside);
+      return () => document.removeEventListener('click', handleClickOutside);
+    }
+  }, [showExportMenu]);
+
   const handleIndustryView = (industry: Industry) => {
     onIndustrySelect?.(industry);
   };
@@ -207,6 +223,41 @@ export const IndustryList: React.FC<IndustryListProps> = ({
 
   const handlePageChange = (page: number) => {
     setCurrentPage(page);
+  };
+
+  const handleExport = async (format: string = 'csv') => {
+    if (exportLoading) return;
+
+    const normalizedFormat = (['csv', 'xlsx', 'pdf'].includes(format) ? format : 'csv') as 'csv' | 'xlsx' | 'pdf';
+
+    try {
+      setExportLoading(true);
+      setShowExportMenu(false);
+      const blob = await companiesApi.exportIndustries({
+        format: normalizedFormat,
+        filters: {
+          search: searchTerm || undefined,
+        },
+      });
+
+      const extension = normalizedFormat === 'xlsx' ? 'xlsx' : normalizedFormat === 'pdf' ? 'pdf' : 'csv';
+      const timestamp = new Date().toISOString().replace(/[:.-]/g, '').slice(0, 15);
+      const filename = `industries_export_${timestamp}.${extension}`;
+
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', filename);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error('Failed to export industries:', err);
+      alert('Failed to export industries. Please try again.');
+    } finally {
+      setExportLoading(false);
+    }
   };
 
   return (
@@ -301,25 +352,88 @@ export const IndustryList: React.FC<IndustryListProps> = ({
             </div>
           </div>
 
-          {/* Export Button */}
-          <Tooltip content="Export data to CSV">
-            <button
-              type="button"
-              className="p-2 rounded-lg transition-colors"
-              style={{ color: '#9ca3af' }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.color = '#ffffff';
-                e.currentTarget.style.backgroundColor = '#3b3b3b';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.color = '#9ca3af';
-                e.currentTarget.style.backgroundColor = 'transparent';
-              }}
-              onClick={() => console.log('Export industries')}
-            >
-              <Download className="w-4 h-4" />
-            </button>
-          </Tooltip>
+          {/* Export Button with Dropdown */}
+          <div className="relative">
+            <Tooltip content={exportLoading ? "Exporting..." : "Export data"}>
+              <button
+                type="button"
+                className="p-2 rounded-lg transition-colors"
+                style={{ color: exportLoading ? '#6b7280' : '#9ca3af' }}
+                disabled={exportLoading}
+                onMouseEnter={(e) => {
+                  if (!exportLoading) {
+                    e.currentTarget.style.color = '#ffffff';
+                    e.currentTarget.style.backgroundColor = '#3b3b3b';
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (!exportLoading) {
+                    e.currentTarget.style.color = '#9ca3af';
+                    e.currentTarget.style.backgroundColor = 'transparent';
+                  }
+                }}
+                onClick={() => setShowExportMenu(!showExportMenu)}
+              >
+                <Download className={`w-4 h-4 ${exportLoading ? 'animate-pulse' : ''}`} />
+              </button>
+            </Tooltip>
+
+            {/* Export Format Dropdown */}
+            {showExportMenu && (
+              <div
+                className="absolute right-0 mt-2 w-48 rounded-lg shadow-lg border z-10"
+                style={{
+                  backgroundColor: '#2a2a2a',
+                  borderColor: '#4a4a4a'
+                }}
+              >
+                <div className="py-1">
+                  <button
+                    type="button"
+                    className="w-full text-left px-4 py-2 text-sm transition-colors"
+                    style={{ color: '#ffffff' }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.backgroundColor = '#3b3b3b';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.backgroundColor = 'transparent';
+                    }}
+                    onClick={() => handleExport('csv')}
+                  >
+                    Export as CSV
+                  </button>
+                  <button
+                    type="button"
+                    className="w-full text-left px-4 py-2 text-sm transition-colors"
+                    style={{ color: '#ffffff' }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.backgroundColor = '#3b3b3b';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.backgroundColor = 'transparent';
+                    }}
+                    onClick={() => handleExport('xlsx')}
+                  >
+                    Export as Excel (.xlsx)
+                  </button>
+                  <button
+                    type="button"
+                    className="w-full text-left px-4 py-2 text-sm transition-colors"
+                    style={{ color: '#ffffff' }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.backgroundColor = '#3b3b3b';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.backgroundColor = 'transparent';
+                    }}
+                    onClick={() => handleExport('pdf')}
+                  >
+                    Export as PDF
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 

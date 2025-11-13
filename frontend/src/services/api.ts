@@ -7,6 +7,11 @@ interface ApiResponse<T = any> {
   statusText: string;
 }
 
+interface ApiRequestOptions extends RequestInit {
+  params?: Record<string, string | number | boolean | undefined>;
+  responseType?: 'json' | 'blob' | 'text';
+}
+
 class ApiClient {
   private baseURL: string;
   private csrfTokenPromise: Promise<string | null> | null = null;
@@ -67,11 +72,27 @@ class ApiClient {
 
   private async request<T>(
     endpoint: string,
-    options: RequestInit = {}
+    options: ApiRequestOptions = {}
   ): Promise<ApiResponse<T>> {
+    const { params, responseType: desiredResponseType, ...fetchInit } = options;
+
+    let endpointWithParams = endpoint;
+    if (params) {
+      const searchParams = new URLSearchParams();
+      Object.entries(params).forEach(([key, value]) => {
+        if (value !== undefined && value !== null && value !== '') {
+          searchParams.append(key, String(value));
+        }
+      });
+      if (Array.from(searchParams.keys()).length > 0) {
+        const separator = endpoint.includes('?') ? '&' : '?';
+        endpointWithParams = `${endpoint}${separator}${searchParams.toString()}`;
+      }
+    }
+
     // Prepend /api/v1 to all endpoints for versioning
     // Ensure endpoint starts with / and add /api/v1 prefix
-    const normalizedEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
+    const normalizedEndpoint = endpointWithParams.startsWith('/') ? endpointWithParams : `/${endpointWithParams}`;
     const versionedEndpoint = normalizedEndpoint.startsWith('/api/v1/') 
       ? normalizedEndpoint 
       : `/api/v1${normalizedEndpoint}`;
@@ -79,7 +100,8 @@ class ApiClient {
     
     // Get CSRF token from cookie (for session-based authentication)
     // For state-changing operations, ensure we have a token
-    const needsCsrf = ['POST', 'PUT', 'PATCH', 'DELETE'].includes(options.method || 'GET');
+    const method = (fetchInit.method || 'GET').toUpperCase();
+    const needsCsrf = ['POST', 'PUT', 'PATCH', 'DELETE'].includes(method);
     let csrfToken = this.getCsrfTokenFromCookie();
     
     // If we need CSRF and don't have it, try to fetch it (for first request)
@@ -94,16 +116,17 @@ class ApiClient {
     };
 
     // Add CSRF token for state-changing operations (required by Django SessionAuthentication)
-    if (csrfToken && ['POST', 'PUT', 'PATCH', 'DELETE'].includes(options.method || 'GET')) {
+    if (csrfToken && ['POST', 'PUT', 'PATCH', 'DELETE'].includes(method)) {
       defaultHeaders['X-CSRFToken'] = csrfToken;
     }
 
     const config: RequestInit = {
-      ...options,
+      ...fetchInit,
+      method,
       credentials: 'include',
       headers: {
         ...defaultHeaders,
-        ...options.headers,
+        ...fetchInit.headers,
       },
     };
 
@@ -128,7 +151,12 @@ class ApiClient {
       
       // Try to parse response body
       try {
-        if (contentType && contentType.includes('application/json')) {
+        if (desiredResponseType === 'blob') {
+          data = (await response.blob()) as T;
+        } else if (desiredResponseType === 'text') {
+          const textData = await response.text();
+          data = (textData as unknown) as T;
+        } else if (contentType && contentType.includes('application/json')) {
           data = await response.json();
         } else {
           const textData = await response.text();
@@ -142,10 +170,11 @@ class ApiClient {
       // Check response status after parsing
       if (!response.ok) {
         // Include error details from response if available
-        const errorMessage = typeof data === 'object' && data !== null && 'error' in data
+        const isObject = typeof data === 'object' && data !== null && !(data instanceof Blob);
+        const errorMessage = isObject && 'error' in (data as any)
           ? String((data as any).error)
           : `HTTP error! status: ${response.status}`;
-        const errorDetails = typeof data === 'object' && data !== null && 'details' in data
+        const errorDetails = isObject && 'details' in (data as any)
           ? (data as any).details
           : undefined;
         
@@ -173,8 +202,8 @@ class ApiClient {
     }
   }
 
-  async get<T>(endpoint: string): Promise<ApiResponse<T>> {
-    return this.request<T>(endpoint, { method: 'GET' });
+  async get<T>(endpoint: string, options?: ApiRequestOptions): Promise<ApiResponse<T>> {
+    return this.request<T>(endpoint, { ...(options || {}), method: 'GET' });
   }
 
   async post<T>(endpoint: string, data?: any): Promise<ApiResponse<T>> {

@@ -12,6 +12,18 @@ export interface CompanyDetail {
   email: string;
 }
 
+export interface SchemePeriodSummary {
+  id: string;
+  period_number: number;
+  start_date: string;
+  end_date: string;
+  termination_date?: string | null;
+  limit_amount: string;
+  is_current: boolean;
+  renewal_date?: string | null;
+  changes_summary?: Record<string, unknown>;
+}
+
 export interface Scheme {
   id: string;
   scheme_name: string;
@@ -19,13 +31,12 @@ export interface Scheme {
   company_detail: CompanyDetail;
   description: string;
   card_code: string;
-  start_date: string;
-  end_date: string;
-  termination_date?: string;
-  limit_amount: number;
+  is_renewable: boolean;
   family_applicable: boolean;
   remark: string;
   status: Status;
+  current_period?: SchemePeriodSummary | null;
+  total_periods: number;
   created_at: string;
   updated_at: string;
 }
@@ -42,16 +53,26 @@ export interface SchemeCreateData {
   company: string;
   description?: string;
   card_code: string;
-  start_date: string;
-  end_date: string;
-  termination_date?: string;
-  limit_amount: number;
+  is_renewable?: boolean;
   family_applicable?: boolean;
   remark?: string;
+  initial_period: {
+    start_date: string;
+    end_date: string;
+    limit_amount: number;
+    remark?: string;
+  };
 }
 
-export interface SchemeUpdateData extends SchemeCreateData {
+export interface SchemeUpdateData {
   id: string;
+  scheme_name?: string;
+  company?: string;
+  description?: string;
+  card_code?: string;
+  is_renewable?: boolean;
+  family_applicable?: boolean;
+  remark?: string;
 }
 
 export interface SchemeStatistics {

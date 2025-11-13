@@ -34,6 +34,7 @@ export const CompaniesList: React.FC<CompaniesListProps> = ({
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
   const [rowsPerPage, setRowsPerPage] = useState<number>(10);
   const [currentPage, setCurrentPage] = useState<number>(1);
+  const [exportLoading, setExportLoading] = useState<boolean>(false);
 
   useEffect(() => {
     loadCompanies();
@@ -137,6 +138,39 @@ export const CompaniesList: React.FC<CompaniesListProps> = ({
     setCurrentPage(page);
   };
 
+  const handleExport = async (format: string = 'csv') => {
+    if (exportLoading) return;
+
+    const normalizedFormat = (['csv', 'xlsx', 'pdf'].includes(format) ? format : 'csv') as 'csv' | 'xlsx' | 'pdf';
+
+    try {
+      setExportLoading(true);
+      const blob = await companiesApi.exportCompanies({
+        format: normalizedFormat,
+        filters: {
+          search: searchTerm || undefined,
+        },
+      });
+
+      const extension = normalizedFormat === 'xlsx' ? 'xlsx' : normalizedFormat === 'pdf' ? 'pdf' : 'csv';
+      const timestamp = new Date().toISOString().replace(/[:.-]/g, '').slice(0, 15);
+      const filename = `companies_export_${timestamp}.${extension}`;
+
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', filename);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (exportError) {
+      console.error('Error exporting companies:', exportError);
+    } finally {
+      setExportLoading(false);
+    }
+  };
+
   return (
         <div>
       {/* Search and Filter Bar */}
@@ -146,7 +180,13 @@ export const CompaniesList: React.FC<CompaniesListProps> = ({
         searchPlaceholder="Search companies..."
         rowsPerPage={rowsPerPage}
         onRowsPerPageChange={setRowsPerPage}
-        onExport={() => console.log('Export companies')}
+        onExport={handleExport}
+        exportOptions={[
+          { label: 'Export as CSV', format: 'csv' },
+          { label: 'Export as Excel (.xlsx)', format: 'xlsx' },
+          { label: 'Export as PDF', format: 'pdf' },
+        ]}
+        exportLoading={exportLoading}
       />
 
       {/* Companies Table */}

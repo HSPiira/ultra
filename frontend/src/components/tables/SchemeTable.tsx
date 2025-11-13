@@ -41,7 +41,8 @@ const formatDate = (dateString: string) => {
   });
 };
 
-const getDaysTillExpiry = (endDate: string) => {
+const getDaysTillExpiry = (endDate?: string | null) => {
+  if (!endDate) return Infinity;
   const today = new Date();
   const expiry = new Date(endDate);
   const diffTime = expiry.getTime() - today.getTime();
@@ -49,8 +50,11 @@ const getDaysTillExpiry = (endDate: string) => {
   return diffDays;
 };
 
-const getExpiryStatus = (endDate: string) => {
+const getExpiryStatus = (endDate?: string | null) => {
   const days = getDaysTillExpiry(endDate);
+  if (!Number.isFinite(days)) {
+    return { status: 'unknown', color: 'text-gray-400', bgColor: 'bg-gray-700' };
+  }
   if (days < 0) return { status: 'expired', color: 'text-red-400', bgColor: 'bg-red-900' };
   if (days <= 30) return { status: 'expiring', color: 'text-amber-400', bgColor: 'bg-amber-900' };
   if (days <= 90) return { status: 'warning', color: 'text-yellow-400', bgColor: 'bg-yellow-900' };
@@ -178,54 +182,60 @@ export function SchemeTable({
       ),
     },
     {
-      key: 'limit_amount',
+      key: 'current_period',
       label: 'Coverage Amount',
       width: 'w-1/6',
-      sortable: true,
+      sortable: false,
       align: 'left',
-      render: (value) => (
-        <span className="text-sm">
-          {formatCurrency(Number(value))}
-        </span>
-      ),
+      render: (_, scheme) => {
+        const amount = scheme.current_period
+          ? Number(scheme.current_period.limit_amount)
+          : null;
+        return (
+          <span className="text-sm">
+            {amount ? formatCurrency(amount) : '—'}
+          </span>
+        );
+      },
     },
     {
-      key: 'start_date',
+      key: 'current_period_start',
       label: 'Start Date',
       width: 'w-1/6',
-      sortable: true,
+      sortable: false,
       align: 'left',
-      render: (value) => (
+      render: (_, scheme) => (
         <span className="text-sm">
-          {formatDate(String(value))}
+          {scheme.current_period ? formatDate(scheme.current_period.start_date) : '—'}
         </span>
       ),
     },
     {
-      key: 'end_date',
+      key: 'current_period_end',
       label: 'End Date',
       width: 'w-1/6',
-      sortable: true,
+      sortable: false,
       align: 'left',
-      render: (value) => (
+      render: (_, scheme) => (
         <span className="text-sm">
-          {formatDate(String(value))}
+          {scheme.current_period ? formatDate(scheme.current_period.end_date) : '—'}
         </span>
       ),
     },
     {
-      key: 'end_date',
+      key: 'expiry',
       label: 'Expiry',
       width: 'w-20',
-      sortable: true,
+      sortable: false,
       align: 'right',
-      render: (value) => {
-        const days = getDaysTillExpiry(String(value));
-        const expiryStatus = getExpiryStatus(String(value));
-        
-        // Show "Expired" as text, otherwise show the number of days
-        const displayText = days < 0 ? 'Expired' : `${days}`;
-        
+      render: (_, scheme) => {
+        const endDate = scheme.current_period?.end_date;
+        const days = Number.isFinite(getDaysTillExpiry(endDate))
+          ? getDaysTillExpiry(endDate)
+          : null;
+        const expiryStatus = getExpiryStatus(endDate);
+        const displayText = days === null ? '—' : days < 0 ? 'Expired' : `${days}`;
+
         return (
           <span className={`text-sm font-medium ${expiryStatus.color}`}>
             {displayText}

@@ -33,8 +33,8 @@ def scheme_item_list(*, filters: dict = None):
     if filters.get("status"):
         qs = qs.filter(status=filters["status"])
 
-    if filters.get("scheme"):
-        qs = qs.filter(scheme_id=filters["scheme"])
+    if filters.get("scheme_period"):
+        qs = qs.filter(scheme_period_id=filters["scheme_period"])
 
     if filters.get("content_type"):
         qs = qs.filter(content_type=filters["content_type"])
@@ -42,7 +42,7 @@ def scheme_item_list(*, filters: dict = None):
     if filters.get("query"):
         q = filters["query"]
         qs = qs.filter(
-            Q(scheme__scheme_name__icontains=q)
+            Q(scheme_period__scheme__scheme_name__icontains=q)
             | Q(item__plan_name__icontains=q)
             | Q(item__benefit_name__icontains=q)
         )
@@ -74,7 +74,7 @@ def scheme_item_get(*, scheme_item_id: str):
 
 def scheme_item_list_by_scheme(*, scheme_id: str):
     """
-    Get all scheme items for a specific scheme.
+    Get all scheme items for a specific scheme across all periods.
 
     Args:
         scheme_id: ID of the scheme
@@ -84,11 +84,10 @@ def scheme_item_list_by_scheme(*, scheme_id: str):
 
     Note:
         Uses select_related('scheme_period__scheme') to prevent N+1 queries.
-        Note: This function uses the DEPRECATED 'scheme' field for filtering.
-        Consider migrating to scheme_period-based filtering.
+        Filters via scheme_period relationship to support period-based architecture.
     """
     return SchemeItem.objects.select_related("scheme_period__scheme", "content_type").filter(
-        scheme_id=scheme_id, is_deleted=False
+        scheme_period__scheme_id=scheme_id, is_deleted=False
     )
 
 
@@ -181,10 +180,10 @@ def scheme_item_health_score_get(*, scheme_item_id: str):
         factors["status"] = "Inactive"
 
     # Scheme status factor (30 points)
-    if scheme_item.scheme.status == BusinessStatusChoices.ACTIVE:
+    if scheme_item.scheme_period.scheme.status == BusinessStatusChoices.ACTIVE:
         score += 30
         factors["scheme_status"] = "Active scheme"
-    elif scheme_item.scheme.status == BusinessStatusChoices.SUSPENDED:
+    elif scheme_item.scheme_period.scheme.status == BusinessStatusChoices.SUSPENDED:
         score += 15
         factors["scheme_status"] = "Suspended scheme"
     else:
@@ -391,9 +390,9 @@ def scheme_available_items_get(*, scheme_id: str, content_type: str):
     else:
         raise ValueError(f"Invalid content type: {content_type}")
 
-    # Get already assigned items for this scheme
+    # Get already assigned items for this scheme (across all periods)
     assigned_object_ids = SchemeItem.objects.filter(
-        scheme_id=scheme_id,
+        scheme_period__scheme_id=scheme_id,
         content_type=ct,
         is_deleted=False
     ).values_list("object_id", flat=True)
@@ -408,7 +407,7 @@ def scheme_available_items_get(*, scheme_id: str, content_type: str):
 
 def scheme_assigned_items_get(*, scheme_id: str, content_type: str = None):
     """
-    Get assigned items for a scheme, optionally filtered by content type.
+    Get assigned items for a scheme across all periods, optionally filtered by content type.
 
     Args:
         scheme_id: ID of the scheme
@@ -419,11 +418,10 @@ def scheme_assigned_items_get(*, scheme_id: str, content_type: str = None):
 
     Note:
         Uses select_related('scheme_period__scheme') to prevent N+1 queries.
-        Note: This function uses the DEPRECATED 'scheme' field for filtering.
-        Consider migrating to scheme_period-based filtering.
+        Filters via scheme_period relationship to support period-based architecture.
     """
     qs = SchemeItem.objects.select_related("scheme_period__scheme", "content_type").filter(
-        scheme_id=scheme_id, is_deleted=False
+        scheme_period__scheme_id=scheme_id, is_deleted=False
     )
 
     if content_type:

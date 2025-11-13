@@ -17,10 +17,11 @@ from apps.core.services import (
     RequiredFieldsRule,
     StringLengthRule,
 )
+from apps.core.exports import ExportableMixin
 from apps.core.utils.validation import validate_required_fields, validate_string_length
 
 
-class IndustryService(BaseService, CSVExportMixin):
+class IndustryService(BaseService, CSVExportMixin, ExportableMixin):
     """
     Industry business logic for write operations.
     Handles all industry-related write operations including CRUD, validation,
@@ -41,6 +42,48 @@ class IndustryService(BaseService, CSVExportMixin):
         StringLengthRule("industry_name", min_length=2, max_length=100),
         StringLengthRule("description", max_length=500, min_length=None),
     ]
+
+    # ------------------------------------------------------------------
+    # Export Configuration (ExportableMixin interface)
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def _get_export_queryset(filters: dict | None = None):
+        """Get queryset for export with optional filters."""
+        from apps.companies.selectors import industry_list
+
+        if filters:
+            return industry_list(filters=filters)
+        return Industry.objects.filter(is_deleted=False)
+
+    @staticmethod
+    def _get_export_headers() -> list[str]:
+        """Return column headers for industry export."""
+        return [
+            "ID",
+            "Industry Name",
+            "Description",
+            "Status",
+            "Company Count",
+            "Created At",
+            "Updated At",
+        ]
+
+    @staticmethod
+    def _get_export_row(industry) -> list[str]:
+        """Extract data from industry instance for export row."""
+        company_count = Company.objects.filter(
+            industry_id=industry.id, is_deleted=False
+        ).count()
+        return [
+            str(industry.id),
+            industry.industry_name,
+            industry.description or "",
+            industry.status,
+            str(company_count),
+            industry.created_at.strftime("%Y-%m-%d %H:%M:%S"),
+            industry.updated_at.strftime("%Y-%m-%d %H:%M:%S"),
+        ]
 
     # ---------------------------------------------------------------------
     # Basic CRUD Operations
@@ -322,10 +365,14 @@ class IndustryService(BaseService, CSVExportMixin):
             "source_deactivated": True,
         }
 
+    # ---------------------------------------------------------------------
+    # Export Operations
+    # ---------------------------------------------------------------------
+
     @staticmethod
-    def industries_export_csv(*, filters: dict = None):
+    def industries_export_csv(*, filters: dict = None) -> str:
         """
-        Export filtered industries to CSV format.
+        Export filtered industries to CSV format using SOLID export framework.
 
         Args:
             filters: Optional filters to apply
@@ -333,35 +380,42 @@ class IndustryService(BaseService, CSVExportMixin):
         Returns:
             str: CSV content as string
         """
-        from apps.companies.selectors import industry_list
+        content, _, _ = IndustryService.export_to_format('csv', filters=filters)
+        return content.decode('utf-8')
 
-        if filters:
-            industries = industry_list(filters=filters)
-        else:
-            industries = Industry.objects.filter(is_deleted=False)
+    @staticmethod
+    def industries_export_xlsx(*, filters: dict = None) -> bytes:
+        """
+        Export filtered industries to XLSX format using SOLID export framework.
 
-        headers = [
-            "ID",
-            "Industry Name",
-            "Description",
-            "Status",
-            "Company Count",
-            "Created At",
-            "Updated At",
-        ]
+        Args:
+            filters: Optional filters to apply
 
-        def row_extractor(industry):
-            company_count = Company.objects.filter(
-                industry_id=industry.id, is_deleted=False
-            ).count()
-            return [
-                industry.id,
-                industry.industry_name,
-                industry.description or "",
-                industry.status,
-                company_count,
-                industry.created_at.strftime("%Y-%m-%d %H:%M:%S"),
-                industry.updated_at.strftime("%Y-%m-%d %H:%M:%S"),
-            ]
+        Returns:
+            bytes: XLSX file content
+        """
+        content, _, _ = IndustryService.export_to_format(
+            'xlsx',
+            filters=filters,
+            sheet_name='Industries'
+        )
+        return content
 
-        return IndustryService.export_to_csv(industries, headers, row_extractor)
+    @staticmethod
+    def industries_export_pdf(*, filters: dict = None) -> bytes:
+        """
+        Export filtered industries to PDF format using SOLID export framework.
+
+        Args:
+            filters: Optional filters to apply
+
+        Returns:
+            bytes: PDF file content
+        """
+        content, _, _ = IndustryService.export_to_format(
+            'pdf',
+            filters=filters,
+            title='Industries Export',
+            orientation='landscape'
+        )
+        return content

@@ -30,6 +30,8 @@ export interface CompanyFilters {
   ordering?: string;
 }
 
+export type CompanyExportFormat = 'csv' | 'xlsx' | 'pdf';
+
 export interface CompanyCreateData {
   company_name: string;
   company_address: string;

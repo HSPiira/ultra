@@ -130,6 +130,9 @@ export const SchemeAnalyticsTab: React.FC<SchemeAnalyticsTabProps> = ({ scheme }
     );
   }
 
+  const currentPeriod = scheme.current_period;
+  const coverageAmount = currentPeriod ? Number(currentPeriod.limit_amount) : null;
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -377,7 +380,9 @@ export const SchemeAnalyticsTab: React.FC<SchemeAnalyticsTabProps> = ({ scheme }
             <h3 className="text-sm font-medium" style={{ color: '#d1d5db' }}>Utilization Rate</h3>
           </div>
           <div className="text-2xl font-bold mb-2" style={{ color: '#ffffff' }}>
-            {((analytics.totalClaimAmount / scheme.limit_amount) * 100).toFixed(1)}%
+            {coverageAmount && coverageAmount > 0
+              ? `${((analytics.totalClaimAmount / coverageAmount) * 100).toFixed(1)}%`
+              : '—'}
           </div>
           <div className="text-sm" style={{ color: '#9ca3af' }}>
             Of coverage used

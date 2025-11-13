@@ -148,7 +148,9 @@ export const SchemeDetails: React.FC<SchemeDetailsProps> = ({
                     <span className="text-sm font-medium" style={{ color: '#d1d5db' }}>Coverage Amount</span>
                   </div>
                   <div className="text-2xl font-bold" style={{ color: '#ffffff' }}>
-                    {formatCurrency(scheme.limit_amount)}
+                    {scheme.current_period
+                      ? formatCurrency(Number(scheme.current_period.limit_amount))
+                      : '—'}
                   </div>
                 </div>
 
@@ -173,20 +175,20 @@ export const SchemeDetails: React.FC<SchemeDetailsProps> = ({
                     <div className="text-sm">
                       <span className="text-gray-400">Start:</span>
                       <span className="ml-2" style={{ color: '#d1d5db' }}>
-                        {formatDate(scheme.start_date)}
+                        {scheme.current_period ? formatDate(scheme.current_period.start_date) : '—'}
                       </span>
                     </div>
                     <div className="text-sm">
                       <span className="text-gray-400">End:</span>
                       <span className="ml-2" style={{ color: '#d1d5db' }}>
-                        {formatDate(scheme.end_date)}
+                        {scheme.current_period ? formatDate(scheme.current_period.end_date) : '—'}
                       </span>
                     </div>
-                    {scheme.termination_date && (
+                    {scheme.current_period?.termination_date && (
                       <div className="text-sm">
                         <span className="text-gray-400">Termination:</span>
                         <span className="ml-2" style={{ color: '#d1d5db' }}>
-                          {formatDate(scheme.termination_date)}
+                          {formatDate(scheme.current_period.termination_date)}
                         </span>
                       </div>
                     )}

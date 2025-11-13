@@ -129,9 +129,11 @@ def cache_response(cache_key: str, response: Response, timeout: int = DEFAULT_CA
         response: The response to cache
         timeout: Cache timeout in seconds
     """
-    # Only cache successful GET responses
+    # Only cache successful GET responses from DRF Response objects
+    if not isinstance(response, Response):
+        return
+
     if response.status_code in (200, 201, 204):
-        # Extract response data
         cached_data = {
             'data': response.data,
             'status': response.status_code,

@@ -25,7 +25,10 @@ export const SchemeStatusChangeDialog: React.FC<SchemeStatusChangeDialogProps> =
 
   if (!isOpen || !scheme) return null;
 
-  const getDaysTillExpiry = (endDate: string) => {
+  const currentPeriod = scheme.current_period;
+
+  const getDaysTillExpiry = (endDate?: string | null) => {
+    if (!endDate) return Infinity;
     const today = new Date();
     const expiry = new Date(endDate);
     const diffTime = expiry.getTime() - today.getTime();
@@ -34,7 +37,7 @@ export const SchemeStatusChangeDialog: React.FC<SchemeStatusChangeDialogProps> =
   };
 
   const getActionDetails = () => {
-    const daysLeft = getDaysTillExpiry(scheme.end_date);
+    const daysLeft = getDaysTillExpiry(currentPeriod?.end_date);
     const isExpired = daysLeft < 0;
     const isExpiringSoon = daysLeft <= 30 && daysLeft >= 0;
 
@@ -48,8 +51,11 @@ export const SchemeStatusChangeDialog: React.FC<SchemeStatusChangeDialogProps> =
           buttonText: 'Activate',
           buttonStyle: 'bg-green-600 hover:bg-green-700',
           requiresReason: false,
-          warning: isExpired ? 'Warning: This scheme has already expired.' : 
-                   isExpiringSoon ? `Warning: This scheme expires in ${daysLeft} days.` : null
+          warning: isExpired
+            ? 'Warning: This scheme has already expired.'
+            : isExpiringSoon
+            ? `Warning: This scheme expires in ${daysLeft} days.`
+            : null
         };
       case 'deactivate':
         return {
@@ -71,8 +77,11 @@ export const SchemeStatusChangeDialog: React.FC<SchemeStatusChangeDialogProps> =
           buttonText: 'Suspend',
           buttonStyle: 'bg-amber-600 hover:bg-amber-700',
           requiresReason: true,
-          warning: isExpired ? 'Warning: This scheme has already expired.' : 
-                   isExpiringSoon ? `Warning: This scheme expires in ${daysLeft} days.` : null
+          warning: isExpired
+            ? 'Warning: This scheme has already expired.'
+            : isExpiringSoon
+            ? `Warning: This scheme expires in ${daysLeft} days.`
+            : null
         };
       case 'delete':
         return {
@@ -176,15 +185,23 @@ export const SchemeStatusChangeDialog: React.FC<SchemeStatusChangeDialogProps> =
                 </div>
                 <div>
                   <span className="text-gray-400">Coverage:</span>
-                  <span className="ml-2" style={{ color: '#d1d5db' }}>{formatCurrency(scheme.limit_amount)}</span>
+                  <span className="ml-2" style={{ color: '#d1d5db' }}>
+                    {currentPeriod
+                      ? formatCurrency(Number(currentPeriod.limit_amount))
+                      : '—'}
+                  </span>
                 </div>
                 <div>
                   <span className="text-gray-400">Start Date:</span>
-                  <span className="ml-2" style={{ color: '#d1d5db' }}>{formatDate(scheme.start_date)}</span>
+                  <span className="ml-2" style={{ color: '#d1d5db' }}>
+                    {currentPeriod ? formatDate(currentPeriod.start_date) : '—'}
+                  </span>
                 </div>
                 <div>
                   <span className="text-gray-400">End Date:</span>
-                  <span className="ml-2" style={{ color: '#d1d5db' }}>{formatDate(scheme.end_date)}</span>
+                  <span className="ml-2" style={{ color: '#d1d5db' }}>
+                    {currentPeriod ? formatDate(currentPeriod.end_date) : '—'}
+                  </span>
                 </div>
               </div>
             </div>

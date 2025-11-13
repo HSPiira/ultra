@@ -33,9 +33,9 @@ class SchemeItemViewSet(ThrottleAwareCacheMixin, viewsets.ModelViewSet):
         filters.SearchFilter,
         filters.OrderingFilter,
     ]
-    filterset_fields = ["status", "scheme", "content_type"]
-    search_fields = ["scheme__scheme_name", "item__plan_name", "item__benefit_name"]
-    ordering_fields = ["created_at", "updated_at", "scheme__scheme_name"]
+    filterset_fields = ["status", "scheme_period", "content_type"]
+    search_fields = ["scheme_period__scheme__scheme_name", "item__plan_name", "item__benefit_name"]
+    ordering_fields = ["created_at", "updated_at", "scheme_period__scheme__scheme_name"]
 
     def get_queryset(self):
         """
@@ -49,7 +49,7 @@ class SchemeItemViewSet(ThrottleAwareCacheMixin, viewsets.ModelViewSet):
         query = self.request.query_params.get("search", "").strip()
         filters_dict = {
             "status": self.request.query_params.get("status"),
-            "scheme": self.request.query_params.get("scheme"),
+            "scheme_period": self.request.query_params.get("scheme_period"),
             "content_type": self.request.query_params.get("content_type"),
             "query": query,
         }
